@@ -1,0 +1,12 @@
+monitoring.json
+/.gradle/
+/build/
+
+# IDE (optional)
+.idea/
+*.iml
+
+# OS generated files
+Thumbs.db
+ehthumbs.db
+Desktop.ini
