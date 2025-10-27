@@ -29,7 +29,7 @@ public class GamePanel extends JPanel {
 
     // 일시정지/속도
     private boolean paused = false;
-    private int baseDelay;         // 난이도별 시작 속도
+    private final int baseDelay;         // 난이도별 시작 속도
     private int currentDelay;      // 현재 타이머 딜레이(ms)
     private int minDelay = 150;    // 너무 빨라지지 않도록 하한
     private int stepPerLine = 50;  // 줄 1개 삭제 시 50ms 가속
@@ -61,11 +61,13 @@ public class GamePanel extends JPanel {
                 if (board.isGameOver() || paused) return;
 
                 // 기본 조작키
-                if (code == KeyEvent.VK_LEFT)   board.moveLeft();
-                if (code == KeyEvent.VK_RIGHT)  board.moveRight();
-                if (code == KeyEvent.VK_DOWN)   board.moveDown();
-                if (code == KeyEvent.VK_UP)     board.rotate();
-                if (code == KeyEvent.VK_SPACE)  board.hardDrop();
+                switch (code) {
+                    case KeyEvent.VK_LEFT  -> board.moveLeft();
+                    case KeyEvent.VK_RIGHT -> board.moveRight();
+                    case KeyEvent.VK_DOWN  -> board.moveDown();
+                    case KeyEvent.VK_UP    -> board.rotate();
+                    case KeyEvent.VK_SPACE -> board.hardDrop();
+                }
 
                 // 속도 반영(줄 삭제 누적에 따라)
                 updateSpeedByClears();
@@ -119,20 +121,26 @@ public class GamePanel extends JPanel {
                     JOptionPane.INFORMATION_MESSAGE,
                     null, options, options[0]
             );
-            if (sel == 0) {             // 재개
-                paused = false;
-            } else if (sel == 1) {      // 재시작
-                board.reset();
-                paused = false;
-                // 속도도 초기화
-                currentDelay = baseDelay;
-                timer.setDelay(currentDelay);
-                timer.setInitialDelay(currentDelay);
-            } else if (sel == 2) {      // 메인 메뉴로 (없으면 게임만 종료)
-                closeGameOnly();
-            } else if (sel == 3) {      // 프로그램 종료
-                System.exit(0);
-            } // 닫기/취소 → 일시정지 유지
+            switch (sel) {
+                case 0 -> { // 재개
+                    paused = false;
+                }
+                case 1 -> { // 재시작
+                    board.reset();
+                    paused = false;
+                    currentDelay = baseDelay;
+                    timer.setDelay(currentDelay);
+                    timer.setInitialDelay(currentDelay);
+                }
+                case 2 -> { // 메인 메뉴
+                    closeGameOnly();
+                }
+                case 3 -> { // 종료
+                    System.exit(0);
+                }
+                default -> { /* 닫기/취소 시 아무것도 안 함 */ }
+            }
+
         }
     }
 
