@@ -193,14 +193,25 @@ public class GamePanel extends JPanel {
     }
 
     private void drawCurrent(Graphics2D g) {
-        Tetromino cur = board.getCurrent();
+        Object cur = board.getCurrent();
         if (cur == null) return;
-        Color c = cur.getShape().getColor();
-        for (Position p : cur.getBlocks()) {
-            int px = cur.getX() + p.x;
-            int py = cur.getY() + p.y;
-            if (px >= 0 && px < Board.COLS && py >= 0 && py < Board.ROWS) {
-                fillCell(g, px, py, c);
+        if (cur instanceof Tetromino t) {
+            Color c = t.getShape().getColor();
+            for (Position p : t.getBlocks()) {
+                int px = t.getX() + p.x;
+                int py = t.getY() + p.y;
+                if (px >= 0 && px < Board.COLS && py >= 0 && py < Board.ROWS) {
+                    fillCell(g, px, py, c);
+                }
+            }
+        } else if (cur instanceof com.team.tetris.core.WeightBlock w) {
+            Color c = Color.WHITE; // WeightBlock은 흰색 등으로 표시
+            for (Position p : w.getBlocks()) {
+                int px = w.getX() + p.x;
+                int py = w.getY() + p.y;
+                if (px >= 0 && px < Board.COLS && py >= 0 && py < Board.ROWS) {
+                    fillCell(g, px, py, c);
+                }
             }
         }
     }

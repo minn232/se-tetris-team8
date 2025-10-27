@@ -12,7 +12,7 @@ public class Board {
 
     private final Difficulty difficulty;
 
-    private Tetromino current;
+    private Object current; // Tetromino 또는 WeightBlock
     private ShapeType nextShape;
 
     private boolean gameOver = false;
@@ -64,56 +64,109 @@ public class Board {
     // ===== 스폰/오버 =====
     private void spawnNewTetromino() {
         if (gameOver) return;
-        ShapeType shape = (nextShape != null) ? nextShape : pickByRoulette();
-        current = new Tetromino(shape, COLS / 2 - 2, 0);
-        nextShape = pickByRoulette();
-
-        if (!canMove(current, 0, 0)) {
+        // 10% 확률로 WeightBlock 등장 (확률은 필요에 따라 조정)
+        if (random.nextDouble() < 0.1) {
+            current = new WeightBlock(COLS / 2 - 2, 0);
+        } else {
+            ShapeType shape = (nextShape != null) ? nextShape : pickByRoulette();
+            current = new Tetromino(shape, COLS / 2 - 2, 0);
+            nextShape = pickByRoulette();
+        }
+        // Tetromino와 WeightBlock 모두 canMove 체크 필요
+        if (!canMoveCurrent(0, 0)) {
             gameOver = true;
         }
     }
 
+    // current가 Tetromino 또는 WeightBlock일 때 이동 가능 여부 체크
+    private boolean canMoveCurrent(int dx, int dy) {
+        if (current instanceof Tetromino t) {
+            return canMove(t, dx, dy);
+        } else if (current instanceof WeightBlock w) {
+            for (Position p : w.getBlocks()) {
+                int x = w.getX() + p.x + dx;
+                int y = w.getY() + p.y + dy;
+                if (x < 0 || x >= COLS || y < 0 || y >= ROWS) return false;
+                if (grid[y][x] != null) return false;
+            }
+            return true;
+        }
+        return false;
+    }
+
     // ===== 이동/회전 =====
-    public void moveLeft()  { if (!gameOver && canMove(current, -1, 0)) current.move(-1, 0); }
-    public void moveRight() { if (!gameOver && canMove(current,  1, 0)) current.move( 1, 0); }
+    public void moveLeft() {
+        if (gameOver) return;
+        if (current instanceof Tetromino t) {
+            if (canMove(t, -1, 0)) t.move(-1, 0);
+        } else if (current instanceof WeightBlock w) {
+            w.moveLeft(this);
+        }
+    }
+
+    public void moveRight() {
+        if (gameOver) return;
+        if (current instanceof Tetromino t) {
+            if (canMove(t, 1, 0)) t.move(1, 0);
+        } else if (current instanceof WeightBlock w) {
+            w.moveRight(this);
+        }
+    }
 
     /** 한 칸 하강 (자동/수동 동일) */
     public boolean moveDown() {
         if (gameOver) return false;
-
-        if (canMove(current, 0, 1)) {
-            current.move(0, 1);
-            addBaseScore(10);     // 한 칸 떨어질 때마다 +10 (난이도 무관)
-            return true;
-        } else {
-            // 고정 → 라인 삭제 → 점수/가속 반영 → 다음 스폰
-            fixToBoard();
-            int lines = clearFullLines();
-            if (lines > 0) {
-                addBonusScore(1000 * lines); // n줄 동시 삭제 시 1000*n, 난이도 배율 적용
-                totalLinesCleared += lines;   // 누적 카운트 (속도 가속용)
+        boolean moved = false;
+        if (current instanceof Tetromino t) {
+            if (canMove(t, 0, 1)) {
+                t.move(0, 1);
+                addBaseScore(10);
+                moved = true;
+            } else {
+                fixToBoard();
+                int lines = clearFullLines();
+                if (lines > 0) {
+                    addBonusScore(1000 * lines);
+                    totalLinesCleared += lines;
+                }
+                spawnNewTetromino();
             }
-            spawnNewTetromino();
-            return false;
+        } else if (current instanceof WeightBlock w) {
+            boolean reachedBottom = w.moveDown(this);
+            if (reachedBottom) {
+                // WeightBlock이 바닥에 도달하면 고정하지 않고 바로 새 블록 스폰
+                spawnNewTetromino();
+            }
+            moved = !reachedBottom;
         }
+        return moved;
     }
 
     /** 즉시 낙하 */
     public void hardDrop() {
         if (gameOver) return;
         int dropDist = 0;
-        while (canMove(current, 0, 1)) {
-            current.move(0, 1);
-            dropDist++;
+        if (current instanceof Tetromino t) {
+            while (canMove(t, 0, 1)) {
+                t.move(0, 1);
+                dropDist++;
+            }
+            addBaseScore(dropDist * 10);
+            moveDown();
+        } else if (current instanceof WeightBlock) {
+            // WeightBlock은 hardDrop 시 일반 moveDown과 동일하게 한 칸씩
+            moveDown();
         }
-        addBaseScore(dropDist * 10); // 떨어진 칸 수 × 10 (난이도 배율 미적용)
-        moveDown();                  // 고정/클리어/스폰 처리
     }
 
     public void rotate() {
         if (gameOver) return;
-        Tetromino r = current.getRotatedCopy();
-        if (canMove(r, 0, 0)) current.rotate();
+        if (current instanceof Tetromino t) {
+            Tetromino r = t.getRotatedCopy();
+            if (canMove(r, 0, 0)) t.rotate();
+        } else if (current instanceof WeightBlock w) {
+            w.rotate();
+        }
     }
 
     // ===== 점수 =====
@@ -137,11 +190,21 @@ public class Board {
     }
 
     private void fixToBoard() {
-        for (Position p : current.getBlocks()) {
-            int x = current.getX() + p.x;
-            int y = current.getY() + p.y;
-            if (x >= 0 && x < COLS && y >= 0 && y < ROWS) {
-                grid[y][x] = current.getShape();
+        if (current instanceof Tetromino t) {
+            for (Position p : t.getBlocks()) {
+                int x = t.getX() + p.x;
+                int y = t.getY() + p.y;
+                if (x >= 0 && x < COLS && y >= 0 && y < ROWS) {
+                    grid[y][x] = t.getShape();
+                }
+            }
+        } else if (current instanceof WeightBlock w) {
+            for (Position p : w.getBlocks()) {
+                int x = w.getX() + p.x;
+                int y = w.getY() + p.y;
+                if (x >= 0 && x < COLS && y >= 0 && y < ROWS) {
+                    grid[y][x] = null; // WeightBlock은 고정 시 색상 없음(또는 별도 처리)
+                }
             }
         }
     }
@@ -175,7 +238,7 @@ public class Board {
     public int getTotalLinesCleared()    { return totalLinesCleared; }
     public Difficulty getDifficulty()    { return difficulty; }
     public ShapeType[][] getGrid()       { return grid; }
-    public Tetromino getCurrent()        { return current; }
+    public Object getCurrent()        { return current; }
     public ShapeType getNextShape()      { return nextShape; }
 
     // 리셋(재시작용)
