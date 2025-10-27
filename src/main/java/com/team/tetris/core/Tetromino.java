@@ -1,35 +1,34 @@
 package com.team.tetris.core;
 
-import java.util.List;
-
 public class Tetromino {
-    public final ShapeType type;
-    public int rot;      // 0~3
-    public int x, y;     // 원점(열, 행). 보드 기준
+    private final ShapeType shape;
+    private int x, y;
+    private int rot; // 0~3
+    private Position[] blocks; // 현재 회전에 따른 상대 좌표 4개
 
-    public Tetromino(ShapeType type, int x, int y) {
-        this.type = type;
-        this.x = x;
-        this.y = y;
+    public Tetromino(ShapeType shape, int x, int y) {
+        this.shape = shape;
+        this.x = x; this.y = y;
         this.rot = 0;
+        this.blocks = shape.getOffsets(rot);
     }
 
-    public List<Position> cells() {
-        return type.cells(rot, x, y);
+    public void move(int dx, int dy) { this.x += dx; this.y += dy; }
+
+    public Tetromino getRotatedCopy() {
+        Tetromino c = new Tetromino(shape, x, y);
+        c.rot = (this.rot + 1) & 3;
+        c.blocks = shape.getOffsets(c.rot);
+        return c;
     }
 
-    public List<Position> cellsIf(int rotDelta, int dx, int dy) {
-        int newRot = rot + rotDelta;
-        return type.cells(newRot, x + dx, y + dy);
+    public void rotate() {
+        this.rot = (this.rot + 1) & 3;
+        this.blocks = shape.getOffsets(this.rot);
     }
 
-    /** 보드에 배치 가능한지(충돌/경계 검사) */
-    public boolean canPlace(Board board) {
-        return board.canPlace(cells());
-    }
-
-    /** 보드에 실제로 그리기 */
-    public void place(Board board) {
-        board.place(cells(), type.ch);
-    }
+    public Position[] getBlocks() { return blocks; }
+    public int getX() { return x; }
+    public int getY() { return y; }
+    public ShapeType getShape() { return shape; }
 }

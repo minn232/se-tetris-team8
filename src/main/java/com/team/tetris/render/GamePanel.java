@@ -1,143 +1,298 @@
 package com.team.tetris.render;
 
-import java.awt.BasicStroke;
 import java.awt.Color;
 import java.awt.Dimension;
+import java.awt.Font;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
-import java.awt.RenderingHints;
-import java.awt.Stroke;
+import java.awt.event.KeyAdapter;
+import java.awt.event.KeyEvent;
 
+import javax.swing.JOptionPane;
 import javax.swing.JPanel;
+import javax.swing.SwingUtilities;
+import javax.swing.Timer;
 
 import com.team.tetris.core.Board;
+import com.team.tetris.core.Position;
+import com.team.tetris.core.ShapeType;
+import com.team.tetris.core.Tetromino;
 
 public class GamePanel extends JPanel {
     private final Board board;
+    private final Timer timer;
 
-    // ===== 렌더 옵션 =====
-    private static final int CELL = 26;    // 셀 한 변 픽셀
-    private static final int PAD  = 12;    // 보드 바깥 패딩
+    private static final int CELL = 30;
+    private static final int BOARD_W = Board.COLS * CELL;
+    private static final int BOARD_H = Board.ROWS * CELL;
+    private static final int SIDE_W  = 200;
 
-    // 블록 렌더링 모드
-    private static final boolean DRAW_RING = true;  // true: 링(테두리), false: 꽉 찬 원
-    private static final int RING_WIDTH = 6;        // 링 두께(px)
-    private static final int MARGIN = 3;            // 셀 내부 여백
-
-    // 글로우(부드러운 외곽, 0으로 끄기)
-    private static final int GLOW_STEPS = 2;        // 단계 수(0이면 없음)
-    private static final int GLOW_EXTRA = 3;        // 단계당 두께 증가량
-    private static final int GLOW_ALPHA = 70;       // 0~255
-
-    // === 테두리 X 표시 옵션 ===
-    private static final boolean DRAW_BORDER_X = true;
-    private static final Color BORDER_X_COLOR = Color.WHITE;
-    private static final float BORDER_X_STROKE = 3f; // 기본 그리기 스트로크
-    private static final float BORDER_X_LINE_STROKE = 5f; // drawXShape 내부 교차선 굵기
-    private static final int BORDER_X_MARGIN = 4;   // X 모양 셀 내부 여백
+    // 일시정지/속도
+    private boolean paused = false;
+    private int baseDelay;         // 난이도별 시작 속도
+    private int currentDelay;      // 현재 타이머 딜레이(ms)
+    private int minDelay = 150;    // 너무 빨라지지 않도록 하한
+    private int stepPerLine = 50;  // 줄 1개 삭제 시 50ms 가속
 
     public GamePanel(Board board) {
         this.board = board;
-        int w = PAD * 2 + CELL * (Board.COLS + 2); // 좌우 X 포함
-        int h = PAD * 2 + CELL * (Board.ROWS + 2); // 상하 X 포함
-        setPreferredSize(new Dimension(w, h));
-        setBackground(new Color(30, 30, 30));
-    }
 
-    // 블록 타입별 색상
-    private Color colorOf(char ch) {
-        return switch (ch) {
-            case 'I' -> new Color(0, 255, 255);   // 시안
-            case 'O' -> new Color(255, 255, 0);   // 노랑
-            case 'T' -> new Color(160, 0, 240);   // 보라
-            case 'L' -> new Color(255, 160, 0);   // 주황
-            case 'J' -> new Color(0, 80, 255);    // 파랑
-            case 'S' -> new Color(0, 200, 0);     // 초록
-            case 'Z' -> new Color(220, 0, 0);     // 빨강
-            default  -> Color.WHITE;              // 기타
+        setPreferredSize(new Dimension(BOARD_W + SIDE_W, BOARD_H));
+        setBackground(Color.BLACK);
+        setFocusable(true);
+
+        addKeyListener(new KeyAdapter() {
+            @Override public void keyPressed(KeyEvent e) {
+                int code = e.getKeyCode();
+
+                // P: 일시정지 / 재개 + 메뉴
+                if (code == KeyEvent.VK_P) {
+                    togglePauseAndMenu();
+                    repaint();
+                    return;
+                }
+
+                // 진행 중 ESC: 강제 종료 옵션
+                if (!paused && !board.isGameOver() && code == KeyEvent.VK_ESCAPE) {
+                    onForceQuit();
+                    return;
+                }
+
+                if (board.isGameOver() || paused) return;
+
+                // 기본 조작키
+                if (code == KeyEvent.VK_LEFT)   board.moveLeft();
+                if (code == KeyEvent.VK_RIGHT)  board.moveRight();
+                if (code == KeyEvent.VK_DOWN)   board.moveDown();
+                if (code == KeyEvent.VK_UP)     board.rotate();
+                if (code == KeyEvent.VK_SPACE)  board.hardDrop();
+
+                // 속도 반영(줄 삭제 누적에 따라)
+                updateSpeedByClears();
+                repaint();
+            }
+        });
+
+        // 난이도별 시작 속도
+        baseDelay = switch (board.getDifficulty()) {
+            case EASY   -> 1000;
+            case NORMAL -> 800;
+            case HARD   -> 600;
         };
+        currentDelay = baseDelay;
+
+        timer = new Timer(currentDelay, e -> {
+            if (!board.isGameOver() && !paused) {
+                board.moveDown();
+                updateSpeedByClears(); // 자동 낙하 후에도 갱신
+                repaint();
+            } else {
+                if (board.isGameOver()) ((Timer) e.getSource()).stop(); // 게임오버 시 완전 정지
+                repaint();
+            }
+        });
+        timer.setInitialDelay(currentDelay);
+        timer.start();
     }
 
-    @Override
-    protected void paintComponent(Graphics g0) {
-        super.paintComponent(g0);
-        Graphics2D g = (Graphics2D) g0;
-
-        // 안티앨리어싱
-        g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-
-        final int ox = PAD;
-        final int oy = PAD;
-
-        // 전체 배경(보더 포함 영역)
-        g.setColor(Color.BLACK);
-        g.fillRect(ox, oy, CELL * (Board.COLS + 2), CELL * (Board.ROWS + 2));
-
-        // ── 1) 테두리 X 그리기 (보드 바깥 테두리 1셀 영역) ──
-        if (DRAW_BORDER_X) {
-            g.setColor(BORDER_X_COLOR);
-            g.setStroke(new BasicStroke(BORDER_X_STROKE));
-
-            for (int r = 0; r < Board.ROWS + 2; r++) {
-                for (int c = 0; c < Board.COLS + 2; c++) {
-                    boolean isBorder = (r == 0 || r == Board.ROWS + 1 || c == 0 || c == Board.COLS + 1);
-                    if (!isBorder) continue;
-
-                    int x = ox + c * CELL;
-                    int y = oy + r * CELL;
-                    drawXShape(g, x, y, CELL, BORDER_X_MARGIN);
-                }
-            }
-        }
-
-        // ── 2) 내부 보드(10x20) 원형 렌더 ──
-        for (int r = 0; r < Board.ROWS; r++) {
-            for (int c = 0; c < Board.COLS; c++) {
-                char ch = board.getCell(r, c);
-                if (ch == ' ') continue;
-
-                // 셀 기준 위치 (테두리 1셀 오프셋)
-                int cellX = ox + (c + 1) * CELL;
-                int cellY = oy + (r + 1) * CELL;
-
-                // 원 위치/크기
-                int d = CELL - MARGIN * 2; // 지름
-                int x = cellX + MARGIN;
-                int y = cellY + MARGIN;
-
-                Color base = colorOf(ch);
-
-                // 글로우(외곽선 확장 + 반투명)
-                if (GLOW_STEPS > 0) {
-                    for (int i = GLOW_STEPS; i >= 1; i--) {
-                        int w = RING_WIDTH + i * GLOW_EXTRA;
-                        g.setStroke(new BasicStroke(w, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
-                        g.setColor(new Color(base.getRed(), base.getGreen(), base.getBlue(), GLOW_ALPHA));
-                        g.drawOval(x, y, d, d);
-                    }
-                }
-
-                // 메인 도형
-                g.setColor(base);
-                if (DRAW_RING) {
-                    g.setStroke(new BasicStroke(RING_WIDTH, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
-                    g.drawOval(x, y, d, d);
-                } else {
-                    g.fillOval(x, y, d, d);
-                }
-            }
+    // ==== 속도 가속 (줄 삭제 누적 기반) ====
+    private void updateSpeedByClears() {
+        int cleared = board.getTotalLinesCleared();
+        int target = Math.max(minDelay, baseDelay - stepPerLine * cleared);
+        if (target != currentDelay) {
+            currentDelay = target;
+            timer.setDelay(currentDelay);
+            timer.setInitialDelay(currentDelay);
         }
     }
 
-    /** 이전 코드의 X 모양 그리기 로직을 헬퍼로 이식 */
-    private void drawXShape(Graphics2D g, int x, int y, int size, int margin) {
-        int x1 = x + margin, y1 = y + margin;
-        int x2 = x + size - margin, y2 = y + size - margin;
+    // ==== 일시정지/메뉴 ====
+    private void togglePauseAndMenu() {
+        paused = !paused;
+        if (paused) {
+            Object[] options = {"게임 재개", "게임 재시작", "메인 메뉴", "프로그램 종료"};
+            int sel = JOptionPane.showOptionDialog(
+                    SwingUtilities.getWindowAncestor(this),
+                    "일시정지",
+                    "Pause",
+                    JOptionPane.DEFAULT_OPTION,
+                    JOptionPane.INFORMATION_MESSAGE,
+                    null, options, options[0]
+            );
+            if (sel == 0) {             // 재개
+                paused = false;
+            } else if (sel == 1) {      // 재시작
+                board.reset();
+                paused = false;
+                // 속도도 초기화
+                currentDelay = baseDelay;
+                timer.setDelay(currentDelay);
+                timer.setInitialDelay(currentDelay);
+            } else if (sel == 2) {      // 메인 메뉴로 (없으면 게임만 종료)
+                closeGameOnly();
+            } else if (sel == 3) {      // 프로그램 종료
+                System.exit(0);
+            } // 닫기/취소 → 일시정지 유지
+        }
+    }
 
-        Stroke old = g.getStroke();
-        g.setStroke(new BasicStroke(BORDER_X_LINE_STROKE)); // 교차선 굵기
-        g.drawLine(x1, y1, x2, y2);
-        g.drawLine(x2, y1, x1, y2);
-        g.setStroke(old);
+    private void onForceQuit() {
+        Object[] options = {"게임만 종료", "프로그램 종료", "취소"};
+        int sel = JOptionPane.showOptionDialog(
+                SwingUtilities.getWindowAncestor(this),
+                "강제 종료할까요?",
+                "Quit",
+                JOptionPane.DEFAULT_OPTION,
+                JOptionPane.WARNING_MESSAGE,
+                null, options, options[0]
+        );
+        if (sel == 0) {
+            closeGameOnly();
+        } else if (sel == 1) {
+            System.exit(0);
+        }
+    }
+
+    private void closeGameOnly() {
+        java.awt.Window w = SwingUtilities.getWindowAncestor(this);
+        if (w != null) w.dispose();
+    }
+
+    // ==== 렌더링 ====
+    @Override protected void paintComponent(Graphics g) {
+        super.paintComponent(g);
+        Graphics2D g2 = (Graphics2D) g.create();
+
+        drawBoard(g2);
+        drawCurrent(g2);
+        drawGrid(g2);
+        drawSidebar(g2);
+
+        if (board.isGameOver()) drawGameOver(g2);
+        if (paused)            drawPaused(g2);
+
+        g2.dispose();
+    }
+
+    private void drawBoard(Graphics2D g) {
+        ShapeType[][] grid = board.getGrid();
+        for (int y = 0; y < Board.ROWS; y++) {
+            for (int x = 0; x < Board.COLS; x++) {
+                ShapeType s = grid[y][x];
+                if (s != null) fillCell(g, x, y, s.getColor());
+            }
+        }
+    }
+
+    private void drawCurrent(Graphics2D g) {
+        Tetromino cur = board.getCurrent();
+        if (cur == null) return;
+        Color c = cur.getShape().getColor();
+        for (Position p : cur.getBlocks()) {
+            int px = cur.getX() + p.x;
+            int py = cur.getY() + p.y;
+            if (px >= 0 && px < Board.COLS && py >= 0 && py < Board.ROWS) {
+                fillCell(g, px, py, c);
+            }
+        }
+    }
+
+    private void drawGrid(Graphics2D g) {
+        g.setColor(new Color(40, 40, 40));
+        for (int x = 0; x <= Board.COLS; x++)
+            g.drawLine(x * CELL, 0, x * CELL, BOARD_H);
+        for (int y = 0; y <= Board.ROWS; y++)
+            g.drawLine(0, y * CELL, BOARD_W, y * CELL);
+    }
+
+    private void drawSidebar(Graphics2D g) {
+        int sx = BOARD_W;
+        g.setColor(new Color(20, 20, 20));
+        g.fillRect(sx, 0, SIDE_W, BOARD_H);
+
+        g.setColor(Color.WHITE);
+
+        // SCORE
+        g.setFont(g.getFont().deriveFont(Font.BOLD, 18f));
+        g.drawString("SCORE", sx + 20, 40);
+        g.setFont(g.getFont().deriveFont(Font.PLAIN, 18f));
+        g.drawString(String.valueOf(board.getScore()), sx + 20, 68);
+
+        // DIFFICULTY
+        g.setFont(g.getFont().deriveFont(Font.BOLD, 18f));
+        g.drawString("DIFFICULTY", sx + 20, 110);
+        g.setFont(g.getFont().deriveFont(Font.PLAIN, 16f));
+        String diff = board.getDifficulty().name().toLowerCase();
+        diff = Character.toUpperCase(diff.charAt(0)) + diff.substring(1);
+        g.drawString(diff, sx + 20, 134);
+
+        // LEVEL (= 누적 삭제 줄 수)
+        g.setFont(g.getFont().deriveFont(Font.BOLD, 18f));
+        g.drawString("LEVEL", sx + 20, 170);
+        g.setFont(g.getFont().deriveFont(Font.PLAIN, 16f));
+        g.drawString(String.valueOf(board.getTotalLinesCleared()), sx + 20, 194);
+
+        // SPEED (현재 ms)
+        g.setFont(g.getFont().deriveFont(Font.BOLD, 18f));
+        g.drawString("SPEED", sx + 20, 230);
+        g.setFont(g.getFont().deriveFont(Font.PLAIN, 16f));
+        g.drawString(currentDelay + " ms", sx + 20, 254);
+
+        // NEXT
+        g.setFont(g.getFont().deriveFont(Font.BOLD, 18f));
+        g.drawString("NEXT", sx + 20, 290);
+        drawNextPreview(g, sx + 20, 310);
+    }
+
+    private void drawNextPreview(Graphics2D g, int px, int py) {
+        ShapeType n = board.getNextShape();
+        if (n == null) return;
+        g.setColor(new Color(60, 60, 60));
+        g.fillRoundRect(px - 10, py - 10, 150, 150, 12, 12);
+
+        Position[] offs = n.getOffsets(0);
+        int minx = 99, miny = 99, maxx = -99, maxy = -99;
+        for (Position p : offs) {
+            minx = Math.min(minx, p.x); maxx = Math.max(maxx, p.x);
+            miny = Math.min(miny, p.y); maxy = Math.max(maxy, p.y);
+        }
+        int cell = CELL / 2;
+        int w = (maxx - minx + 1) * cell;
+        int h = (maxy - miny + 1) * cell;
+        int cx = px + (150 - w) / 2;
+        int cy = py + (150 - h) / 2;
+
+        for (Position p : offs) {
+            int cxp = cx + (p.x - minx) * cell;
+            int cyp = cy + (p.y - miny) * cell;
+            g.setColor(n.getColor());
+            g.fillRect(cxp, cyp, cell, cell);
+            g.setColor(n.getColor().darker());
+            g.drawRect(cxp, cyp, cell, cell);
+        }
+    }
+
+    private void drawGameOver(Graphics2D g) {
+        g.setColor(new Color(0, 0, 0, 160));
+        g.fillRect(0, 0, BOARD_W + SIDE_W, BOARD_H);
+        g.setColor(Color.WHITE);
+        g.setFont(g.getFont().deriveFont(Font.BOLD, 36f));
+        g.drawString("GAME OVER", 40, BOARD_H / 2 - 10);
+    }
+
+    private void drawPaused(Graphics2D g) {
+        g.setColor(new Color(0, 0, 0, 140));
+        g.fillRect(0, 0, BOARD_W + SIDE_W, BOARD_H);
+        g.setColor(Color.WHITE);
+        g.setFont(g.getFont().deriveFont(Font.BOLD, 30f));
+        g.drawString("PAUSED (P)", 50, BOARD_H / 2 - 10);
+    }
+
+    private void fillCell(Graphics2D g, int x, int y, Color color) {
+        int px = x * CELL, py = y * CELL;
+        g.setColor(color);
+        g.fillRect(px, py, CELL, CELL);
+        g.setColor(color.darker());
+        g.drawRect(px, py, CELL, CELL);
     }
 }
