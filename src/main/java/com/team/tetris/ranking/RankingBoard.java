@@ -1,55 +1,70 @@
-/*
-    랭킹보드 창을 구현한 클래스.
-    RankingEntry 클래스를 가져와 랭킹 list를 받는다.
-    그 후 랭킹 list에서 이름/점수/시간을 차례로 받아온 후,
-    시간은 포맷을 지정하여 일정한 형식으로 랭킹보드에 출력한다.
-    추가로 패널을 넘어가게 기록될 경우 스크롤을 이용하도록 하였다.
- */
-
-
-
-
-
 package com.team.tetris.ranking;
 
 import java.awt.BorderLayout;
+import java.awt.Component;
+import java.awt.Font;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 
+import javax.swing.BorderFactory;
 import javax.swing.Box;
 import javax.swing.BoxLayout;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
+import javax.swing.JTabbedPane;
 
-//랭킹보드 창을 구현한 클래스
 public class RankingBoard extends JFrame {
-    //랭킹보드에 입력될 시간의 포맷
     private static final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
+    private JTabbedPane tabbedPane;
 
-    //랭킹보드 생성자
     public RankingBoard() {
-        //UI 초기화 메소드
         initializeUI();
     }
 
-    //랭킹보드 UI
     private void initializeUI() {
-        //랭킹보드 창 설정
         setTitle("랭킹 보드");
-        setSize(400, 500);
+        setSize(500, 600);
         setLocationRelativeTo(null);
         setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
 
-        //메인 패널과 랭킹 패널 설정.
-        JPanel mainPanel = new JPanel(new BorderLayout());
-        JPanel rankingPanel = new JPanel();
-        rankingPanel.setLayout(new BoxLayout(rankingPanel, BoxLayout.Y_AXIS));
+        tabbedPane = new JTabbedPane();
+        
+        // 일반 모드 랭킹 패널
+        JPanel normalModePanel = createRankingPanel(
+            RankingManager.getInstance().getRankings(),
+            "일반 모드 랭킹"
+        );
+        
+        // 아이템 모드 랭킹 패널
+        JPanel itemModePanel = createRankingPanel(
+            RankingManager.getInstance("item_rankings.dat").getRankings(),
+            "아이템 모드 랭킹"
+        );
 
-        //랭킹 목록을 가져옴
-        List<RankingEntry> rankings = RankingManager.getInstance().getRankings();
-        //가져온 랭킹목록을 랭킹 패널에 추가
+        tabbedPane.addTab("일반 모드", normalModePanel);
+        tabbedPane.addTab("아이템 모드", itemModePanel);
+
+        add(tabbedPane);
+    }
+
+    private JPanel createRankingPanel(List<RankingEntry> rankings, String title) {
+        JPanel mainPanel = new JPanel();  // 메인 패널 (반환될 패널)
+        mainPanel.setLayout(new BorderLayout());
+        
+        JPanel contentPanel = new JPanel();  // 내용을 담을 패널
+        contentPanel.setLayout(new BoxLayout(contentPanel, BoxLayout.Y_AXIS));
+        contentPanel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
+
+        // 제목 추가
+        JLabel titleLabel = new JLabel(title);
+        titleLabel.setFont(new Font("Arial", Font.BOLD, 24));
+        titleLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
+        contentPanel.add(titleLabel);
+        contentPanel.add(Box.createVerticalStrut(20));
+
+        // 랭킹 목록 추가
         for (int i = 0; i < rankings.size(); i++) {
             RankingEntry entry = rankings.get(i);
             JLabel rankLabel = new JLabel(String.format("%d. %s - %d점 (%s)",
@@ -58,13 +73,17 @@ public class RankingBoard extends JFrame {
                 entry.getScore(),
                 entry.getTimestamp().format(formatter)
             ));
-            rankingPanel.add(rankLabel);
-            rankingPanel.add(Box.createVerticalStrut(5));
+            rankLabel.setFont(new Font("Arial", Font.PLAIN, 16));
+            rankLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
+            contentPanel.add(rankLabel);
+            contentPanel.add(Box.createVerticalStrut(10));
         }
 
-        //랭킹 패널을 스크롤로 읽을 수 있도록.
-        JScrollPane scrollPane = new JScrollPane(rankingPanel);
+        // 스크롤 패널에 contentPanel을 추가하고, 메인 패널의 중앙에 배치
+        JScrollPane scrollPane = new JScrollPane(contentPanel);
+        scrollPane.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED);
         mainPanel.add(scrollPane, BorderLayout.CENTER);
-        add(mainPanel);
+        
+        return mainPanel;
     }
 }

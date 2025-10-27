@@ -25,31 +25,40 @@ import javax.swing.JOptionPane;
 
 //랭킹 데이터 관리 클래스
 public class RankingManager {
-    private static RankingManager instance; //랭킹에 정보가 처음 불러와질 때 사용할 인스턴스
-    private List<RankingEntry> rankings;    //rankingEntry 리스트를 담을 변수 선언
-    private static final int MAX_RANKINGS = 10; //랭킹에 저장되는 개수
-    private static final String SAVE_FILE = "tetris_rankings.dat";  //파일이름
+    private static RankingManager normalInstance;
+    private static RankingManager itemInstance;
+    private ArrayList<RankingEntry> rankings;
+    private static final int MAX_RANKINGS = 10;
+    private String saveFile;
 
-    //생성자를 private로 선언하여 무분별한 사용을 막음. (파일생성, 불러오기 등)
-    //생성자를 호출할 때 (첫 호출), 파일에서 랭킹 데이터를 불러옴.
-    private RankingManager() {
+    private RankingManager(String saveFile) {
+        this.saveFile = saveFile;
         rankings = loadRankings();
     }
 
-    //첫번째 호출 시에만 인스턴스를 생성.
-    public static RankingManager getInstance() {
-        if (instance == null) {
-            instance = new RankingManager();
+    public static RankingManager getInstance(String saveFile) {
+        if ("item_rankings.dat".equals(saveFile)) {
+            if (itemInstance == null) {
+                itemInstance = new RankingManager(saveFile);
+            }
+            return itemInstance;
         }
-        //두번째부터는 무조건 여기로
-        return instance;
+        
+        if (normalInstance == null) {
+            normalInstance = new RankingManager("normal_rankings.dat");
+        }
+        return normalInstance;
+    }
+
+    public static RankingManager getInstance() {
+        return getInstance("normal_rankings.dat");
     }
 
     //파일에서 랭킹 데이터를 불러오는 메소드
     //ois.readObject()로 객체를 다 불러오고, 읽어온 객체를 list<RankingEntry>로 형 변환.
     //추가로 예외 처리도 포함.
     private ArrayList<RankingEntry> loadRankings() {
-        try (ObjectInputStream ois = new ObjectInputStream(new FileInputStream(SAVE_FILE))) {
+        try (ObjectInputStream ois = new ObjectInputStream(new FileInputStream(saveFile))) {
             return (ArrayList<RankingEntry>) ois.readObject();
         } catch (FileNotFoundException e) {
             return new ArrayList<>();
@@ -68,7 +77,7 @@ public class RankingManager {
     //oos.writeObject(rankings)로 리스트 전체를 저장.
     //추가로 예외처리 포함.
     private void saveRankings() {
-        try (ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream(SAVE_FILE))) {
+        try (ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream(saveFile))) {
             oos.writeObject(new ArrayList<>(rankings));
         } catch (IOException e) {
             JOptionPane.showMessageDialog(
