@@ -1,5 +1,6 @@
 monitoring.json
 /.gradle/
+/.vscode/
 /build/
 
 # IDE (optional)
