@@ -35,6 +35,10 @@ public class GamePanel extends JPanel {
     private int currentDelay;      // 현재 타이머 딜레이(ms)
     private int minDelay = 150;    // 너무 빨라지지 않도록 하한
     private int stepPerLine = 50;  // 줄 1개 삭제 시 50ms 가속
+    
+    // 슬로우 효과 관련
+    private int normalDelay;       // 슬로우 효과가 없을 때의 정상 딜레이
+    private final Timer slowEffectTimer; // 슬로우 효과 타이머 (0.1초마다 업데이트)
 
     public GamePanel(Board board, boolean isItemMode) {
         this.board = board;
@@ -88,6 +92,7 @@ public class GamePanel extends JPanel {
 
         timer = new Timer(currentDelay, e -> {
             if (!board.isGameOver() && !paused) {
+                board.updateSlowEffect(); // 슬로우 효과 상태 업데이트
                 board.moveDown();
                 updateSpeedByClears(); // 자동 낙하 후에도 갱신
                 repaint();
@@ -101,11 +106,20 @@ public class GamePanel extends JPanel {
         });
         timer.setInitialDelay(currentDelay);
         timer.start();
+        
+        // 슬로우 효과 타이머 초기화 (100ms마다 실행)
+        this.slowEffectTimer = new Timer(100, e -> {
+            if (board.isSlowEffectActive()) {
+                repaint(); // 슬로우 효과가 활성화되어 있을 때만 다시 그리기
+            }
+        });
+        slowEffectTimer.start();
     }
 
     private void handleGameOver() {
     if (board.isGameOver()) {
         timer.stop();
+        slowEffectTimer.stop(); // 슬로우 효과 타이머도 정지
         int finalScore = board.getScore();
         
         RankingManager manager = isItemMode ? 
@@ -130,7 +144,16 @@ public class GamePanel extends JPanel {
     // ==== 속도 가속 (줄 삭제 누적 기반) ====
     private void updateSpeedByClears() {
         int cleared = board.getTotalLinesCleared();
-        int target = Math.max(minDelay, baseDelay - stepPerLine * cleared);
+        normalDelay = Math.max(minDelay, baseDelay - stepPerLine * cleared);
+        
+        // 슬로우 효과가 활성화되어 있으면 속도를 0.5배로 감소 (딜레이 2배)
+        int target;
+        if (board.isSlowEffectActive()) {
+            target = normalDelay * 2;
+        } else {
+            target = normalDelay;
+        }
+        
         if (target != currentDelay) {
             currentDelay = target;
             timer.setDelay(currentDelay);
@@ -159,16 +182,24 @@ public class GamePanel extends JPanel {
                     board.reset();
                     paused = false;
                     currentDelay = baseDelay;
+                    normalDelay = baseDelay;
                     timer.setDelay(currentDelay);
                     timer.setInitialDelay(currentDelay);
+                    if (!slowEffectTimer.isRunning()) {
+                        slowEffectTimer.start(); // 슬로우 효과 타이머 재시작
+                    }
                 }
                 case 2 -> { // 메인 메뉴
+                    timer.stop();
+                    slowEffectTimer.stop(); // 슬로우 효과 타이머 정지
                     closeGameOnly();
                     SwingUtilities.invokeLater(() -> {
                         new Mainmenu().setVisible(true);  // 메인메뉴 화면 표시
                     });
                 }
                 case 3 -> { // 종료
+                    timer.stop();
+                    slowEffectTimer.stop();
                     System.exit(0);
                 }
                 default -> { /* 닫기/취소 시 아무것도 안 함 */ }
@@ -189,6 +220,8 @@ public class GamePanel extends JPanel {
             "아니오"
         );
         if (result == 0) {  // "예" 선택
+        timer.stop();
+        slowEffectTimer.stop();
         System.exit(0);
     }
         
@@ -227,12 +260,49 @@ public class GamePanel extends JPanel {
     private void drawCurrent(Graphics2D g) {
         Tetromino cur = board.getCurrent();
         if (cur == null) return;
-        Color c = cur.getShape().getColor();
-        for (Position p : cur.getBlocks()) {
-            int px = cur.getX() + p.x;
-            int py = cur.getY() + p.y;
-            if (px >= 0 && px < Board.COLS && py >= 0 && py < Board.ROWS) {
-                fillCell(g, px, py, c);
+        
+        // 현재 아이템 블록인지 확인
+        com.team.tetris.items.ItemBlock currentItem = board.getCurrentItemBlock();
+        
+        if (currentItem != null) {
+            // 아이템 블록으로 렌더링
+            Color itemColor = currentItem.getColor();
+            Position[] blocks = cur.getBlocks();
+            
+            for (int i = 0; i < blocks.length; i++) {
+                Position p = blocks[i];
+                int px = cur.getX() + p.x;
+                int py = cur.getY() + p.y;
+                if (px >= 0 && px < Board.COLS && py >= 0 && py < Board.ROWS) {
+                    // 아이템 색상으로 셀 채우기
+                    fillCell(g, px, py, itemColor);
+                    
+                    // 아이템 심볼 표시 (각 블록마다 다른 심볼)
+                    char symbol;
+                    if (currentItem instanceof com.team.tetris.items.SlowBlock slowBlock) {
+                        symbol = slowBlock.getBlockSymbol(i);
+                    } else if (currentItem instanceof com.team.tetris.items.LineBlock lineBlock) {
+                        symbol = lineBlock.getBlockSymbol(i);
+                    } else {
+                        symbol = currentItem.getSymbol();
+                    }
+                    
+                    g.setColor(Color.WHITE);
+                    g.setFont(g.getFont().deriveFont(Font.BOLD, CELL * 0.8f));
+                    int symbolX = px * CELL + CELL / 4;
+                    int symbolY = py * CELL + CELL * 3 / 4;
+                    g.drawString(String.valueOf(symbol), symbolX, symbolY);
+                }
+            }
+        } else {
+            // 일반 블록으로 렌더링
+            Color c = cur.getShape().getColor();
+            for (Position p : cur.getBlocks()) {
+                int px = cur.getX() + p.x;
+                int py = cur.getY() + p.y;
+                if (px >= 0 && px < Board.COLS && py >= 0 && py < Board.ROWS) {
+                    fillCell(g, px, py, c);
+                }
             }
         }
     }
@@ -280,16 +350,99 @@ public class GamePanel extends JPanel {
 
         // NEXT
         g.setFont(g.getFont().deriveFont(Font.BOLD, 18f));
-        g.drawString("NEXT", sx + 20, 290);
+        String nextLabel = "NEXT";
+        if (board.getNextItemBlock() != null) {
+            nextLabel = "NEXT (ITEM)";
+        }
+        g.drawString(nextLabel, sx + 20, 290);
         drawNextPreview(g, sx + 20, 310);
+        
+        // 아이템 모드에서 아이템 정보 표시
+        if (isItemMode && board.getItemManager() != null) {
+            g.setFont(g.getFont().deriveFont(Font.BOLD, 14f));
+            g.drawString("ITEMS PROGRESS", sx + 20, 480);
+            g.setFont(g.getFont().deriveFont(Font.PLAIN, 12f));
+            int itemProgress = board.getItemManager().getTotalLinesCleared() % 2;
+            g.drawString(itemProgress + "/2 lines", sx + 20, 500);
+        }
+        
+        // 슬로우 효과 타이머 표시
+        if (board.isSlowEffectActive()) {
+            long remainingTime = board.getSlowEffectRemainingTime();
+            double seconds = remainingTime / 1000.0;
+            
+            g.setFont(g.getFont().deriveFont(Font.BOLD, 16f));
+            g.setColor(new Color(173, 216, 230)); // 슬로우 블록과 같은 색상
+            g.drawString("SLOW EFFECT", sx + 20, 540);
+            g.setFont(g.getFont().deriveFont(Font.PLAIN, 14f));
+            g.drawString(String.format("%.1f sec", seconds), sx + 20, 560);
+            g.setColor(Color.WHITE); // 색상 원복
+        }
     }
 
     private void drawNextPreview(Graphics2D g, int px, int py) {
-        ShapeType n = board.getNextShape();
-        if (n == null) return;
+        // 배경
         g.setColor(new Color(60, 60, 60));
         g.fillRoundRect(px - 10, py - 10, 150, 150, 12, 12);
 
+        // 아이템 블록이 있는지 먼저 확인
+        com.team.tetris.items.ItemBlock nextItem = board.getNextItemBlock();
+        if (nextItem != null) {
+            // 아이템 블록 표시
+            drawItemPreview(g, px, py, nextItem);
+        } else {
+            // 일반 블록 표시
+            ShapeType n = board.getNextShape();
+            if (n != null) {
+                drawShapePreview(g, px, py, n);
+            }
+        }
+    }
+
+    private void drawItemPreview(Graphics2D g, int px, int py, com.team.tetris.items.ItemBlock item) {
+        // 아이템 블록의 기본 형태를 가져옴
+        ShapeType baseShape = item.getBaseShape();
+        Position[] offs = baseShape.getOffsets(0);
+        
+        int minx = 99, miny = 99, maxx = -99, maxy = -99;
+        for (Position p : offs) {
+            minx = Math.min(minx, p.x); maxx = Math.max(maxx, p.x);
+            miny = Math.min(miny, p.y); maxy = Math.max(maxy, p.y);
+        }
+        
+        int cell = CELL / 2;
+        int w = (maxx - minx + 1) * cell;
+        int h = (maxy - miny + 1) * cell;
+        int cx = px + (150 - w) / 2;
+        int cy = py + (150 - h) / 2;
+
+        // 아이템 블록은 특별한 색상으로 표시
+        for (int i = 0; i < offs.length; i++) {
+            Position p = offs[i];
+            int cxp = cx + (p.x - minx) * cell;
+            int cyp = cy + (p.y - miny) * cell;
+            g.setColor(item.getColor());  // 아이템 전용 색상 사용
+            g.fillRect(cxp, cyp, cell, cell);
+            g.setColor(item.getColor().darker());
+            g.drawRect(cxp, cyp, cell, cell);
+            
+            // 아이템 블록임을 나타내는 심볼 표시 (SlowBlock인 경우 각 블록마다 다른 심볼)
+            char symbol;
+            if (item instanceof com.team.tetris.items.SlowBlock slowBlock) {
+                symbol = slowBlock.getBlockSymbol(i);
+            } else {
+                symbol = item.getSymbol();
+            }
+            
+            g.setColor(Color.WHITE);
+            g.setFont(g.getFont().deriveFont(Font.BOLD, cell * 0.8f));
+            int symbolX = cxp + cell / 4;
+            int symbolY = cyp + cell * 3 / 4;
+            g.drawString(String.valueOf(symbol), symbolX, symbolY);
+        }
+    }
+
+    private void drawShapePreview(Graphics2D g, int px, int py, ShapeType n) {
         Position[] offs = n.getOffsets(0);
         int minx = 99, miny = 99, maxx = -99, maxy = -99;
         for (Position p : offs) {
