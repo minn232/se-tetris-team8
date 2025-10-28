@@ -29,12 +29,16 @@ public class GamePanel extends JPanel {
     private static final int BOARD_H = Board.ROWS * CELL;
     private static final int SIDE_W  = 200;
 
-    // 일시정지/속도
     private boolean paused = false;
-    private final int baseDelay;         // 난이도별 시작 속도
-    private int currentDelay;      // 현재 타이머 딜레이(ms)
-    private int minDelay = 150;    // 너무 빨라지지 않도록 하한
-    private int stepPerLine = 50;  // 줄 1개 삭제 시 50ms 가속
+    private final int baseDelay;
+    private int currentDelay;
+    private int minDelay = 150;
+    private int stepPerLine = 50;
+
+    // === 라인 삭제 플래시 ===
+    private int[] flashingRows = null;
+    private long  flashUntil = 0L;
+    private static final int FLASH_MS = 50; // 진짜 짧게 번쩍 (0.05초)
 
     public GamePanel(Board board, boolean isItemMode) {
         this.board = board;
@@ -48,14 +52,12 @@ public class GamePanel extends JPanel {
             @Override public void keyPressed(KeyEvent e) {
                 int code = e.getKeyCode();
 
-                // P: 일시정지 / 재개 + 메뉴
                 if (code == KeyEvent.VK_P) {
                     togglePauseAndMenu();
                     repaint();
                     return;
                 }
 
-                // 진행 중 ESC: 강제 종료 옵션
                 if (!paused && !board.isGameOver() && code == KeyEvent.VK_ESCAPE) {
                     onForceQuit();
                     return;
@@ -63,7 +65,6 @@ public class GamePanel extends JPanel {
 
                 if (board.isGameOver() || paused) return;
 
-                // 기본 조작키
                 switch (code) {
                     case KeyEvent.VK_LEFT  -> board.moveLeft();
                     case KeyEvent.VK_RIGHT -> board.moveRight();
@@ -72,13 +73,12 @@ public class GamePanel extends JPanel {
                     case KeyEvent.VK_SPACE -> board.hardDrop();
                 }
 
-                // 속도 반영(줄 삭제 누적에 따라)
                 updateSpeedByClears();
                 repaint();
             }
         });
 
-        // 난이도별 시작 속도
+        // 난이도별 기본 속도
         baseDelay = switch (board.getDifficulty()) {
             case EASY   -> 1000;
             case NORMAL -> 800;
@@ -86,15 +86,49 @@ public class GamePanel extends JPanel {
         };
         currentDelay = baseDelay;
 
+        // === 메인 루프 타이머 ===
         timer = new Timer(currentDelay, e -> {
             if (!board.isGameOver() && !paused) {
+
+                // (1) 플래시 중이면 — 대기
+                if (flashingRows != null) {
+                    repaint();
+                    return;
+                }
+
+                // (2) 일반 낙하
                 board.moveDown();
-                updateSpeedByClears(); // 자동 낙하 후에도 갱신
+
+                // (3) 삭제 예약 확인
+                int[] rows = board.pollClearingRows();
+                if (rows != null && rows.length > 0) {
+                    flashingRows = rows;
+                    flashUntil = System.currentTimeMillis() + FLASH_MS;
+
+                    // 🔥 고속 플래시 타이머 (16ms 간격 = 약 60FPS)
+                    Timer flashTimer = new Timer(16, ev -> {
+                        if (flashingRows == null) {
+                            ((Timer) ev.getSource()).stop();
+                            return;
+                        }
+                        if (System.currentTimeMillis() >= flashUntil) {
+                            board.clearRows(flashingRows);
+                            flashingRows = null;
+                            updateSpeedByClears();
+                            ((Timer) ev.getSource()).stop();
+                        }
+                        repaint();
+                    });
+                    flashTimer.setRepeats(true);
+                    flashTimer.start();
+                }
+
+                updateSpeedByClears();
                 repaint();
             } else {
                 if (board.isGameOver()) {
-                    ((Timer) e.getSource()).stop(); // 게임오버 시 완전 정지
-                    handleGameOver();  // 게임오버 처리 호출
+                    ((Timer) e.getSource()).stop();
+                    handleGameOver();
                 }
                 repaint();
             }
@@ -104,30 +138,28 @@ public class GamePanel extends JPanel {
     }
 
     private void handleGameOver() {
-    if (board.isGameOver()) {
-        timer.stop();
-        int finalScore = board.getScore();
-        
-        RankingManager manager = isItemMode ? 
-            RankingManager.getInstance("item_rankings.dat") :
-            RankingManager.getInstance();
-            
-        // 게임오버 시 창 닫고 GameOverScreen 표시
-        SwingUtilities.invokeLater(() -> {
-            java.awt.Window w = SwingUtilities.getWindowAncestor(this);
-            if (w != null) {
-                w.dispose();  // 현재 게임 창 닫기
-                if (manager.getRankings().size() < 10 || manager.shouldInputName(finalScore)) {
-                    new NameInputScreen(finalScore, isItemMode).setVisible(true);
-                } else {
-                    new GameOverScreen(finalScore).setVisible(true);
-                }
-            }
-        });
-    }
-}
+        if (board.isGameOver()) {
+            timer.stop();
+            int finalScore = board.getScore();
 
-    // ==== 속도 가속 (줄 삭제 누적 기반) ====
+            RankingManager manager = isItemMode ?
+                RankingManager.getInstance("item_rankings.dat") :
+                RankingManager.getInstance();
+
+            SwingUtilities.invokeLater(() -> {
+                java.awt.Window w = SwingUtilities.getWindowAncestor(this);
+                if (w != null) {
+                    w.dispose();
+                    if (manager.getRankings().size() < 10 || manager.shouldInputName(finalScore)) {
+                        new NameInputScreen(finalScore, isItemMode).setVisible(true);
+                    } else {
+                        new GameOverScreen(finalScore).setVisible(true);
+                    }
+                }
+            });
+        }
+    }
+
     private void updateSpeedByClears() {
         int cleared = board.getTotalLinesCleared();
         int target = Math.max(minDelay, baseDelay - stepPerLine * cleared);
@@ -138,7 +170,6 @@ public class GamePanel extends JPanel {
         }
     }
 
-    // ==== 일시정지/메뉴 ====
     private void togglePauseAndMenu() {
         paused = !paused;
         if (paused) {
@@ -152,28 +183,20 @@ public class GamePanel extends JPanel {
                     null, options, options[0]
             );
             switch (sel) {
-                case 0 -> { // 재개
-                    paused = false;
-                }
-                case 1 -> { // 재시작
+                case 0 -> paused = false;
+                case 1 -> {
                     board.reset();
                     paused = false;
                     currentDelay = baseDelay;
                     timer.setDelay(currentDelay);
                     timer.setInitialDelay(currentDelay);
                 }
-                case 2 -> { // 메인 메뉴
+                case 2 -> {
                     closeGameOnly();
-                    SwingUtilities.invokeLater(() -> {
-                        new Mainmenu().setVisible(true);  // 메인메뉴 화면 표시
-                    });
+                    SwingUtilities.invokeLater(() -> new Mainmenu().setVisible(true));
                 }
-                case 3 -> { // 종료
-                    System.exit(0);
-                }
-                default -> { /* 닫기/취소 시 아무것도 안 함 */ }
+                case 3 -> System.exit(0);
             }
-
         }
     }
 
@@ -188,18 +211,14 @@ public class GamePanel extends JPanel {
             new Object[]{"예", "아니오"},
             "아니오"
         );
-        if (result == 0) {  // "예" 선택
-        System.exit(0);
-    }
-        
+        if (result == 0) System.exit(0);
     }
 
-     private void closeGameOnly() {
+    private void closeGameOnly() {
         java.awt.Window w = SwingUtilities.getWindowAncestor(this);
         if (w != null) w.dispose();
     }
 
-    // ==== 렌더링 ====
     @Override protected void paintComponent(Graphics g) {
         super.paintComponent(g);
         Graphics2D g2 = (Graphics2D) g.create();
@@ -209,8 +228,17 @@ public class GamePanel extends JPanel {
         drawGrid(g2);
         drawSidebar(g2);
 
-        if (paused) drawPaused(g2);
+        // ★ 플래시 중인 줄 흰색 오버레이
+        if (flashingRows != null) {
+            g2.setColor(Color.WHITE);
+            for (int row : flashingRows) {
+                for (int x = 0; x < Board.COLS; x++) {
+                    fillCell(g2, x, row, Color.WHITE);
+                }
+            }
+        }
 
+        if (paused) drawPaused(g2);
         g2.dispose();
     }
 
@@ -231,9 +259,8 @@ public class GamePanel extends JPanel {
         for (Position p : cur.getBlocks()) {
             int px = cur.getX() + p.x;
             int py = cur.getY() + p.y;
-            if (px >= 0 && px < Board.COLS && py >= 0 && py < Board.ROWS) {
+            if (px >= 0 && px < Board.COLS && py >= 0 && py < Board.ROWS)
                 fillCell(g, px, py, c);
-            }
         }
     }
 
@@ -251,14 +278,11 @@ public class GamePanel extends JPanel {
         g.fillRect(sx, 0, SIDE_W, BOARD_H);
 
         g.setColor(Color.WHITE);
-
-        // SCORE
         g.setFont(g.getFont().deriveFont(Font.BOLD, 18f));
         g.drawString("SCORE", sx + 20, 40);
         g.setFont(g.getFont().deriveFont(Font.PLAIN, 18f));
         g.drawString(String.valueOf(board.getScore()), sx + 20, 68);
 
-        // DIFFICULTY
         g.setFont(g.getFont().deriveFont(Font.BOLD, 18f));
         g.drawString("DIFFICULTY", sx + 20, 110);
         g.setFont(g.getFont().deriveFont(Font.PLAIN, 16f));
@@ -266,19 +290,16 @@ public class GamePanel extends JPanel {
         diff = Character.toUpperCase(diff.charAt(0)) + diff.substring(1);
         g.drawString(diff, sx + 20, 134);
 
-        // LEVEL (= 누적 삭제 줄 수)
         g.setFont(g.getFont().deriveFont(Font.BOLD, 18f));
         g.drawString("LEVEL", sx + 20, 170);
         g.setFont(g.getFont().deriveFont(Font.PLAIN, 16f));
         g.drawString(String.valueOf(board.getTotalLinesCleared()), sx + 20, 194);
 
-        // SPEED (현재 ms)
         g.setFont(g.getFont().deriveFont(Font.BOLD, 18f));
         g.drawString("SPEED", sx + 20, 230);
         g.setFont(g.getFont().deriveFont(Font.PLAIN, 16f));
         g.drawString(currentDelay + " ms", sx + 20, 254);
 
-        // NEXT
         g.setFont(g.getFont().deriveFont(Font.BOLD, 18f));
         g.drawString("NEXT", sx + 20, 290);
         drawNextPreview(g, sx + 20, 310);

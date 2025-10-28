@@ -24,6 +24,9 @@ public class Board {
 
     private final boolean isItemMode;
 
+    // 애니메이션용: 이번에 삭제할 줄
+    private int[] pendingClearRows = null;
+
     public Board(Difficulty difficulty, boolean isItemMode) {
         this.difficulty = difficulty;
         this.isItemMode = isItemMode;
@@ -43,7 +46,7 @@ public class Board {
         }
     }
 
-    // ===== 난이도별 점수 배율(클리어/보너스 전용) =====
+    // ===== 난이도별 점수 배율 =====
     private void setScoreMultiplier() {
         switch (difficulty) {
             case EASY -> scoreMultiplier = 0.9;
@@ -87,17 +90,15 @@ public class Board {
 
         if (canMove(current, 0, 1)) {
             current.move(0, 1);
-            addBaseScore(10);     // 한 칸 떨어질 때마다 +10 (난이도 무관)
+            addBaseScore(10); // 한 칸 떨어질 때마다 +10 (난이도 무관)
             return true;
         } else {
-            // 고정 → 라인 삭제 → 점수/가속 반영 → 다음 스폰
+            // 고정 → 삭제 줄 예약 (애니메이션용)
             fixToBoard();
-            int lines = clearFullLines();
-            if (lines > 0) {
-                addBonusScore(1000 * lines); // n줄 동시 삭제 시 1000*n, 난이도 배율 적용
-                totalLinesCleared += lines;   // 누적 카운트 (속도 가속용)
+            pendingClearRows = findFullRows();
+            if (pendingClearRows == null || pendingClearRows.length == 0) {
+                spawnNewTetromino();
             }
-            spawnNewTetromino();
             return false;
         }
     }
@@ -110,8 +111,8 @@ public class Board {
             current.move(0, 1);
             dropDist++;
         }
-        addBaseScore(dropDist * 10); // 떨어진 칸 수 × 10 (난이도 배율 미적용)
-        moveDown();                  // 고정/클리어/스폰 처리
+        addBaseScore(dropDist * 10);
+        moveDown();
     }
 
     public void rotate() {
@@ -121,13 +122,8 @@ public class Board {
     }
 
     // ===== 점수 =====
-    private void addBaseScore(int base) {
-        score += base; // 낙하 기본점은 난이도 배율 미적용
-    }
-
-    private void addBonusScore(int base) {
-        score += Math.round(base * scoreMultiplier); // 클리어/보너스만 배율
-    }
+    private void addBaseScore(int base) { score += base; }
+    private void addBonusScore(int base) { score += Math.round(base * scoreMultiplier); }
 
     // ===== 충돌/고정/라인 =====
     private boolean canMove(Tetromino t, int dx, int dy) {
@@ -150,30 +146,59 @@ public class Board {
         }
     }
 
-    private int clearFullLines() {
-        int cleared = 0;
-        for (int y = ROWS - 1; y >= 0; y--) {
+    // (1단계) 가득 찬 줄 모두 찾기
+    private int[] findFullRows() {
+        java.util.ArrayList<Integer> rows = new java.util.ArrayList<>();
+        for (int y = 0; y < ROWS; y++) {
             boolean full = true;
             for (int x = 0; x < COLS; x++) {
                 if (grid[y][x] == null) { full = false; break; }
             }
-            if (full) {
-                cleared++;
-                removeLine(y);
-                y++; // 위에서 내려온 줄 재검사
+            if (full) rows.add(y);
+        }
+        if (rows.isEmpty()) return null;
+        return rows.stream().mapToInt(i -> i).toArray();
+    }
+
+    // (2단계) 실제 삭제 — ★ 재구성 방식으로 한 번에 처리 (4줄도 OK)
+    public void clearRows(int[] rows) {
+        if (rows == null || rows.length == 0) return;
+
+        // 지울 줄 마스크
+        boolean[] clear = new boolean[ROWS];
+        for (int r : rows) {
+            if (r >= 0 && r < ROWS) clear[r] = true;
+        }
+
+        // 아래에서 위로 읽으며, 살아있는 줄을 아래쪽으로 쌓기
+        int write = ROWS - 1;
+        for (int read = ROWS - 1; read >= 0; read--) {
+            if (clear[read]) continue; // 지울 줄이면 건너뜀
+            if (write != read) {
+                System.arraycopy(grid[read], 0, grid[write], 0, COLS);
             }
+            write--;
         }
-        return cleared;
+
+        // 위쪽 남은 칸들 전부 비우기
+        for (int y = write; y >= 0; y--) {
+            for (int x = 0; x < COLS; x++) grid[y][x] = null;
+        }
+
+        addBonusScore(1000 * rows.length);
+        totalLinesCleared += rows.length;
+        pendingClearRows = null;
+        spawnNewTetromino();
     }
 
-    private void removeLine(int line) {
-        for (int y = line; y > 0; y--) {
-            System.arraycopy(grid[y - 1], 0, grid[y], 0, COLS);
-        }
-        for (int x = 0; x < COLS; x++) grid[0][x] = null;
+    // GamePanel이 1회용으로 읽는 삭제 예정 줄
+    public int[] pollClearingRows() {
+        int[] out = pendingClearRows;
+        pendingClearRows = null;
+        return out;
     }
 
-    // ===== 게임 상태/게터 =====
+    // ===== 게터/리셋 =====
     public boolean isGameOver()          { return gameOver; }
     public int getScore()                { return score; }
     public int getTotalLinesCleared()    { return totalLinesCleared; }
@@ -182,7 +207,6 @@ public class Board {
     public Tetromino getCurrent()        { return current; }
     public ShapeType getNextShape()      { return nextShape; }
 
-    // 리셋(재시작용)
     public void reset() {
         for (int y = 0; y < ROWS; y++) {
             for (int x = 0; x < COLS; x++) grid[y][x] = null;
@@ -190,6 +214,7 @@ public class Board {
         score = 0;
         totalLinesCleared = 0;
         gameOver = false;
+        pendingClearRows = null;
         nextShape = pickByRoulette();
         spawnNewTetromino();
     }
