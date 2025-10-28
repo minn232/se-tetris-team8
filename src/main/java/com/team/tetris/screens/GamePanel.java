@@ -164,6 +164,9 @@ public class GamePanel extends JPanel {
                 }
                 case 2 -> { // 메인 메뉴
                     closeGameOnly();
+                    SwingUtilities.invokeLater(() -> {
+                        new Mainmenu().setVisible(true);  // 메인메뉴 화면 표시
+                    });
                 }
                 case 3 -> { // 종료
                     System.exit(0);
@@ -175,23 +178,23 @@ public class GamePanel extends JPanel {
     }
 
     private void onForceQuit() {
-        Object[] options = {"게임만 종료", "프로그램 종료", "취소"};
-        int sel = JOptionPane.showOptionDialog(
-                SwingUtilities.getWindowAncestor(this),
-                "강제 종료할까요?",
-                "Quit",
-                JOptionPane.DEFAULT_OPTION,
-                JOptionPane.WARNING_MESSAGE,
-                null, options, options[0]
+        int result = JOptionPane.showOptionDialog(
+            SwingUtilities.getWindowAncestor(this),
+            "강제 종료할까요?",
+            "Quit",
+            JOptionPane.DEFAULT_OPTION,
+            JOptionPane.WARNING_MESSAGE,
+            null,
+            new Object[]{"예", "아니오"},
+            "아니오"
         );
-        if (sel == 0) {
-            closeGameOnly();
-        } else if (sel == 1) {
-            System.exit(0);
-        }
+        if (result == 0) {  // "예" 선택
+        System.exit(0);
+    }
+        
     }
 
-    private void closeGameOnly() {
+     private void closeGameOnly() {
         java.awt.Window w = SwingUtilities.getWindowAncestor(this);
         if (w != null) w.dispose();
     }

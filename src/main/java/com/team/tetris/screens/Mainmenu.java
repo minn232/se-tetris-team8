@@ -19,10 +19,11 @@ import javax.swing.SwingUtilities;
 
 import com.team.tetris.core.Board;
 import com.team.tetris.core.Difficulty;
+import com.team.tetris.ranking.RankingBoard;  // RankingBoard import 추가
 
 public class Mainmenu extends JFrame {
-    // 시작 화면에 쓰일 버튼들을 선언
-    private final JButton startButton, itemModeButton, settingsButton, helpButton, exitButton;
+    // 랭킹 보드 버튼 추가
+    private final JButton startButton, itemModeButton, rankingButton, settingsButton, helpButton, exitButton;
     private boolean isItemMode;
 
     public Mainmenu() {
@@ -45,6 +46,7 @@ public class Mainmenu extends JFrame {
         // 버튼 생성 함수로 버튼 초기화
         startButton = createButton("게임 시작");
         itemModeButton = createButton("아이템 모드로 시작");
+        rankingButton = createButton("랭킹 보드");  // 랭킹 보드 버튼 추가
         settingsButton = createButton("설정");
         helpButton = createButton("게임 방법");
         exitButton = createButton("게임 종료");
@@ -52,6 +54,7 @@ public class Mainmenu extends JFrame {
         // 각 버튼 이벤트 처리
         startButton.addActionListener(e -> startGame());
         itemModeButton.addActionListener(e -> startItemMode());
+        rankingButton.addActionListener(e -> showRankingBoard());  // 랭킹 보드 이벤트 추가
         settingsButton.addActionListener(e -> openSettings());
         helpButton.addActionListener(e -> showHelp());
         exitButton.addActionListener(e -> System.exit(0));
@@ -64,6 +67,8 @@ public class Mainmenu extends JFrame {
         mainPanel.add(Box.createVerticalStrut(20));
         mainPanel.add(itemModeButton);
         mainPanel.add(Box.createVerticalStrut(20));
+        mainPanel.add(rankingButton);  // 랭킹 보드 버튼 배치
+        mainPanel.add(Box.createVerticalStrut(20));
         mainPanel.add(settingsButton);
         mainPanel.add(Box.createVerticalStrut(20));
         mainPanel.add(helpButton);
@@ -72,6 +77,11 @@ public class Mainmenu extends JFrame {
         mainPanel.add(Box.createVerticalGlue()); //아랫공간 확보
         
         add(mainPanel);
+    }
+    
+    // 랭킹 보드 표시 메서드 추가
+    private void showRankingBoard() {
+        new RankingBoard().setVisible(true);
     }
     
     // 버튼 생성 method
