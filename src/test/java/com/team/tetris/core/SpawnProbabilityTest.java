@@ -22,9 +22,7 @@ class SpawnProbabilityTest {
     @Test
     @DisplayName("EASY: I block has +20% weight")
     void testA_EasyDistribution() throws Exception {
-        // ✅ Board(Difficulty, boolean) 시그니처에 맞게 수정
         Board board = new Board(Difficulty.EASY, false);
-
         Map<ShapeType, Integer> counts = sampleCounts(board, SAMPLES);
         printDistribution("EASY", counts);
 
@@ -42,9 +40,8 @@ class SpawnProbabilityTest {
     @Test
     @DisplayName("NORMAL: all blocks equal probability (~1/7)")
     void testB_NormalDistribution() throws Exception {
-        // ✅ 시그니처 수정
-        Board board = new Board(Difficulty.NORMAL, false);
 
+        Board board = new Board(Difficulty.NORMAL, false);
         Map<ShapeType, Integer> counts = sampleCounts(board, SAMPLES);
         printDistribution("NORMAL", counts);
 
@@ -58,9 +55,8 @@ class SpawnProbabilityTest {
     @Test
     @DisplayName("HARD: I block has -20% weight")
     void testC_HardDistribution() throws Exception {
-        // ✅ 시그니처 수정
-        Board board = new Board(Difficulty.HARD, false);
 
+        Board board = new Board(Difficulty.HARD, false);
         Map<ShapeType, Integer> counts = sampleCounts(board, SAMPLES);
         printDistribution("HARD", counts);
 

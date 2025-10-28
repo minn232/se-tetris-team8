@@ -1,9 +1,10 @@
 /*
     이름을 입력하는 창을 구현하는 클래스.
     게임 오버 후 최종 점수가 랭킹에 들었을 때 호출됨.
-    축하메세지, 이름 입력 필드, 확인 버튼으로 구성됨.
+    축하메세지, 이름 입력 필드, 확인 버튼으로 구성.
     이름 입력 필드에는 replace()메소드를 @override하여 최대 10글자까지 입력 가능하며, 알파벳 대소문자만 허용됨.
     확인 버튼을 누르면 submitScore() 메소드가 호출되어 랭킹 매니저에 새로운 랭킹 데이터를 추가하고 이름 입력 창을 닫음.
+
  */
 
 
@@ -13,6 +14,9 @@
 package com.team.tetris.screens;
 
 import java.awt.Component;
+import java.awt.Dimension;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
 import java.time.LocalDateTime;
 
 import javax.swing.BorderFactory;
@@ -53,7 +57,17 @@ public class NameInputScreen extends JFrame {
         setTitle("새로운 기록!");
         setSize(300, 150);
         setLocationRelativeTo(null);
-        setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
+        setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE); // 닫기 버튼 기본 동작 비활성화
+        
+        // OS 창 닫기 버튼 처리
+        addWindowListener(new WindowAdapter() {
+            @Override
+            public void windowClosing(WindowEvent e) {
+                // 랭킹에 기록하지 않고 바로 GameOver 화면으로 이동
+                dispose();
+                new GameOverScreen(finalScore).setVisible(true);
+            }
+        });
 
         //메인 패널 설정
         JPanel mainPanel = new JPanel();
@@ -66,6 +80,8 @@ public class NameInputScreen extends JFrame {
 
         //이름 입력 필드 생성
         nameField = new JTextField(10);
+        nameField.setAlignmentX(Component.CENTER_ALIGNMENT); // 중앙 정렬 추가
+        nameField.setMaximumSize(new Dimension(200, 25)); // 최대 크기 제한
         // 최대 10글자 제한을 실시간으로 적용
         ((AbstractDocument) nameField.getDocument()).setDocumentFilter(new DocumentFilter() {
 
@@ -82,6 +98,8 @@ public class NameInputScreen extends JFrame {
 
         //확인 버튼 추가. submitScore 메소드 호출
         JButton submitButton = new JButton("확인");
+        submitButton.setAlignmentX(Component.CENTER_ALIGNMENT); // 중앙 정렬 추가
+        submitButton.setMaximumSize(new Dimension(100, 30)); // 최대 크기 제한
         submitButton.addActionListener(e -> submitScore());
 
         //컴포넌트 배치
