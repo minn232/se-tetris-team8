@@ -1,8 +1,8 @@
 keyDown,40
-keyUp,38
 keyLeft,37
 keyRight,39
 keyRotate,38
+keyHardDrop,32
 colorBlind,true
 scoreboardFile,scores.csv
 resolution,800x1000

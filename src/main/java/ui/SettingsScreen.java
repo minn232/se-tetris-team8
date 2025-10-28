@@ -30,7 +30,7 @@ public class SettingsScreen extends JFrame {
 
     private static final long serialVersionUID = 1L;
 
-    private JButton btnChangeDown, btnChangeUp, btnChangeLeft, btnChangeRight, btnChangeRotate;
+    private JButton btnChangeDown, btnChangeLeft, btnChangeRight, btnChangeRotate, btnChangeHardDrop;
     private JCheckBox chkColorBlind;
     private JButton btnClearScores;
 
@@ -87,14 +87,6 @@ public class SettingsScreen extends JFrame {
         keyPanel.add(lblRight);
         keyPanel.add(btnChangeRight);
 
-        JLabel lblUp = new JLabel("Up:");
-        lblUp.setFont(small);
-        lblUp.setForeground(Color.WHITE);
-        btnChangeUp = new JButton(KeyEvent.getKeyText(Settings.getKeyUp()));
-        btnChangeUp.setFont(small);
-        keyPanel.add(lblUp);
-        keyPanel.add(btnChangeUp);
-
         JLabel lblRotate = new JLabel("Rotate:");
         lblRotate.setFont(small);
         lblRotate.setForeground(Color.WHITE);
@@ -102,6 +94,14 @@ public class SettingsScreen extends JFrame {
         btnChangeRotate.setFont(small);
         keyPanel.add(lblRotate);
         keyPanel.add(btnChangeRotate);
+
+        JLabel lblHardDrop = new JLabel("Hard Drop:");
+        lblHardDrop.setFont(small);
+        lblHardDrop.setForeground(Color.WHITE);
+        btnChangeHardDrop = new JButton(KeyEvent.getKeyText(Settings.getKeyHardDrop()));
+        btnChangeHardDrop.setFont(small);
+        keyPanel.add(lblHardDrop);
+        keyPanel.add(btnChangeHardDrop);
 
         // Colorblind 및 점수판 패널 (넓은 레이아웃)
         JPanel bottom = new JPanel(new GridLayout(1, 2, 40, 0));
@@ -162,19 +162,19 @@ public class SettingsScreen extends JFrame {
                         int code = ke.getKeyCode();
                         if (src == btnChangeDown) {
                             Settings.setKeyDown(code);
-                            btnChangeDown.setText("Down: " + KeyEvent.getKeyText(code));
-                        } else if (src == btnChangeUp) {
-                            Settings.setKeyUp(code);
-                            btnChangeUp.setText("Up: " + KeyEvent.getKeyText(code));
+                            btnChangeDown.setText(KeyEvent.getKeyText(code));
                         } else if (src == btnChangeLeft) {
                             Settings.setKeyLeft(code);
-                            btnChangeLeft.setText("Left: " + KeyEvent.getKeyText(code));
+                            btnChangeLeft.setText(KeyEvent.getKeyText(code));
                         } else if (src == btnChangeRight) {
                             Settings.setKeyRight(code);
-                            btnChangeRight.setText("Right: " + KeyEvent.getKeyText(code));
+                            btnChangeRight.setText(KeyEvent.getKeyText(code));
                         } else if (src == btnChangeRotate) {
                             Settings.setKeyRotate(code);
-                            btnChangeRotate.setText("Rotate: " + KeyEvent.getKeyText(code));
+                            btnChangeRotate.setText(KeyEvent.getKeyText(code));
+                        } else if (src == btnChangeHardDrop) {
+                            Settings.setKeyHardDrop(code);
+                            btnChangeHardDrop.setText(KeyEvent.getKeyText(code));
                         }
                         dlg.dispose();
                     }
@@ -185,10 +185,10 @@ public class SettingsScreen extends JFrame {
         };
 
         btnChangeDown.addActionListener(changeKeyListener);
-        btnChangeUp.addActionListener(changeKeyListener);
         btnChangeLeft.addActionListener(changeKeyListener);
         btnChangeRight.addActionListener(changeKeyListener);
         btnChangeRotate.addActionListener(changeKeyListener);
+        btnChangeHardDrop.addActionListener(changeKeyListener);
 
         btnClearScores.addActionListener(new ActionListener() {
             @Override
