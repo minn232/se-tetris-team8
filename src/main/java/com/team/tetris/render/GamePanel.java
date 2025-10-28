@@ -3,6 +3,7 @@ package com.team.tetris.render;
 import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.Font;
+import java.awt.FontMetrics;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.event.KeyAdapter;
@@ -14,6 +15,7 @@ import javax.swing.SwingUtilities;
 import javax.swing.Timer;
 
 import com.team.tetris.core.Board;
+import com.team.tetris.core.BombBlock;
 import com.team.tetris.core.Position;
 import com.team.tetris.core.ShapeType;
 import com.team.tetris.core.Tetromino;
@@ -197,7 +199,33 @@ public class GamePanel extends JPanel {
         Object cur = board.getCurrent();
         if (cur == null) return;
         
-        if (cur instanceof WeightBlock w) {
+        if (cur instanceof BombBlock b) {
+            // BombBlock: 원래 테트로미노 색상 사용, 폭탄 위치는 'B' 표시
+            Color c = b.getColor(); // 원래 테트로미노 색상
+            int bombIdx = b.getBombIndex();
+            
+            for (int i = 0; i < b.getBlocks().length; i++) {
+                Position p = b.getBlocks()[i];
+                int px = b.getX() + p.x;
+                int py = b.getY() + p.y;
+                if (px >= 0 && px < Board.COLS && py >= 0 && py < Board.ROWS) {
+                    fillCell(g, px, py, c);
+                    
+                    // 폭탄 위치에 'B' 표시
+                    if (i == bombIdx) {
+                        g.setColor(Color.BLACK);
+                        g.setFont(new Font(Font.MONOSPACED, Font.BOLD, CELL * 3 / 4));
+                        String txt = "B";
+                        FontMetrics fm = g.getFontMetrics();
+                        int txtW = fm.stringWidth(txt);
+                        int txtH = fm.getAscent();
+                        g.drawString(txt, 
+                            px * CELL + (CELL - txtW) / 2, 
+                            py * CELL + (CELL + txtH) / 2 - 2);
+                    }
+                }
+            }
+        } else if (cur instanceof WeightBlock w) {
             Color c = Color.WHITE; // WeightBlock은 흰색
             for (Position p : w.getBlocks()) {
                 int px = w.getX() + p.x;

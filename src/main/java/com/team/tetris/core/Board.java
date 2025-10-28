@@ -65,23 +65,24 @@ public class Board {
     private void spawnNewTetromino() {
         if (gameOver) return;
         
-        ShapeType shape = (nextShape != null) ? nextShape : pickByRoulette();
-        current = new Tetromino(shape, COLS / 2 - 2, 0);
-        nextShape = pickByRoulette();
+            ShapeType shape = (nextShape != null) ? nextShape : pickByRoulette();
+            current = new Tetromino(shape, COLS / 2 - 2, 0);
+            nextShape = pickByRoulette();
         
         if (!canMoveCurrent(0, 0)) {
             gameOver = true;
         }
     }
 
-    // current가 Tetromino 또는 WeightBlock일 때 이동 가능 여부 체크
+    // current가 Tetromino, WeightBlock, BombBlock일 때 이동 가능 여부 체크
     private boolean canMoveCurrent(int dx, int dy) {
         if (current instanceof Tetromino t) {
             return canMove(t, dx, dy);
-        } else if (current instanceof WeightBlock w) {
-            for (Position p : w.getBlocks()) {
-                int x = w.getX() + p.x + dx;
-                int y = w.getY() + p.y + dy;
+        } else if (current instanceof ItemBlock item) {
+            // WeightBlock과 BombBlock 모두 처리
+            for (Position p : item.getBlocks()) {
+                int x = item.getX() + p.x + dx;
+                int y = item.getY() + p.y + dy;
                 if (x < 0 || x >= COLS || y < 0 || y >= ROWS) return false;
                 if (grid[y][x] != null) return false;
             }
@@ -93,8 +94,8 @@ public class Board {
     // ===== 이동/회전 =====
     public void moveLeft() {
         if (gameOver) return;
-        if (current instanceof WeightBlock w) {
-            w.moveLeft(this);
+        if (current instanceof ItemBlock item) {
+            item.moveLeft(this);
         } else if (current instanceof Tetromino t) {
             if (canMove(t, -1, 0)) t.move(-1, 0);
         }
@@ -102,8 +103,8 @@ public class Board {
 
     public void moveRight() {
         if (gameOver) return;
-        if (current instanceof WeightBlock w) {
-            w.moveRight(this);
+        if (current instanceof ItemBlock item) {
+            item.moveRight(this);
         } else if (current instanceof Tetromino t) {
             if (canMove(t, 1, 0)) t.move(1, 0);
         }
@@ -116,6 +117,14 @@ public class Board {
         if (current instanceof WeightBlock w) {
             boolean reachedBottom = w.moveDown(this);
             if (reachedBottom) {
+                spawnNewTetromino();
+            }
+            return !reachedBottom;
+        } else if (current instanceof BombBlock b) {
+            boolean reachedBottom = b.moveDown(this);
+            if (reachedBottom) {
+                // 폭탄 폭발 후 새 블록 스폰
+                b.explode(this);
                 spawnNewTetromino();
             }
             return !reachedBottom;
@@ -148,6 +157,13 @@ public class Board {
                 reachedBottom = w.moveDown(this);
             }
             spawnNewTetromino();
+        } else if (current instanceof BombBlock b) {
+            boolean reachedBottom = false;
+            while (!reachedBottom) {
+                reachedBottom = b.moveDown(this);
+            }
+            b.explode(this);
+            spawnNewTetromino();
         } else if (current instanceof Tetromino t) {
             int dropDist = 0;
             while (canMove(t, 0, 1)) {
@@ -161,13 +177,35 @@ public class Board {
 
     public void rotate() {
         if (gameOver || current == null) return;
-        if (current instanceof WeightBlock) {
+        
+        if (current instanceof BombBlock b) {
+            // BombBlock은 회전 가능 - 회전 후 충돌 체크
+            b.rotate();
+            
+            // 회전 후 충돌 체크
+            boolean canRotate = true;
+            for (Position p : b.getBlocks()) {
+                int px = b.getX() + p.x;
+                int py = b.getY() + p.y;
+                if (px < 0 || px >= COLS || py < 0 || py >= ROWS || grid[py][px] != null) {
+                    canRotate = false;
+                    break;
+                }
+            }
+            
+            // 회전 불가능하면 되돌림 (3번 더 회전)
+            if (!canRotate) {
+                b.rotate();
+                b.rotate();
+                b.rotate();
+            }
+        } else if (current instanceof WeightBlock) {
             // WeightBlock은 회전 불가
             return;
+        } else if (current instanceof Tetromino t) {
+            Tetromino r = t.getRotatedCopy();
+            if (canMove(r, 0, 0)) t.rotate();
         }
-        Tetromino t = (Tetromino) current;
-        Tetromino r = t.getRotatedCopy();
-        if (canMove(r, 0, 0)) t.rotate();
     }
 
     // ===== 점수 =====
@@ -191,8 +229,8 @@ public class Board {
     }
 
     private void fixToBoard() {
-        if (current instanceof WeightBlock) {
-            // WeightBlock은 고정하지 않음
+        if (current instanceof ItemBlock) {
+            // ItemBlock(WeightBlock, BombBlock 등)은 고정하지 않음
             return;
         }
         if (current instanceof Tetromino t) {
