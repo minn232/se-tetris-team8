@@ -113,12 +113,12 @@ public class Mainmenu extends JFrame {
 
         Difficulty difficulty;
         switch (sel) {
-            case 0 -> difficulty = Difficulty.EASY;
-            case 2 -> difficulty = Difficulty.HARD;
-            case 1 -> {
+            case 0 -> difficulty = Difficulty.HARD;
+            case 1 -> difficulty = Difficulty.NORMAL;
+            case 2 -> difficulty = Difficulty.EASY;
+            default -> {
                 return;  // 취소하거나 창을 닫은 경우
             }
-            default -> difficulty = Difficulty.NORMAL;
         }
 
         startTetrisGame(difficulty);
@@ -129,7 +129,7 @@ public class Mainmenu extends JFrame {
 
         SwingUtilities.invokeLater(() -> {
             
-            Board board = new Board(difficulty);
+            Board board = new Board(difficulty, isItemMode);
             GamePanel panel = new GamePanel(board, isItemMode);
             
             if (isItemMode) {

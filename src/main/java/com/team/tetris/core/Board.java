@@ -6,7 +6,7 @@ public class Board {
     public static final int ROWS = 20;
     public static final int COLS = 10;
 
-    private final ShapeType[][] grid = new ShapeType[ROWS][COLS];
+    private final ShapeType[][] grid;
     private final Random random = new Random();
     private final double[] weights = new double[ShapeType.values().length];
 
@@ -22,11 +22,14 @@ public class Board {
     private double scoreMultiplier = 1.0; // 난이도 보너스(클리어/보너스에만 적용)
     private int totalLinesCleared = 0;    // 누적 삭제 줄 수(속도 가속에 사용)
 
-    public Board(Difficulty difficulty) {
+    private final boolean isItemMode;
+
+    public Board(Difficulty difficulty, boolean isItemMode) {
         this.difficulty = difficulty;
+        this.isItemMode = isItemMode;
+        this.grid = new ShapeType[ROWS][COLS];
         setWeightsByDifficulty();
         setScoreMultiplier();
-        this.nextShape = pickByRoulette();
         spawnNewTetromino();
     }
 
