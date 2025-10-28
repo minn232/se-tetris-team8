@@ -65,14 +65,9 @@ public class Board {
     private void spawnNewTetromino() {
         if (gameOver) return;
         
-        // 10% 확률로 WeightBlock 생성
-        if (random.nextDouble() < 0.1) {
-            current = new WeightBlock(COLS / 2 - 2, 0);
-        } else {
-            ShapeType shape = (nextShape != null) ? nextShape : pickByRoulette();
-            current = new Tetromino(shape, COLS / 2 - 2, 0);
-            nextShape = pickByRoulette();
-        }
+        ShapeType shape = (nextShape != null) ? nextShape : pickByRoulette();
+        current = new Tetromino(shape, COLS / 2 - 2, 0);
+        nextShape = pickByRoulette();
         
         if (!canMoveCurrent(0, 0)) {
             gameOver = true;
