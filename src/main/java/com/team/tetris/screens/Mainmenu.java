@@ -19,7 +19,6 @@ import javax.swing.SwingUtilities;
 
 import com.team.tetris.core.Board;
 import com.team.tetris.core.Difficulty;
-import com.team.tetris.render.GamePanel;
 
 public class Mainmenu extends JFrame {
     // 시작 화면에 쓰일 버튼들을 선언
@@ -129,17 +128,17 @@ public class Mainmenu extends JFrame {
         dispose();  // 메인 메뉴 창 닫기
 
         SwingUtilities.invokeLater(() -> {
-            JFrame gameFrame = new JFrame("SE Tetris Team8");
-            gameFrame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-
+            
             Board board = new Board(difficulty);
-            GamePanel panel = new GamePanel(board);
+            GamePanel panel = new GamePanel(board, isItemMode);
             
             if (isItemMode) {
                 // TODO: 아이템 모드에 필요한 추가 설정
                 // board.enableItemMode(); 같은 메서드 호출
             }
 
+            JFrame gameFrame = new JFrame("SE Tetris Team8");
+            gameFrame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
             gameFrame.setLayout(new BorderLayout());
             gameFrame.add(panel, BorderLayout.CENTER);
             gameFrame.pack();

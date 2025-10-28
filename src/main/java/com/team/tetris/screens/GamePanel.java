@@ -1,4 +1,4 @@
-package com.team.tetris.render;
+package com.team.tetris.screens;
 
 import java.awt.Color;
 import java.awt.Dimension;
@@ -17,8 +17,10 @@ import com.team.tetris.core.Board;
 import com.team.tetris.core.Position;
 import com.team.tetris.core.ShapeType;
 import com.team.tetris.core.Tetromino;
+import com.team.tetris.ranking.RankingManager;
 
 public class GamePanel extends JPanel {
+    private final boolean isItemMode;
     private final Board board;
     private final Timer timer;
 
@@ -34,8 +36,9 @@ public class GamePanel extends JPanel {
     private int minDelay = 150;    // 너무 빨라지지 않도록 하한
     private int stepPerLine = 50;  // 줄 1개 삭제 시 50ms 가속
 
-    public GamePanel(Board board) {
+    public GamePanel(Board board, boolean isItemMode) {
         this.board = board;
+        this.isItemMode = isItemMode;
 
         setPreferredSize(new Dimension(BOARD_W + SIDE_W, BOARD_H));
         setBackground(Color.BLACK);
@@ -89,13 +92,40 @@ public class GamePanel extends JPanel {
                 updateSpeedByClears(); // 자동 낙하 후에도 갱신
                 repaint();
             } else {
-                if (board.isGameOver()) ((Timer) e.getSource()).stop(); // 게임오버 시 완전 정지
+                if (board.isGameOver()) {
+                    ((Timer) e.getSource()).stop(); // 게임오버 시 완전 정지
+                    handleGameOver();  // 게임오버 처리 호출
+                }
                 repaint();
             }
         });
         timer.setInitialDelay(currentDelay);
         timer.start();
     }
+
+    private void handleGameOver() {
+    if (board.isGameOver()) {
+        timer.stop();
+        int finalScore = board.getScore();
+        
+        RankingManager manager = isItemMode ? 
+            RankingManager.getInstance("item_rankings.dat") :
+            RankingManager.getInstance();
+            
+        // 게임오버 시 창 닫고 GameOverScreen 표시
+        SwingUtilities.invokeLater(() -> {
+            java.awt.Window w = SwingUtilities.getWindowAncestor(this);
+            if (w != null) {
+                w.dispose();  // 현재 게임 창 닫기
+                if (manager.getRankings().size() < 10 || manager.shouldInputName(finalScore)) {
+                    new NameInputScreen(finalScore, isItemMode).setVisible(true);
+                } else {
+                    new GameOverScreen(finalScore).setVisible(true);
+                }
+            }
+        });
+    }
+}
 
     // ==== 속도 가속 (줄 삭제 누적 기반) ====
     private void updateSpeedByClears() {
@@ -176,8 +206,7 @@ public class GamePanel extends JPanel {
         drawGrid(g2);
         drawSidebar(g2);
 
-        if (board.isGameOver()) drawGameOver(g2);
-        if (paused)            drawPaused(g2);
+        if (paused) drawPaused(g2);
 
         g2.dispose();
     }
@@ -278,14 +307,6 @@ public class GamePanel extends JPanel {
             g.setColor(n.getColor().darker());
             g.drawRect(cxp, cyp, cell, cell);
         }
-    }
-
-    private void drawGameOver(Graphics2D g) {
-        g.setColor(new Color(0, 0, 0, 160));
-        g.fillRect(0, 0, BOARD_W + SIDE_W, BOARD_H);
-        g.setColor(Color.WHITE);
-        g.setFont(g.getFont().deriveFont(Font.BOLD, 36f));
-        g.drawString("GAME OVER", 40, BOARD_H / 2 - 10);
     }
 
     private void drawPaused(Graphics2D g) {

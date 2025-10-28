@@ -38,10 +38,12 @@ public class NameInputScreen extends JFrame {
     //최종 점수와 이름 입력 필드의 변수 선언
     private final int finalScore;
     private JTextField nameField;
+    private final boolean isItemMode;
 
     //생성자. 게임 클래스에서 최종점수를 받아와야한다.
-    public NameInputScreen(int finalScore) {
+    public NameInputScreen(int finalScore, boolean isItemMode) {
         this.finalScore = finalScore;
+        this.isItemMode = isItemMode;
         initializeUI();
     }
 
@@ -98,10 +100,14 @@ public class NameInputScreen extends JFrame {
         String playerName = nameField.getText().trim();
         //이름이 비어있지 않으면 rankingManager에 새로운 랭킹데이터 추가.
         if (!playerName.isEmpty()) {
-            RankingManager.getInstance().addEntry(new RankingEntry(
-                playerName,
-                finalScore,
-                LocalDateTime.now()
+            RankingManager manager = isItemMode ? 
+            RankingManager.getInstance("item_rankings.dat") :
+            RankingManager.getInstance();
+            
+        manager.addEntry(new RankingEntry(
+            playerName,
+            finalScore,
+            LocalDateTime.now()
             ));
             dispose();  //이름 입력 창 닫기
             //게임 오버 화면 열기

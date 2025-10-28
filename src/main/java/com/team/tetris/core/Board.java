@@ -43,8 +43,9 @@ public class Board {
     // ===== 난이도별 점수 배율(클리어/보너스 전용) =====
     private void setScoreMultiplier() {
         switch (difficulty) {
-            case EASY, NORMAL -> scoreMultiplier = 1.0;
-            case HARD         -> scoreMultiplier = 1.1;
+            case EASY -> scoreMultiplier = 0.9;
+            case NORMAL -> scoreMultiplier = 1.0;
+            case HARD   -> scoreMultiplier = 1.1;
         }
     }
 

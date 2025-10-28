@@ -4,17 +4,6 @@
     score, 다시하기, 메인메뉴, 랭킹보드 버튼이 포함되어 있다.
     게임 클래스에선 아래 코드를 적절한 위치에 추가해야 한다.
 
-
-    //finalScore에 최종변수 할당해줘야함.
-    if (gameOver) {
-        if (RankingManager.getInstance().getRankings().size() < 10 || 
-            RankingManager.getInstance().shouldInputName(finalScore)) {
-            new NameInputScreen(finalScore).setVisible(true);
-        } else {
-            new GameOverScreen(finalScore).setVisible(true);
-        }
-    }
-
  */
 
 
@@ -36,7 +25,6 @@ import javax.swing.JLabel;
 import javax.swing.JPanel;
 
 import com.team.tetris.ranking.RankingBoard;
-//TODO: 여기에 게임 화면 import 문 추가
 
 //게임 오버 시 나오는 화면. 새로 창을 뜨게 함
 public class GameOverScreen extends JFrame {
@@ -76,8 +64,7 @@ public class GameOverScreen extends JFrame {
          // 버튼 동작 추가
         restartButton.addActionListener(e -> {
             dispose(); // 현재 창 닫기
-            // TODO: 게임 클래스가 구현되면 아래 주석 해제
-            // new TetrisGame().setVisible(true);
+            new Mainmenu().setVisible(true);
         });
         
         mainMenuButton.addActionListener(e -> {

@@ -50,18 +50,28 @@ public class RankingBoard extends JFrame {
     }
 
     private JPanel createRankingPanel(List<RankingEntry> rankings, String title) {
-        JPanel mainPanel = new JPanel();  // 메인 패널 (반환될 패널)
+        JPanel mainPanel = new JPanel();
         mainPanel.setLayout(new BorderLayout());
         
-        JPanel contentPanel = new JPanel();  // 내용을 담을 패널
+        JPanel contentPanel = new JPanel();
         contentPanel.setLayout(new BoxLayout(contentPanel, BoxLayout.Y_AXIS));
         contentPanel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
 
-        // 제목 추가
+        // 제목 패널 추가 (가운데 정렬을 위한 별도 패널)
+        JPanel titlePanel = new JPanel();
+        titlePanel.setLayout(new BoxLayout(titlePanel, BoxLayout.X_AXIS));
+        
+        // 제목 레이블
         JLabel titleLabel = new JLabel(title);
         titleLabel.setFont(new Font("Arial", Font.BOLD, 24));
         titleLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
-        contentPanel.add(titleLabel);
+        
+        // 제목 패널에 여백을 추가하여 가운데 정렬
+        titlePanel.add(Box.createHorizontalGlue());
+        titlePanel.add(titleLabel);
+        titlePanel.add(Box.createHorizontalGlue());
+        
+        contentPanel.add(titlePanel);
         contentPanel.add(Box.createVerticalStrut(20));
 
         // 랭킹 목록 추가
