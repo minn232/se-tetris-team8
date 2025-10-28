@@ -1,5 +1,6 @@
 package com.team.tetris.screens;
 
+import java.awt.BorderLayout;
 import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.Font;
@@ -11,14 +12,20 @@ import javax.swing.JButton;
 import javax.swing.JDialog;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
+import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JTextArea;
 import javax.swing.SwingUtilities;
 
+import com.team.tetris.core.Board;
+import com.team.tetris.core.Difficulty;
+import com.team.tetris.render.GamePanel;
+
 public class Mainmenu extends JFrame {
     // 시작 화면에 쓰일 버튼들을 선언
     private final JButton startButton, itemModeButton, settingsButton, helpButton, exitButton;
-    
+    private boolean isItemMode;
+
     public Mainmenu() {
         // 기본 화면(WINDOW) 설정
         setTitle("Tetris");                       // 창 제목
@@ -78,19 +85,70 @@ public class Mainmenu extends JFrame {
     }
     
     private void startGame() {
-        // TODO: 게임 시작 로직 구현
-        System.out.println("게임 시작");
+        isItemMode = false;
+        showDifficultyDialog();
     }
 
     private void startItemMode() {
-        // TODO: 아이템 모드 게임 시작 로직 구현
-        System.out.println("아이템 모드로 게임 시작");
+        isItemMode = true;
+        showDifficultyDialog();
     }
     
     private void openSettings() {
         // TODO: 설정 창 구현
         System.out.println("설정 열기");
     }
+
+    private void showDifficultyDialog() {
+        Object[] options = {"HARD", "NORMAL", "EASY"};
+        int sel = JOptionPane.showOptionDialog(
+            this,
+            "난이도를 선택하세요",
+            "난이도 선택",
+            JOptionPane.DEFAULT_OPTION,
+            JOptionPane.QUESTION_MESSAGE,
+            null,
+            options,
+            options[1]
+        );
+
+        Difficulty difficulty;
+        switch (sel) {
+            case 0 -> difficulty = Difficulty.EASY;
+            case 2 -> difficulty = Difficulty.HARD;
+            case 1 -> {
+                return;  // 취소하거나 창을 닫은 경우
+            }
+            default -> difficulty = Difficulty.NORMAL;
+        }
+
+        startTetrisGame(difficulty);
+    }
+
+    private void startTetrisGame(Difficulty difficulty) {
+        dispose();  // 메인 메뉴 창 닫기
+
+        SwingUtilities.invokeLater(() -> {
+            JFrame gameFrame = new JFrame("SE Tetris Team8");
+            gameFrame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+
+            Board board = new Board(difficulty);
+            GamePanel panel = new GamePanel(board);
+            
+            if (isItemMode) {
+                // TODO: 아이템 모드에 필요한 추가 설정
+                // board.enableItemMode(); 같은 메서드 호출
+            }
+
+            gameFrame.setLayout(new BorderLayout());
+            gameFrame.add(panel, BorderLayout.CENTER);
+            gameFrame.pack();
+            gameFrame.setLocationRelativeTo(null);
+            gameFrame.setVisible(true);
+            SwingUtilities.invokeLater(panel::requestFocusInWindow);
+        });
+    }
+
 
     // 게임 방법 함수
     private void showHelp() {
