@@ -1,5 +1,7 @@
 package com.team.tetris.core;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Random;
 
 public class Board {
@@ -26,11 +28,15 @@ public class Board {
     private final com.team.tetris.items.ItemManager itemManager;
     private com.team.tetris.items.ItemBlock nextItemBlock;
     private com.team.tetris.items.ItemBlock currentItemBlock;
-    
+
     // 슬로우 효과 관련
     private boolean slowEffectActive = false;
     private long slowEffectStartTime = 0;
     private static final long SLOW_EFFECT_DURATION = 10000; // 10초
+
+    // ===== 줄 삭제 애니메이션 대기 상태 =====
+    private final List<Integer> pendingClearLines = new ArrayList<>();
+    private boolean waitingLineClearAnimation = false;
 
     public Board(Difficulty difficulty, boolean isItemMode) {
         this.difficulty = difficulty;
@@ -77,7 +83,7 @@ public class Board {
     // ===== 스폰/오버 =====
     private void spawnNewTetromino() {
         if (gameOver) return;
-        
+
         ShapeType shape;
         if (nextItemBlock != null) {
             // 아이템 블록이 있으면 해당 블록의 기본 형태 사용
@@ -88,9 +94,9 @@ public class Board {
             shape = (nextShape != null) ? nextShape : pickByRoulette();
             currentItemBlock = null;  // 일반 블록
         }
-        
+
         current = new Tetromino(shape, COLS / 2 - 2, 0);
-        
+
         // 다음 블록 설정 (아이템 블록은 한 번만 사용)
         if (nextItemBlock != null) {
             nextShape = pickByRoulette();  // 아이템 블록 사용 후 일반 블록으로 복귀
@@ -117,14 +123,17 @@ public class Board {
             addBaseScore(10);     // 한 칸 떨어질 때마다 +10 (난이도 무관)
             return true;
         } else {
-            // 고정 → 라인 삭제 → 점수/가속 반영 → 다음 스폰
+            // 고정 → (기존: 바로 삭제) → (변경: 삭제 대상만 확정하고 애니메이션 대기)
             fixToBoard();
-            int lines = clearFullLines();
-            if (lines > 0) {
-                addBonusScore(1000 * lines); // n줄 동시 삭제 시 1000*n, 난이도 배율 적용
-                totalLinesCleared += lines;   // 누적 카운트 (속도 가속용)
+
+            List<Integer> full = scanFullLines(); // 삭제 대상만 찾음 (삭제하지 않음)
+            if (!full.isEmpty()) {
+                pendingClearLines.clear();
+                pendingClearLines.addAll(full);
+                waitingLineClearAnimation = true; // UI에서 번쩍 표시 후 commitLineClear() 호출할 것
+            } else {
+                spawnNewTetromino();
             }
-            spawnNewTetromino();
             return false;
         }
     }
@@ -138,7 +147,7 @@ public class Board {
             dropDist++;
         }
         addBaseScore(dropDist * 10); // 떨어진 칸 수 × 10 (난이도 배율 미적용)
-        moveDown();                  // 고정/클리어/스폰 처리
+        moveDown();                  // 고정/클리어(or 애니 대기)/스폰 처리
     }
 
     public void rotate() {
@@ -170,7 +179,7 @@ public class Board {
     private void fixToBoard() {
         // 현재 테트리미노가 방금 생성된 아이템 블록인지 확인
         boolean isCurrentItemBlock = (currentItemBlock != null);
-        
+
         Position[] blocks = current.getBlocks();
         for (int i = 0; i < blocks.length; i++) {
             Position p = blocks[i];
@@ -178,7 +187,7 @@ public class Board {
             int y = current.getY() + p.y;
             if (x >= 0 && x < COLS && y >= 0 && y < ROWS) {
                 grid[y][x] = current.getShape();
-                
+
                 // 아이템 블록이라면 효과 발동
                 if (isCurrentItemBlock) {
                     if (currentItemBlock instanceof com.team.tetris.items.LineBlock lineBlock) {
@@ -191,13 +200,14 @@ public class Board {
                 }
             }
         }
-        
+
         // 아이템 블록 효과 발동 후 초기화
         if (isCurrentItemBlock) {
             currentItemBlock = null;
         }
     }
 
+    /** (이전과 동일) 즉시 삭제 로직 — 다른 곳에서 사용 가능하도록 유지 */
     private int clearFullLines() {
         int cleared = 0;
         for (int y = ROWS - 1; y >= 0; y--) {
@@ -211,11 +221,11 @@ public class Board {
                 y++; // 위에서 내려온 줄 재검사
             }
         }
-        
+
         if (cleared > 0) {
             System.out.println(cleared + "줄 삭제됨. 아이템 모드: " + isItemMode);
         }
-        
+
         // 줄이 지워졌다면 아이템 매니저에게 알림 (아이템 모드에서만)
         if (cleared > 0 && isItemMode && itemManager != null) {
             com.team.tetris.items.ItemBlock newItem = itemManager.onLinesCleared(cleared);
@@ -224,7 +234,7 @@ public class Board {
                 System.out.println("아이템 블록 생성: " + newItem.getName());
             }
         }
-        
+
         return cleared;
     }
 
@@ -233,6 +243,79 @@ public class Board {
             System.arraycopy(grid[y - 1], 0, grid[y], 0, COLS);
         }
         for (int x = 0; x < COLS; x++) grid[0][x] = null;
+    }
+
+    // ===== (신규) 애니메이션을 위한 라인 스캔/커밋 =====
+
+    /** 삭제 대상 줄만 스캔 (삭제는 하지 않음) */
+    private List<Integer> scanFullLines() {
+        List<Integer> full = new ArrayList<>();
+        for (int y = ROWS - 1; y >= 0; y--) {
+            boolean isFull = true;
+            for (int x = 0; x < COLS; x++) {
+                if (grid[y][x] == null) { isFull = false; break; }
+            }
+            if (isFull) full.add(y);
+        }
+        return full;
+    }
+
+    /** GamePanel이 애니메이션 시작/진행 여부를 알기 위한 플래그 */
+    public boolean isWaitingLineClearAnimation() {
+        return waitingLineClearAnimation;
+    }
+
+    /** GamePanel이 번쩍 표시할 줄 목록 (복사본) */
+    public List<Integer> getPendingClearLines() {
+        return new ArrayList<>(pendingClearLines);
+    }
+
+    /**
+     * GamePanel에서 플래시 애니메이션이 끝난 뒤 호출:
+     * 실제 줄 삭제 + 점수/아이템 후처리 + 다음 블록 스폰
+     */
+    public void commitLineClear() {
+        if (!waitingLineClearAnimation || pendingClearLines.isEmpty()) return;
+
+        // 삭제할 줄을 Set으로 (O(1) 조회)
+        java.util.Set<Integer> toClear = new java.util.HashSet<>(pendingClearLines);
+        int cleared = toClear.size();
+
+        // 새 그리드로 "원패스 압축" (삭제 줄을 건너뛰며 위에서 아래로 내려쓰기)
+        ShapeType[][] newGrid = new ShapeType[ROWS][COLS];
+        int write = ROWS - 1; // 아래쪽부터 채움
+        for (int read = ROWS - 1; read >= 0; read--) {
+            if (toClear.contains(read)) continue; // 지울 줄은 스킵
+            // 한 줄 복사
+            for (int x = 0; x < COLS; x++) {
+                newGrid[write][x] = grid[read][x];
+            }
+            write--;
+        }
+        // 나머지 위쪽은 빈칸 (null로 자동 초기화)
+
+        // 스왑
+        for (int y = 0; y < ROWS; y++) {
+            System.arraycopy(newGrid[y], 0, grid[y], 0, COLS);
+        }
+
+        // 점수/누적/아이템 후처리
+        if (cleared > 0) {
+            addBonusScore(1000 * cleared);
+            totalLinesCleared += cleared;
+
+            if (isItemMode && itemManager != null) {
+                com.team.tetris.items.ItemBlock newItem = itemManager.onLinesCleared(cleared);
+                if (newItem != null) {
+                    nextItemBlock = newItem;
+                    System.out.println("아이템 블록 생성(애니 후): " + newItem.getName());
+                }
+            }
+        }
+
+        waitingLineClearAnimation = false;
+        pendingClearLines.clear();
+        spawnNewTetromino();
     }
 
     // ===== 게임 상태/게터 =====
@@ -247,7 +330,7 @@ public class Board {
     public com.team.tetris.items.ItemBlock getNextItemBlock() { return nextItemBlock; }
     public com.team.tetris.items.ItemBlock getCurrentItemBlock() { return currentItemBlock; }
     public com.team.tetris.items.ItemManager getItemManager() { return itemManager; }
-    
+
     // 슬로우 효과 관련 메서드들
     public boolean isSlowEffectActive() { return slowEffectActive; }
     public long getSlowEffectRemainingTime() {
@@ -255,13 +338,13 @@ public class Board {
         long elapsed = System.currentTimeMillis() - slowEffectStartTime;
         return Math.max(0, SLOW_EFFECT_DURATION - elapsed);
     }
-    
+
     public void activateSlowEffect() {
         slowEffectActive = true;
         slowEffectStartTime = System.currentTimeMillis();
         System.out.println("슬로우 효과 활성화! 10초간 속도 감소");
     }
-    
+
     public void updateSlowEffect() {
         if (slowEffectActive) {
             long elapsed = System.currentTimeMillis() - slowEffectStartTime;
@@ -280,11 +363,11 @@ public class Board {
         score = 0;
         totalLinesCleared = 0;
         gameOver = false;
-        
+
         // 슬로우 효과 초기화
         slowEffectActive = false;
         slowEffectStartTime = 0;
-        
+
         // 아이템 관련 초기화
         nextItemBlock = null;
         currentItemBlock = null;
@@ -292,13 +375,16 @@ public class Board {
             // ItemManager의 totalLinesCleared도 초기화해야 함
             itemManager.reset();
         }
-        
+
+        pendingClearLines.clear();
+        waitingLineClearAnimation = false;
+
         nextShape = pickByRoulette();
         spawnNewTetromino();
     }
 
     // ===== 아이템 블록용 메서드들 =====
-    
+
     /**
      * 특정 줄 전체를 제거 (라인 아이템용)
      */
@@ -316,5 +402,15 @@ public class Board {
                 grid[0][x] = null;
             }
         }
+    }
+
+    // ===== (선택) 외부에서 즉시 삭제가 필요한 경우를 위해 공개 메서드로 유지하고 싶다면 제공 =====
+    public int clearFullLinesImmediatelyForDebug() {
+        return clearFullLines();
+    }
+
+    // ===== (선택) 현재 대기 중인 삭제 줄 개수 조회 =====
+    public int getPendingClearCount() {
+        return pendingClearLines.size();
     }
 }

@@ -40,6 +40,13 @@ public class GamePanel extends JPanel {
     private int normalDelay;       // 슬로우 효과가 없을 때의 정상 딜레이
     private final Timer slowEffectTimer; // 슬로우 효과 타이머 (0.1초마다 업데이트)
 
+    // ==== LINE CLEAR ANIMATION: FIELDS (BEGIN) ====
+    private java.util.List<Integer> clearingLines = new java.util.ArrayList<>();
+    private boolean lineClearAnimating = false;
+    private int flashTick = 0;
+    private javax.swing.Timer lineClearTimer;
+    // ==== LINE CLEAR ANIMATION: FIELDS (END) ====
+
     public GamePanel(Board board, boolean isItemMode) {
         this.board = board;
         this.isItemMode = isItemMode;
@@ -91,9 +98,24 @@ public class GamePanel extends JPanel {
         currentDelay = baseDelay;
 
         timer = new Timer(currentDelay, e -> {
+            if (lineClearAnimating) { // 애니 중엔 자동 낙하 정지
+                repaint();
+                return;
+            }
+
             if (!board.isGameOver() && !paused) {
                 board.updateSlowEffect(); // 슬로우 효과 상태 업데이트
                 board.moveDown();
+
+                // ==== LINE CLEAR ANIMATION: START (BEGIN) ====
+                if (board.isWaitingLineClearAnimation() && !lineClearAnimating) {
+                    clearingLines = board.getPendingClearLines();
+                    lineClearAnimating = true;
+                    flashTick = 0;
+                    lineClearTimer.start();
+                }
+                // ==== LINE CLEAR ANIMATION: START (END) ====
+
                 updateSpeedByClears(); // 자동 낙하 후에도 갱신
                 repaint();
             } else {
@@ -114,32 +136,52 @@ public class GamePanel extends JPanel {
             }
         });
         slowEffectTimer.start();
+
+        // ==== LINE CLEAR ANIMATION: TIMER (BEGIN) ====
+        // 약 80ms × 2틱 → 하얀색으로 한 번 번쩍
+        lineClearTimer = new javax.swing.Timer(80, e -> {
+            if (!lineClearAnimating) {
+                ((javax.swing.Timer)e.getSource()).stop();
+                return;
+            }
+            flashTick++;
+            if (flashTick >= 2) { // 플래시 끝
+                ((javax.swing.Timer)e.getSource()).stop();
+                board.commitLineClear();     // 실제 삭제 실행 (Board 수정본에 포함)
+                lineClearAnimating = false;
+                clearingLines.clear();
+                flashTick = 0;
+                updateSpeedByClears();
+            }
+            repaint();
+        });
+        // ==== LINE CLEAR ANIMATION: TIMER (END) ====
     }
 
     private void handleGameOver() {
-    if (board.isGameOver()) {
-        timer.stop();
-        slowEffectTimer.stop(); // 슬로우 효과 타이머도 정지
-        int finalScore = board.getScore();
-        
-        RankingManager manager = isItemMode ? 
-            RankingManager.getInstance("item_rankings.dat") :
-            RankingManager.getInstance();
+        if (board.isGameOver()) {
+            timer.stop();
+            slowEffectTimer.stop(); // 슬로우 효과 타이머도 정지
+            int finalScore = board.getScore();
             
-        // 게임오버 시 창 닫고 GameOverScreen 표시
-        SwingUtilities.invokeLater(() -> {
-            java.awt.Window w = SwingUtilities.getWindowAncestor(this);
-            if (w != null) {
-                w.dispose();  // 현재 게임 창 닫기
-                if (manager.getRankings().size() < 10 || manager.shouldInputName(finalScore)) {
-                    new NameInputScreen(finalScore, isItemMode).setVisible(true);
-                } else {
-                    new GameOverScreen(finalScore).setVisible(true);
+            RankingManager manager = isItemMode ? 
+                RankingManager.getInstance("item_rankings.dat") :
+                RankingManager.getInstance();
+                
+            // 게임오버 시 창 닫고 GameOverScreen 표시
+            SwingUtilities.invokeLater(() -> {
+                java.awt.Window w = SwingUtilities.getWindowAncestor(this);
+                if (w != null) {
+                    w.dispose();  // 현재 게임 창 닫기
+                    if (manager.getRankings().size() < 10 || manager.shouldInputName(finalScore)) {
+                        new NameInputScreen(finalScore, isItemMode).setVisible(true);
+                    } else {
+                        new GameOverScreen(finalScore).setVisible(true);
+                    }
                 }
-            }
-        });
+            });
+        }
     }
-}
 
     // ==== 속도 가속 (줄 삭제 누적 기반) ====
     private void updateSpeedByClears() {
@@ -220,14 +262,13 @@ public class GamePanel extends JPanel {
             "아니오"
         );
         if (result == 0) {  // "예" 선택
-        timer.stop();
-        slowEffectTimer.stop();
-        System.exit(0);
+            timer.stop();
+            slowEffectTimer.stop();
+            System.exit(0);
+        }
     }
         
-    }
-
-     private void closeGameOnly() {
+    private void closeGameOnly() {
         java.awt.Window w = SwingUtilities.getWindowAncestor(this);
         if (w != null) w.dispose();
     }
@@ -240,6 +281,19 @@ public class GamePanel extends JPanel {
         drawBoard(g2);
         drawCurrent(g2);
         drawGrid(g2);
+
+        // ==== LINE CLEAR ANIMATION: PAINT (BEGIN) ====
+        if (lineClearAnimating && !clearingLines.isEmpty()) {
+            Graphics2D fx = (Graphics2D) g.create();
+            fx.setColor(Color.WHITE);
+            for (int row : clearingLines) {
+                int y = row * CELL;
+                fx.fillRect(0, y, BOARD_W, CELL);
+            }
+            fx.dispose();
+        }
+        // ==== LINE CLEAR ANIMATION: PAINT (END) ====
+
         drawSidebar(g2);
 
         if (paused) drawPaused(g2);
