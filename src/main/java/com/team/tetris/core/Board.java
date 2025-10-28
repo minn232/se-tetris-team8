@@ -64,7 +64,8 @@ public class Board {
     // ===== 스폰/오버 =====
     private void spawnNewTetromino() {
         if (gameOver) return;
-        // 10% 확률로 WeightBlock 등장 (확률은 필요에 따라 조정)
+        
+        // 10% 확률로 WeightBlock 생성
         if (random.nextDouble() < 0.1) {
             current = new WeightBlock(COLS / 2 - 2, 0);
         } else {
@@ -72,7 +73,7 @@ public class Board {
             current = new Tetromino(shape, COLS / 2 - 2, 0);
             nextShape = pickByRoulette();
         }
-        // Tetromino와 WeightBlock 모두 canMove 체크 필요
+        
         if (!canMoveCurrent(0, 0)) {
             gameOver = true;
         }
@@ -97,31 +98,37 @@ public class Board {
     // ===== 이동/회전 =====
     public void moveLeft() {
         if (gameOver) return;
-        if (current instanceof Tetromino t) {
-            if (canMove(t, -1, 0)) t.move(-1, 0);
-        } else if (current instanceof WeightBlock w) {
+        if (current instanceof WeightBlock w) {
             w.moveLeft(this);
+        } else if (current instanceof Tetromino t) {
+            if (canMove(t, -1, 0)) t.move(-1, 0);
         }
     }
 
     public void moveRight() {
         if (gameOver) return;
-        if (current instanceof Tetromino t) {
-            if (canMove(t, 1, 0)) t.move(1, 0);
-        } else if (current instanceof WeightBlock w) {
+        if (current instanceof WeightBlock w) {
             w.moveRight(this);
+        } else if (current instanceof Tetromino t) {
+            if (canMove(t, 1, 0)) t.move(1, 0);
         }
     }
 
     /** 한 칸 하강 (자동/수동 동일) */
     public boolean moveDown() {
         if (gameOver) return false;
-        boolean moved = false;
-        if (current instanceof Tetromino t) {
+        
+        if (current instanceof WeightBlock w) {
+            boolean reachedBottom = w.moveDown(this);
+            if (reachedBottom) {
+                spawnNewTetromino();
+            }
+            return !reachedBottom;
+        } else if (current instanceof Tetromino t) {
             if (canMove(t, 0, 1)) {
                 t.move(0, 1);
                 addBaseScore(10);
-                moved = true;
+                return true;
             } else {
                 fixToBoard();
                 int lines = clearFullLines();
@@ -130,43 +137,42 @@ public class Board {
                     totalLinesCleared += lines;
                 }
                 spawnNewTetromino();
+                return false;
             }
-        } else if (current instanceof WeightBlock w) {
-            boolean reachedBottom = w.moveDown(this);
-            if (reachedBottom) {
-                // WeightBlock이 바닥에 도달하면 고정하지 않고 바로 새 블록 스폰
-                spawnNewTetromino();
-            }
-            moved = !reachedBottom;
         }
-        return moved;
+        return false;
     }
 
     /** 즉시 낙하 */
     public void hardDrop() {
         if (gameOver) return;
-        int dropDist = 0;
-        if (current instanceof Tetromino t) {
+        
+        if (current instanceof WeightBlock w) {
+            boolean reachedBottom = false;
+            while (!reachedBottom) {
+                reachedBottom = w.moveDown(this);
+            }
+            spawnNewTetromino();
+        } else if (current instanceof Tetromino t) {
+            int dropDist = 0;
             while (canMove(t, 0, 1)) {
                 t.move(0, 1);
                 dropDist++;
             }
             addBaseScore(dropDist * 10);
             moveDown();
-        } else if (current instanceof WeightBlock) {
-            // WeightBlock은 hardDrop 시 일반 moveDown과 동일하게 한 칸씩
-            moveDown();
         }
     }
 
     public void rotate() {
-        if (gameOver) return;
-        if (current instanceof Tetromino t) {
-            Tetromino r = t.getRotatedCopy();
-            if (canMove(r, 0, 0)) t.rotate();
-        } else if (current instanceof WeightBlock w) {
-            w.rotate();
+        if (gameOver || current == null) return;
+        if (current instanceof WeightBlock) {
+            // WeightBlock은 회전 불가
+            return;
         }
+        Tetromino t = (Tetromino) current;
+        Tetromino r = t.getRotatedCopy();
+        if (canMove(r, 0, 0)) t.rotate();
     }
 
     // ===== 점수 =====
@@ -190,20 +196,16 @@ public class Board {
     }
 
     private void fixToBoard() {
+        if (current instanceof WeightBlock) {
+            // WeightBlock은 고정하지 않음
+            return;
+        }
         if (current instanceof Tetromino t) {
             for (Position p : t.getBlocks()) {
                 int x = t.getX() + p.x;
                 int y = t.getY() + p.y;
                 if (x >= 0 && x < COLS && y >= 0 && y < ROWS) {
                     grid[y][x] = t.getShape();
-                }
-            }
-        } else if (current instanceof WeightBlock w) {
-            for (Position p : w.getBlocks()) {
-                int x = w.getX() + p.x;
-                int y = w.getY() + p.y;
-                if (x >= 0 && x < COLS && y >= 0 && y < ROWS) {
-                    grid[y][x] = null; // WeightBlock은 고정 시 색상 없음(또는 별도 처리)
                 }
             }
         }

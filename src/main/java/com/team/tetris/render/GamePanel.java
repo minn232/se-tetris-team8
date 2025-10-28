@@ -17,6 +17,7 @@ import com.team.tetris.core.Board;
 import com.team.tetris.core.Position;
 import com.team.tetris.core.ShapeType;
 import com.team.tetris.core.Tetromino;
+import com.team.tetris.core.WeightBlock;
 
 public class GamePanel extends JPanel {
     private final Board board;
@@ -195,20 +196,21 @@ public class GamePanel extends JPanel {
     private void drawCurrent(Graphics2D g) {
         Object cur = board.getCurrent();
         if (cur == null) return;
-        if (cur instanceof Tetromino t) {
-            Color c = t.getShape().getColor();
-            for (Position p : t.getBlocks()) {
-                int px = t.getX() + p.x;
-                int py = t.getY() + p.y;
+        
+        if (cur instanceof WeightBlock w) {
+            Color c = Color.WHITE; // WeightBlock은 흰색
+            for (Position p : w.getBlocks()) {
+                int px = w.getX() + p.x;
+                int py = w.getY() + p.y;
                 if (px >= 0 && px < Board.COLS && py >= 0 && py < Board.ROWS) {
                     fillCell(g, px, py, c);
                 }
             }
-        } else if (cur instanceof com.team.tetris.core.WeightBlock w) {
-            Color c = Color.WHITE; // WeightBlock은 흰색 등으로 표시
-            for (Position p : w.getBlocks()) {
-                int px = w.getX() + p.x;
-                int py = w.getY() + p.y;
+        } else if (cur instanceof Tetromino t) {
+            Color c = t.getShape().getColor();
+            for (Position p : t.getBlocks()) {
+                int px = t.getX() + p.x;
+                int py = t.getY() + p.y;
                 if (px >= 0 && px < Board.COLS && py >= 0 && py < Board.ROWS) {
                     fillCell(g, px, py, c);
                 }

@@ -1,35 +1,32 @@
 package com.team.tetris.core;
 
-public class WeightBlock {
-    private int x, y;
-    private final Position[] blocks;
-    private boolean lockedHorizontal = false;
+import java.awt.Color;
+
+/**
+ * 무게 블록 - 내려가면서 아래 블록을 삭제하는 아이템
+ */
+public class WeightBlock extends ItemBlock {
 
     public WeightBlock(int x, int y) {
-        this.x = x;
-        this.y = y;
-        this.blocks = new Position[] {
+        super(x, y, new Position[] {
             new Position(1,0), new Position(2,0),
             new Position(0,1), new Position(1,1), new Position(2,1), new Position(3,1)
-        };
+        });
     }
 
-    public int getX() { return x; }
-    public int getY() { return y; }
-    public Position[] getBlocks() { return blocks; }
-
-    // 회전 불가
-    public void rotate() {
-        // 아무 동작도 하지 않음
+    @Override
+    public Color getColor() {
+        return Color.WHITE;
     }
 
-    // 좌우 이동: lockedHorizontal이 false일 때만 이동
+    @Override
     public void moveLeft(Board board) {
         if (!lockedHorizontal && canMoveHorizontal(board, -1)) {
             x -= 1;
         }
     }
 
+    @Override
     public void moveRight(Board board) {
         if (!lockedHorizontal && canMoveHorizontal(board, 1)) {
             x += 1;
@@ -47,7 +44,7 @@ public class WeightBlock {
         return true;
     }
 
-    // 아래로 이동하며 한 칸씩 내려갈 때마다 바로 아래 블록만 삭제
+    @Override
     public boolean moveDown(Board board) {
         // 바닥에 닿았는지 확인
         boolean hitBottom = false;
@@ -85,7 +82,6 @@ public class WeightBlock {
         return false; // 계속 내려갈 수 있음
     }
 
-    // 한 칸 내릴 때마다 바로 아래 블록만 삭제
     private void eraseBelowOne(Board board) {
         for (Position p : blocks) {
             int bx = x + p.x;
@@ -94,11 +90,5 @@ public class WeightBlock {
                 board.getGrid()[by][bx] = null;
             }
         }
-    }
-
-
-    // 테스트용: 좌우 이동 잠금 상태 반환
-    public boolean isLockedHorizontal() {
-        return lockedHorizontal;
     }
 }
