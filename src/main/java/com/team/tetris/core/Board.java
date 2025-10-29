@@ -29,6 +29,7 @@ public class Board {
     private final ItemManager itemManager;
     private com.team.tetris.items.ItemBlock nextItemBlock;
     private com.team.tetris.items.ItemBlock currentItemBlock;
+    private boolean shouldGenerateItem = false;
     
     // 슬로우 효과 관련
     private boolean slowEffectActive = false;
@@ -84,48 +85,33 @@ public class Board {
     private void spawnNewTetromino() {
         if (gameOver) return;
         
+        // 1. 먼저 현재 미리보기 블록을 스폰
         ShapeType shape;
         if (nextItemBlock != null) {
-            // 아이템 블록이 있으면 해당 블록의 기본 형태 사용
             shape = nextItemBlock.getBaseShape();
-            currentItemBlock = nextItemBlock;  // 현재 아이템 블록 설정
-            
-            // WeightBlock인 경우 좌우 이동 잠금 해제
-            if (nextItemBlock instanceof com.team.tetris.items.WeightBlock weightBlock) {
-                weightBlock.setLockedHorizontal(false);
-                System.out.println("WeightBlock 스폰: 좌우 이동 잠금 해제");
-            }
-            
-            System.out.println("아이템 블록 스폰: " + nextItemBlock.getName() + ", shape=" + shape);
+            currentItemBlock = nextItemBlock;
+            nextItemBlock = null;
         } else {
             shape = (nextShape != null) ? nextShape : pickByRoulette();
-            currentItemBlock = null;  // 일반 블록
-            System.out.println("일반 블록 스폰: shape=" + shape);
+            currentItemBlock = null;
         }
         
         if (shape == null) {
-            System.err.println("ERROR: shape가 null입니다! 기본 ShapeType.I 사용");
             shape = ShapeType.I;
         }
         
         current = new Tetromino(shape, COLS / 2 - 2, 0);
         
-        // WeightBlock인 경우 커스텀 블록 배열 적용
-        if (currentItemBlock instanceof com.team.tetris.items.WeightBlock weightBlock) {
-            current.setBlocks(weightBlock.getBlocks());
-            System.out.println("WeightBlock: 커스텀 블록 배열 적용 (6개 블록)");
-        }
+        // 2. 다음 블록 준비
+        nextShape = pickByRoulette();
         
-        if (current.getBlocks() == null) {
-            System.err.println("ERROR: current.getBlocks()가 null입니다!");
-        }
-        
-        // 다음 블록 설정 (아이템 블록은 한 번만 사용)
-        if (nextItemBlock != null) {
-            nextShape = pickByRoulette();  // 아이템 블록 사용 후 일반 블록으로 복귀
-            nextItemBlock = null;
-        } else {
-            nextShape = pickByRoulette();
+        // 3. 아이템 생성 플래그가 설정되어 있으면 이제 아이템 생성
+        if (shouldGenerateItem && isItemMode && itemManager != null) {
+            com.team.tetris.items.ItemBlock item = itemManager.generateItem();
+            if (item != null) {
+                nextItemBlock = item; // 다음 블록을 아이템으로 대체
+            }
+            shouldGenerateItem = false; // 플래그 리셋
         }
 
         if (!canMove(current, 0, 0)) {
@@ -198,15 +184,6 @@ public class Board {
             if (lines > 0) {
                 addBonusScore(1000 * lines); // n줄 동시 삭제 시 1000*n, 난이도 배율 적용
                 totalLinesCleared += lines;   // 누적 카운트 (속도 가속용)
-                
-                // 아이템 모드: 2줄마다 아이템 생성
-                if (isItemMode && itemManager != null) {
-                    com.team.tetris.items.ItemBlock item = itemManager.onLinesCleared(lines);
-                    if (item != null) {
-                        nextItemBlock = item;
-                        System.out.println("다음 아이템 블록 생성: " + item.getName());
-                    }
-                }
             }
             spawnNewTetromino();
             return false;
@@ -385,6 +362,14 @@ public class Board {
                 y++; // 위에서 내려온 줄 재검사
             }
         }
+        
+        if (cleared > 0 && isItemMode && itemManager != null) {
+            itemManager.onLinesCleared(cleared);
+            if (itemManager.shouldCreateItem()) {
+                shouldGenerateItem = true;
+            }
+        }
+        
         return cleared;
     }
 

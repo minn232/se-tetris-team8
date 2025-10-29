@@ -340,48 +340,49 @@ public class GamePanel extends JPanel {
         
         int baseFontSize = Settings.getBaseFontSize();
 
-        // SCORE
-        g.setFont(g.getFont().deriveFont(Font.BOLD, (float)baseFontSize));
-        g.drawString("SCORE", sx + 20, 40);
-        g.setFont(g.getFont().deriveFont(Font.PLAIN, (float)baseFontSize));
-        g.drawString(String.valueOf(board.getScore()), sx + 20, 68);
-
-        // DIFFICULTY
-        g.setFont(g.getFont().deriveFont(Font.BOLD, (float)baseFontSize));
-        g.drawString("DIFFICULTY", sx + 20, 110);
-        g.setFont(g.getFont().deriveFont(Font.PLAIN, (float)(baseFontSize * 0.89)));
-        String diff = board.getDifficulty().name().toLowerCase();
-        diff = Character.toUpperCase(diff.charAt(0)) + diff.substring(1);
-        g.drawString(diff, sx + 20, 134);
-
-        // LEVEL (= 누적 삭제 줄 수)
-        g.setFont(g.getFont().deriveFont(Font.BOLD, (float)baseFontSize));
-        g.drawString("LEVEL", sx + 20, 170);
-        g.setFont(g.getFont().deriveFont(Font.PLAIN, (float)(baseFontSize * 0.89)));
-        g.drawString(String.valueOf(board.getTotalLinesCleared()), sx + 20, 194);
-
-        // SPEED (현재 ms)
-        g.setFont(g.getFont().deriveFont(Font.BOLD, (float)baseFontSize));
-        g.drawString("SPEED", sx + 20, 230);
-        g.setFont(g.getFont().deriveFont(Font.PLAIN, (float)(baseFontSize * 0.89)));
-        g.drawString(currentDelay + " ms", sx + 20, 254);
-
-        // NEXT
+        // NEXT - 맨 위로 이동
         g.setFont(g.getFont().deriveFont(Font.BOLD, (float)baseFontSize));
         String nextLabel = "NEXT";
         if (board.getNextItemBlock() != null) {
             nextLabel = "NEXT (ITEM)";
         }
-        g.drawString(nextLabel, sx + 20, 290);
-        drawNextPreview(g, sx + 20, 310);
+        g.drawString(nextLabel, sx + 20, 30);
+        drawNextPreview(g, sx + 20, 50);
+        g.setColor(Color.WHITE);
+
+        // SCORE - 미리보기 아래로 이동
+        g.setFont(g.getFont().deriveFont(Font.BOLD, (float)baseFontSize));
+        g.drawString("SCORE", sx + 20, 160);
+        g.setFont(g.getFont().deriveFont(Font.PLAIN, (float)baseFontSize));
+        g.drawString(String.valueOf(board.getScore()), sx + 20, 188);
+
+        // DIFFICULTY
+        g.setFont(g.getFont().deriveFont(Font.BOLD, (float)baseFontSize));
+        g.drawString("DIFFICULTY", sx + 20, 230);
+        g.setFont(g.getFont().deriveFont(Font.PLAIN, (float)(baseFontSize * 0.89)));
+        String diff = board.getDifficulty().name().toLowerCase();
+        diff = Character.toUpperCase(diff.charAt(0)) + diff.substring(1);
+        g.drawString(diff, sx + 20, 254);
+
+        // LEVEL (= 누적 삭제 줄 수)
+        g.setFont(g.getFont().deriveFont(Font.BOLD, (float)baseFontSize));
+        g.drawString("LEVEL", sx + 20, 290);
+        g.setFont(g.getFont().deriveFont(Font.PLAIN, (float)(baseFontSize * 0.89)));
+        g.drawString(String.valueOf(board.getTotalLinesCleared()), sx + 20, 314);
+
+        // SPEED (현재 ms)
+        g.setFont(g.getFont().deriveFont(Font.BOLD, (float)baseFontSize));
+        g.drawString("SPEED", sx + 20, 350);
+        g.setFont(g.getFont().deriveFont(Font.PLAIN, (float)(baseFontSize * 0.89)));
+        g.drawString(currentDelay + " ms", sx + 20, 374);
         
         // 아이템 모드에서 아이템 정보 표시
         if (isItemMode && board.getItemManager() != null) {
             g.setFont(g.getFont().deriveFont(Font.BOLD, 14f));
-            g.drawString("ITEMS PROGRESS", sx + 20, 480);
+            g.drawString("ITEMS PROGRESS", sx + 20, 420);
             g.setFont(g.getFont().deriveFont(Font.PLAIN, 12f));
             int itemProgress = board.getItemManager().getTotalLinesCleared() % 2;
-            g.drawString(itemProgress + "/2 lines", sx + 20, 500);
+            g.drawString(itemProgress + "/2 lines", sx + 20, 440);
         }
         
         // 슬로우 효과 타이머 표시
@@ -391,9 +392,9 @@ public class GamePanel extends JPanel {
             
             g.setFont(g.getFont().deriveFont(Font.BOLD, 16f));
             g.setColor(new Color(173, 216, 230)); // 슬로우 블록과 같은 색상
-            g.drawString("SLOW EFFECT", sx + 20, 540);
+            g.drawString("SLOW EFFECT", sx + 20, 480);
             g.setFont(g.getFont().deriveFont(Font.PLAIN, 14f));
-            g.drawString(String.format("%.1f sec", seconds), sx + 20, 560);
+            g.drawString(String.format("%.1f sec", seconds), sx + 20, 500);
             g.setColor(Color.WHITE); // 색상 원복
         }
     }
@@ -401,15 +402,14 @@ public class GamePanel extends JPanel {
     private void drawNextPreview(Graphics2D g, int px, int py) {
         // 배경
         g.setColor(new Color(60, 60, 60));
-        g.fillRoundRect(px - 10, py - 10, 150, 150, 12, 12);
+        g.fillRoundRect(px - 10, py - 10, 80, 80, 8, 8);
 
         // 아이템 블록이 있는지 먼저 확인
         com.team.tetris.items.ItemBlock nextItem = board.getNextItemBlock();
+        
         if (nextItem != null) {
-            // 아이템 블록 표시
             drawItemPreview(g, px, py, nextItem);
         } else {
-            // 일반 블록 표시
             ShapeType n = board.getNextShape();
             if (n != null) {
                 drawShapePreview(g, px, py, n);
@@ -431,28 +431,33 @@ public class GamePanel extends JPanel {
         int cell = CELL / 2;
         int w = (maxx - minx + 1) * cell;
         int h = (maxy - miny + 1) * cell;
-        int cx = px + (150 - w) / 2;
-        int cy = py + (150 - h) / 2;
+        int cx = px + (80 - w) / 2 - 10;
+        int cy = py + (80 - h) / 2 - 10;
 
-        // 아이템 블록은 특별한 색상으로 표시
+        // 아이템 블록은 흰색 배경에 검은색 문자로 표시
         for (int i = 0; i < offs.length; i++) {
             Position p = offs[i];
             int cxp = cx + (p.x - minx) * cell;
             int cyp = cy + (p.y - miny) * cell;
-            g.setColor(item.getColor());  // 아이템 전용 색상 사용
+            
+            // 흰색 배경으로 표시
+            g.setColor(Color.WHITE);
             g.fillRect(cxp, cyp, cell, cell);
-            g.setColor(item.getColor().darker());
+            g.setColor(Color.LIGHT_GRAY);
             g.drawRect(cxp, cyp, cell, cell);
             
-            // 아이템 블록임을 나타내는 심볼 표시 (SlowBlock인 경우 각 블록마다 다른 심볼)
+            // 아이템 블록 심볼 표시
             char symbol;
             if (item instanceof com.team.tetris.items.SlowBlock slowBlock) {
                 symbol = slowBlock.getBlockSymbol(i);
+            } else if (item instanceof com.team.tetris.items.LineBlock lineBlock) {
+                symbol = lineBlock.getBlockSymbol(i);
             } else {
                 symbol = item.getSymbol();
             }
             
-            g.setColor(Color.WHITE);
+            // 아이템 심볼 표시
+            g.setColor(Color.BLACK);
             g.setFont(g.getFont().deriveFont(Font.BOLD, cell * 0.8f));
             int symbolX = cxp + cell / 4;
             int symbolY = cyp + cell * 3 / 4;
@@ -470,8 +475,8 @@ public class GamePanel extends JPanel {
         int cell = CELL / 2;
         int w = (maxx - minx + 1) * cell;
         int h = (maxy - miny + 1) * cell;
-        int cx = px + (150 - w) / 2;
-        int cy = py + (150 - h) / 2;
+        int cx = px + (80 - w) / 2 - 10;
+        int cy = py + (80 - h) / 2 - 10;
 
         for (Position p : offs) {
             int cxp = cx + (p.x - minx) * cell;

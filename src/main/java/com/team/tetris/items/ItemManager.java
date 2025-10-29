@@ -41,23 +41,23 @@ public class ItemManager {
      * @param linesCleared 이번에 삭제된 줄 수
      * @return 아이템 블록 (생성되지 않으면 null)
      */
-    public ItemBlock onLinesCleared(int linesCleared) {
+    public void onLinesCleared(int linesCleared) {
         if (!itemMode || availableItems.isEmpty()) {
-            System.out.println("아이템 생성 조건 불충족: 아이템모드=" + itemMode + ", 사용가능아이템=" + availableItems.size());
-            return null;
+            return;
         }
         
         totalLinesCleared += linesCleared;
-        System.out.println("누적 삭제 줄: " + totalLinesCleared + "/2");
-        
-        // 10줄마다 아이템 생성
-        if (totalLinesCleared >= LINES_FOR_ITEM) {
-            totalLinesCleared -= LINES_FOR_ITEM;
-            ItemBlock item = getRandomItem();
-            System.out.println("아이템 생성됨: " + (item != null ? item.getName() : "null"));
-            return item;
+    }
+    
+    public boolean shouldCreateItem() {
+        return totalLinesCleared >= LINES_FOR_ITEM;
+    }
+    
+    public ItemBlock generateItem() {
+        if (shouldCreateItem()) {
+            totalLinesCleared = totalLinesCleared % LINES_FOR_ITEM;
+            return getRandomItem();
         }
-        
         return null;
     }
     
