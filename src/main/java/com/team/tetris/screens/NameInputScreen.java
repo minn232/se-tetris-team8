@@ -35,6 +35,7 @@ import javax.swing.text.DocumentFilter;
 
 import com.team.tetris.ranking.RankingEntry;
 import com.team.tetris.ranking.RankingManager;
+import com.team.tetris.core.Settings;
 
 //이름을 입력하는 창을 구현한 클래스
 public class NameInputScreen extends JFrame {
@@ -53,9 +54,15 @@ public class NameInputScreen extends JFrame {
 
     //이름 입력 UI
     private void initializeUI() {
+        // Settings에서 해상도 정보 가져오기
+        int width = (int)(Settings.getWindowWidth() * 1.2);
+        int height = (int)(Settings.getWindowHeight() * 0.35);
+        int baseFontSize = Settings.getBaseFontSize();
+        double scaleFactor = Settings.getScaleFactor();
+        
         //창 설정
-        setTitle("새로운 기록!");
-        setSize(300, 150);
+        setTitle("New Record!");
+        setSize(width, height);
         setLocationRelativeTo(null);
         setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE); // 닫기 버튼 기본 동작 비활성화
         
@@ -72,16 +79,18 @@ public class NameInputScreen extends JFrame {
         //메인 패널 설정
         JPanel mainPanel = new JPanel();
         mainPanel.setLayout(new BoxLayout(mainPanel, BoxLayout.Y_AXIS));
-        mainPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+        mainPanel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
 
         //축하 메세지, 이름 입력, 확인 버튼 생성
-        JLabel messageLabel = new JLabel("축하합니다! 상위 10위 안에 들었습니다!");
+        JLabel messageLabel = new JLabel("Congratulations! Enter your name!");
+        messageLabel.setFont(new java.awt.Font("Arial", java.awt.Font.BOLD, baseFontSize));
         messageLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
 
         //이름 입력 필드 생성
         nameField = new JTextField(10);
+        nameField.setFont(new java.awt.Font("Arial", java.awt.Font.PLAIN, baseFontSize));
         nameField.setAlignmentX(Component.CENTER_ALIGNMENT); // 중앙 정렬 추가
-        nameField.setMaximumSize(new Dimension(200, 25)); // 최대 크기 제한
+        nameField.setMaximumSize(new Dimension((int)(250 * scaleFactor), (int)(35 * scaleFactor))); // 최대 크기 제한
         // 최대 10글자 제한을 실시간으로 적용
         ((AbstractDocument) nameField.getDocument()).setDocumentFilter(new DocumentFilter() {
 
@@ -97,16 +106,17 @@ public class NameInputScreen extends JFrame {
         });
 
         //확인 버튼 추가. submitScore 메소드 호출
-        JButton submitButton = new JButton("확인");
+        JButton submitButton = new JButton("Submit");
+        submitButton.setFont(new java.awt.Font("Arial", java.awt.Font.PLAIN, baseFontSize));
         submitButton.setAlignmentX(Component.CENTER_ALIGNMENT); // 중앙 정렬 추가
-        submitButton.setMaximumSize(new Dimension(100, 30)); // 최대 크기 제한
+        submitButton.setMaximumSize(new Dimension((int)(120 * scaleFactor), (int)(40 * scaleFactor))); // 최대 크기 제한
         submitButton.addActionListener(e -> submitScore());
 
         //컴포넌트 배치
         mainPanel.add(messageLabel);
-        mainPanel.add(Box.createVerticalStrut(10));
+        mainPanel.add(Box.createVerticalStrut(15));
         mainPanel.add(nameField);
-        mainPanel.add(Box.createVerticalStrut(10));
+        mainPanel.add(Box.createVerticalStrut(15));
         mainPanel.add(submitButton);
 
         add(mainPanel);
@@ -132,7 +142,7 @@ public class NameInputScreen extends JFrame {
             new GameOverScreen(finalScore).setVisible(true);
             //이름 입력이 비어있으면 경고창 표시
         } else {
-            JOptionPane.showMessageDialog(this, "이름을 입력해주세요!");
+            JOptionPane.showMessageDialog(this, "Please enter your name!");
         }
     }
 }

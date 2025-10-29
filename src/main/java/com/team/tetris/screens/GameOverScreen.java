@@ -25,6 +25,7 @@ import javax.swing.JLabel;
 import javax.swing.JPanel;
 
 import com.team.tetris.ranking.RankingBoard;
+import com.team.tetris.core.Settings;
 
 //게임 오버 시 나오는 화면. 새로 창을 뜨게 함
 public class GameOverScreen extends JFrame {
@@ -40,8 +41,13 @@ public class GameOverScreen extends JFrame {
     
     //게임오버 UI
     private void initializeUI() {
+        // Settings에서 해상도 정보 가져오기
+        int width = (int)(Settings.getWindowWidth() * 1.1);
+        int height = (int)(Settings.getWindowHeight() * 0.7);
+        int baseFontSize = Settings.getBaseFontSize();
+        
         setTitle("Game Over");          //창 제목
-        setSize(400, 300);       //창 크기
+        setSize(width, height);       //창 크기
         setLocationRelativeTo(null);        //창 화면 중앙으로
         setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);  //창 닫을 때 프로그램이 종료되지 않게.
         
@@ -51,14 +57,15 @@ public class GameOverScreen extends JFrame {
         mainPanel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));   //패널 내부 여백
         
         // 점수 표시 레이블
-        JLabel scoreLabel = new JLabel("최종 점수: " + finalScore); //점수 표기 방식
-        scoreLabel.setFont(new Font("Arial", Font.BOLD, 24)); //글꼴
+        JLabel scoreLabel = new JLabel("Score: " + finalScore); //점수 표기 방식
+        scoreLabel.setFont(new Font("Arial", Font.BOLD, (int)(baseFontSize * 1.33))); //글꼴 (24 기준)
         scoreLabel.setAlignmentX(Component.CENTER_ALIGNMENT); //가운데정렬
         
         // 버튼들
-        JButton restartButton = createButton("다시하기");
-        JButton mainMenuButton = createButton("메인 메뉴");
-        JButton leaderboardButton = createButton("랭킹보드");
+        JButton restartButton = createButton("Restart");
+        JButton mainMenuButton = createButton("Main Menu");
+        JButton leaderboardButton = createButton("Leaderboard");
+ 
 
 
          // 버튼 동작 추가
@@ -92,10 +99,13 @@ public class GameOverScreen extends JFrame {
     
     //버튼 생성 메서드
     private JButton createButton(String text) {
+        int baseFontSize = Settings.getBaseFontSize();
+        double scaleFactor = Settings.getScaleFactor();
+        
         JButton button = new JButton(text);
         button.setAlignmentX(Component.CENTER_ALIGNMENT);
-        button.setMaximumSize(new Dimension(200, 40));
-        button.setFont(new Font("Arial", Font.PLAIN, 16));
+        button.setMaximumSize(new Dimension((int)(200 * scaleFactor), (int)(40 * scaleFactor)));
+        button.setFont(new Font("Arial", Font.PLAIN, (int)(baseFontSize * 0.89)));
         return button;
     }
 }

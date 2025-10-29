@@ -15,6 +15,8 @@ import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTabbedPane;
 
+import com.team.tetris.core.Settings;
+
 public class RankingBoard extends JFrame {
     private static final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
     private JTabbedPane tabbedPane;
@@ -24,8 +26,12 @@ public class RankingBoard extends JFrame {
     }
 
     private void initializeUI() {
-        setTitle("랭킹 보드");
-        setSize(500, 600);
+        // Settings에서 해상도 정보 가져오기
+        int width = (int)(Settings.getWindowWidth() * 1.39);
+        int height = (int)(Settings.getWindowHeight() * 1.33);
+        
+        setTitle("Ranking Board");
+        setSize(width, height);
         setLocationRelativeTo(null);
         setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
 
@@ -34,22 +40,24 @@ public class RankingBoard extends JFrame {
         // 일반 모드 랭킹 패널
         JPanel normalModePanel = createRankingPanel(
             RankingManager.getInstance().getRankings(),
-            "일반 모드 랭킹"
+            "Normal Mode"
         );
         
         // 아이템 모드 랭킹 패널
         JPanel itemModePanel = createRankingPanel(
             RankingManager.getInstance("item_rankings.dat").getRankings(),
-            "아이템 모드 랭킹"
+            "Item Mode"
         );
 
-        tabbedPane.addTab("일반 모드", normalModePanel);
-        tabbedPane.addTab("아이템 모드", itemModePanel);
+        tabbedPane.addTab("Normal Mode", normalModePanel);
+        tabbedPane.addTab("Item Mode", itemModePanel);
 
         add(tabbedPane);
     }
 
     private JPanel createRankingPanel(List<RankingEntry> rankings, String title) {
+        int baseFontSize = Settings.getBaseFontSize();
+        
         JPanel mainPanel = new JPanel();
         mainPanel.setLayout(new BorderLayout());
         
@@ -63,7 +71,7 @@ public class RankingBoard extends JFrame {
         
         // 제목 레이블
         JLabel titleLabel = new JLabel(title);
-        titleLabel.setFont(new Font("Arial", Font.BOLD, 24));
+        titleLabel.setFont(new Font("Arial", Font.BOLD, (int)(baseFontSize * 1.33)));
         titleLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
         
         // 제목 패널에 여백을 추가하여 가운데 정렬
@@ -77,13 +85,13 @@ public class RankingBoard extends JFrame {
         // 랭킹 목록 추가
         for (int i = 0; i < rankings.size(); i++) {
             RankingEntry entry = rankings.get(i);
-            JLabel rankLabel = new JLabel(String.format("%d. %s - %d점 (%s)",
+            JLabel rankLabel = new JLabel(String.format("%d. %s - %d (%s)",
                 i + 1,
                 entry.getPlayerName(),
                 entry.getScore(),
                 entry.getTimestamp().format(formatter)
             ));
-            rankLabel.setFont(new Font("Arial", Font.PLAIN, 16));
+            rankLabel.setFont(new Font("Arial", Font.PLAIN, (int)(baseFontSize * 0.89)));
             rankLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
             contentPanel.add(rankLabel);
             contentPanel.add(Box.createVerticalStrut(10));

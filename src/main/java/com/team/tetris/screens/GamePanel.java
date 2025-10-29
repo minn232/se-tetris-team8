@@ -15,6 +15,7 @@ import javax.swing.Timer;
 
 import com.team.tetris.core.Board;
 import com.team.tetris.core.Position;
+import com.team.tetris.core.Settings;
 import com.team.tetris.core.ShapeType;
 import com.team.tetris.core.Tetromino;
 import com.team.tetris.ranking.RankingManager;
@@ -24,10 +25,10 @@ public class GamePanel extends JPanel {
     private final Board board;
     private final Timer timer;
 
-    private static final int CELL = 30;
-    private static final int BOARD_W = Board.COLS * CELL;
-    private static final int BOARD_H = Board.ROWS * CELL;
-    private static final int SIDE_W  = 200;
+    private final int CELL;
+    private final int BOARD_W;
+    private final int BOARD_H;
+    private final int SIDE_W;
 
     // 일시정지/속도
     private boolean paused = false;
@@ -43,6 +44,12 @@ public class GamePanel extends JPanel {
     public GamePanel(Board board, boolean isItemMode) {
         this.board = board;
         this.isItemMode = isItemMode;
+
+        // Settings에서 셀 크기 및 화면 크기 계산
+        this.CELL = Settings.getCellSize();
+        this.BOARD_W = Board.COLS * CELL;
+        this.BOARD_H = Board.ROWS * CELL;
+        this.SIDE_W = (int)(200 * Settings.getScaleFactor());
 
         setPreferredSize(new Dimension(BOARD_W + SIDE_W, BOARD_H));
         setBackground(Color.BLACK);
@@ -67,13 +74,17 @@ public class GamePanel extends JPanel {
 
                 if (board.isGameOver() || paused) return;
 
-                // 기본 조작키
-                switch (code) {
-                    case KeyEvent.VK_LEFT  -> board.moveLeft();
-                    case KeyEvent.VK_RIGHT -> board.moveRight();
-                    case KeyEvent.VK_DOWN  -> board.moveDown();
-                    case KeyEvent.VK_UP    -> board.rotate();
-                    case KeyEvent.VK_SPACE -> board.hardDrop();
+                // 기본 조작키 - Settings에서 가져옴
+                if (code == Settings.getKeyLeft()) {
+                    board.moveLeft();
+                } else if (code == Settings.getKeyRight()) {
+                    board.moveRight();
+                } else if (code == Settings.getKeyDown()) {
+                    board.moveDown();
+                } else if (code == Settings.getKeyRotate()) {
+                    board.rotate();
+                } else if (code == Settings.getKeyHardDrop()) {
+                    board.hardDrop();
                 }
 
                 // 속도 반영(줄 삭제 누적에 따라)
@@ -321,35 +332,37 @@ public class GamePanel extends JPanel {
         g.fillRect(sx, 0, SIDE_W, BOARD_H);
 
         g.setColor(Color.WHITE);
+        
+        int baseFontSize = Settings.getBaseFontSize();
 
         // SCORE
-        g.setFont(g.getFont().deriveFont(Font.BOLD, 18f));
+        g.setFont(g.getFont().deriveFont(Font.BOLD, (float)baseFontSize));
         g.drawString("SCORE", sx + 20, 40);
-        g.setFont(g.getFont().deriveFont(Font.PLAIN, 18f));
+        g.setFont(g.getFont().deriveFont(Font.PLAIN, (float)baseFontSize));
         g.drawString(String.valueOf(board.getScore()), sx + 20, 68);
 
         // DIFFICULTY
-        g.setFont(g.getFont().deriveFont(Font.BOLD, 18f));
+        g.setFont(g.getFont().deriveFont(Font.BOLD, (float)baseFontSize));
         g.drawString("DIFFICULTY", sx + 20, 110);
-        g.setFont(g.getFont().deriveFont(Font.PLAIN, 16f));
+        g.setFont(g.getFont().deriveFont(Font.PLAIN, (float)(baseFontSize * 0.89)));
         String diff = board.getDifficulty().name().toLowerCase();
         diff = Character.toUpperCase(diff.charAt(0)) + diff.substring(1);
         g.drawString(diff, sx + 20, 134);
 
         // LEVEL (= 누적 삭제 줄 수)
-        g.setFont(g.getFont().deriveFont(Font.BOLD, 18f));
+        g.setFont(g.getFont().deriveFont(Font.BOLD, (float)baseFontSize));
         g.drawString("LEVEL", sx + 20, 170);
-        g.setFont(g.getFont().deriveFont(Font.PLAIN, 16f));
+        g.setFont(g.getFont().deriveFont(Font.PLAIN, (float)(baseFontSize * 0.89)));
         g.drawString(String.valueOf(board.getTotalLinesCleared()), sx + 20, 194);
 
         // SPEED (현재 ms)
-        g.setFont(g.getFont().deriveFont(Font.BOLD, 18f));
+        g.setFont(g.getFont().deriveFont(Font.BOLD, (float)baseFontSize));
         g.drawString("SPEED", sx + 20, 230);
-        g.setFont(g.getFont().deriveFont(Font.PLAIN, 16f));
+        g.setFont(g.getFont().deriveFont(Font.PLAIN, (float)(baseFontSize * 0.89)));
         g.drawString(currentDelay + " ms", sx + 20, 254);
 
         // NEXT
-        g.setFont(g.getFont().deriveFont(Font.BOLD, 18f));
+        g.setFont(g.getFont().deriveFont(Font.BOLD, (float)baseFontSize));
         String nextLabel = "NEXT";
         if (board.getNextItemBlock() != null) {
             nextLabel = "NEXT (ITEM)";
