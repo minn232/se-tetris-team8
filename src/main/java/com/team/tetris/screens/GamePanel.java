@@ -148,8 +148,8 @@ public class GamePanel extends JPanel {
                     // 랭킹 진입: 이름 입력 화면 표시 (이름 입력 후 스코어보드 표시)
                     new NameInputScreen(finalScore, board.getDifficulty(), isItemMode).setVisible(true);
                 } else {
-                    // 랭킹 미진입: 스코어보드 먼저 표시
-                    new com.team.tetris.ranking.RankingBoard(null, finalScore, true).setVisible(true);
+                    // 랭킹 미진입: 스코어보드 먼저 표시 (isItemMode 전달)
+                    new com.team.tetris.ranking.RankingBoard(null, finalScore, true, isItemMode).setVisible(true);
                 }
             }
         });

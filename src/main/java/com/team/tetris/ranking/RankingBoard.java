@@ -31,15 +31,21 @@ public class RankingBoard extends JFrame {
     private final String highlightPlayerName;
     private final int highlightScore;
     private final boolean showReturnButton;
+    private final boolean isItemMode;
     
     public RankingBoard() {
-        this(null, -1, false);
+        this(null, -1, false, false);
     }
     
     public RankingBoard(String highlightPlayerName, int highlightScore, boolean showReturnButton) {
+        this(highlightPlayerName, highlightScore, showReturnButton, false);
+    }
+    
+    public RankingBoard(String highlightPlayerName, int highlightScore, boolean showReturnButton, boolean isItemMode) {
         this.highlightPlayerName = highlightPlayerName;
         this.highlightScore = highlightScore;
         this.showReturnButton = showReturnButton;
+        this.isItemMode = isItemMode;
         initializeUI();
     }
 
@@ -70,6 +76,11 @@ public class RankingBoard extends JFrame {
 
         tabbedPane.addTab("Normal Mode", normalModePanel);
         tabbedPane.addTab("Item Mode", itemModePanel);
+        
+        // 아이템 모드인 경우 아이템 모드 탭을 기본으로 선택
+        if (isItemMode) {
+            tabbedPane.setSelectedIndex(1);
+        }
 
         mainContainer.add(tabbedPane, BorderLayout.CENTER);
         

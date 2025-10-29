@@ -63,8 +63,8 @@ public class NameInputScreen extends JFrame {
             @Override
             public void windowClosing(WindowEvent e) {
                 dispose();
-                // 이름 입력 없이 닫은 경우에도 스코어보드 표시
-                new com.team.tetris.ranking.RankingBoard(null, finalScore, true).setVisible(true);
+                // 이름 입력 없이 닫은 경우에도 스코어보드 표시 (isItemMode 전달)
+                new com.team.tetris.ranking.RankingBoard(null, finalScore, true, isItemMode).setVisible(true);
             }
         });
 
@@ -119,8 +119,8 @@ public class NameInputScreen extends JFrame {
             manager.addEntry(new RankingEntry(playerName, finalScore, LocalDateTime.now()));
             dispose();
             
-            // 스코어보드를 표시하고 새로 입력한 항목 강조
-            new com.team.tetris.ranking.RankingBoard(playerName, finalScore, true).setVisible(true);
+            // 스코어보드를 표시하고 새로 입력한 항목 강조 (isItemMode 전달)
+            new com.team.tetris.ranking.RankingBoard(playerName, finalScore, true, isItemMode).setVisible(true);
         } else {
             JOptionPane.showMessageDialog(this, "Please enter your name!");
         }
