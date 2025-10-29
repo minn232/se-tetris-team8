@@ -402,6 +402,28 @@ public class Mainmenu extends JFrame {
             - NORMAL: Standard gameplay
             - HARD: Faster speed, fewer I-blocks
             
+            ITEM MODE:
+            Special white item blocks appear
+            every 10 lines cleared. Each block
+            has a unique power marked by a letter:
+            
+            - L (Line Block): Clears the entire
+              horizontal line where 'L' is placed
+            
+            - S (Slow Block): Reduces game speed
+              for a limited time
+            
+            - T (Transform Block): Converts the
+              next 5 blocks into I-blocks
+            
+            - W (Weight Block): Falls through and
+              erases blocks below it. Movement locks
+              when touching other blocks.
+            
+            - B (Bomb Block): Explodes in a 3x3
+              area when placed, clearing all blocks
+              in that zone
+            
             NOTE:
             You can customize key bindings
             in the Settings menu.
