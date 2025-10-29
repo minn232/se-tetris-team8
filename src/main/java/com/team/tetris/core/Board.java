@@ -4,11 +4,14 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 
+import com.team.tetris.items.ItemManager;
+
 public class Board {
+
     public static final int ROWS = 20;
     public static final int COLS = 10;
 
-    private final ShapeType[][] grid;
+    private final ShapeType[][] grid = new ShapeType[ROWS][COLS];
     private final Random random = new Random();
     private final double[] weights = new double[ShapeType.values().length];
 
@@ -24,8 +27,9 @@ public class Board {
     private double scoreMultiplier = 1.0; // 난이도 보너스(클리어/보너스에만 적용)
     private int totalLinesCleared = 0;    // 누적 삭제 줄 수(속도 가속에 사용)
 
+    // 아이템 모드
     private final boolean isItemMode;
-    private final com.team.tetris.items.ItemManager itemManager;
+    private final ItemManager itemManager;
     private com.team.tetris.items.ItemBlock nextItemBlock;
     private com.team.tetris.items.ItemBlock currentItemBlock;
 
@@ -41,61 +45,99 @@ public class Board {
     public Board(Difficulty difficulty, boolean isItemMode) {
         this.difficulty = difficulty;
         this.isItemMode = isItemMode;
-        this.grid = new ShapeType[ROWS][COLS];
-        this.itemManager = new com.team.tetris.items.ItemManager(isItemMode);
+        this.itemManager = new ItemManager(isItemMode);
         setWeightsByDifficulty();
         setScoreMultiplier();
+        this.nextShape = pickByRoulette();
         spawnNewTetromino();
     }
 
     // ===== 난이도별 블록 가중치 =====
     private void setWeightsByDifficulty() {
-        for (int i = 0; i < weights.length; i++) weights[i] = 1.0;
+        for (int i = 0; i < weights.length; i++) {
+            weights[i] = 1.0;
+        }
         switch (difficulty) {
-            case EASY   -> weights[ShapeType.I.ordinal()] = 1.2; // +20%
-            case NORMAL -> weights[ShapeType.I.ordinal()] = 1.0;
-            case HARD   -> weights[ShapeType.I.ordinal()] = 0.8; // -20%
+            case EASY ->
+                weights[ShapeType.I.ordinal()] = 1.2; // +20%
+            case NORMAL ->
+                weights[ShapeType.I.ordinal()] = 1.0;
+            case HARD ->
+                weights[ShapeType.I.ordinal()] = 0.8; // -20%
         }
     }
 
     // ===== 난이도별 점수 배율(클리어/보너스 전용) =====
     private void setScoreMultiplier() {
         switch (difficulty) {
-            case EASY -> scoreMultiplier = 0.9;
-            case NORMAL -> scoreMultiplier = 1.0;
-            case HARD   -> scoreMultiplier = 1.1;
+            case EASY, NORMAL ->
+                scoreMultiplier = 1.0;
+            case HARD ->
+                scoreMultiplier = 1.1;
         }
     }
 
     // ===== RWS (stochastic acceptance) =====
     private ShapeType pickByRoulette() {
         double max = 0;
-        for (double w : weights) if (w > max) max = w;
-        if (max <= 0) max = 1.0;
+        for (double w : weights) {
+            if (w > max) {
+                max = w;
+            }
+        }
+        if (max <= 0) {
+            max = 1.0;
+        }
 
         while (true) {
             int i = random.nextInt(weights.length);
-            if (random.nextDouble() < (weights[i] / max))
+            if (random.nextDouble() < (weights[i] / max)) {
                 return ShapeType.values()[i];
+            }
         }
     }
 
     // ===== 스폰/오버 =====
     private void spawnNewTetromino() {
-        if (gameOver) return;
+        if (gameOver) {
+            return;
+        }
 
         ShapeType shape;
         if (nextItemBlock != null) {
             // 아이템 블록이 있으면 해당 블록의 기본 형태 사용
             shape = nextItemBlock.getBaseShape();
             currentItemBlock = nextItemBlock;  // 현재 아이템 블록 설정
-            System.out.println("아이템 블록 스폰: " + nextItemBlock.getName());
+
+            // WeightBlock인 경우 좌우 이동 잠금 해제
+            if (nextItemBlock instanceof com.team.tetris.items.WeightBlock weightBlock) {
+                weightBlock.setLockedHorizontal(false);
+                System.out.println("WeightBlock 스폰: 좌우 이동 잠금 해제");
+            }
+
+            System.out.println("아이템 블록 스폰: " + nextItemBlock.getName() + ", shape=" + shape);
         } else {
             shape = (nextShape != null) ? nextShape : pickByRoulette();
             currentItemBlock = null;  // 일반 블록
+            System.out.println("일반 블록 스폰: shape=" + shape);
+        }
+
+        if (shape == null) {
+            System.err.println("ERROR: shape가 null입니다! 기본 ShapeType.I 사용");
+            shape = ShapeType.I;
         }
 
         current = new Tetromino(shape, COLS / 2 - 2, 0);
+
+        // WeightBlock인 경우 커스텀 블록 배열 적용
+        if (currentItemBlock instanceof com.team.tetris.items.WeightBlock weightBlock) {
+            current.setBlocks(weightBlock.getBlocks());
+            System.out.println("WeightBlock: 커스텀 블록 배열 적용 (6개 블록)");
+        }
+
+        if (current.getBlocks() == null) {
+            System.err.println("ERROR: current.getBlocks()가 null입니다!");
+        }
 
         // 다음 블록 설정 (아이템 블록은 한 번만 사용)
         if (nextItemBlock != null) {
@@ -111,37 +153,135 @@ public class Board {
     }
 
     // ===== 이동/회전 =====
-    public void moveLeft()  { if (!gameOver && canMove(current, -1, 0)) current.move(-1, 0); }
-    public void moveRight() { if (!gameOver && canMove(current,  1, 0)) current.move( 1, 0); }
+    public void moveLeft() {
+        if (gameOver) {
+            return;
+        }
 
-    /** 한 칸 하강 (자동/수동 동일) */
+        // WeightBlock 좌우 이동 잠금 체크
+        if (currentItemBlock instanceof com.team.tetris.items.WeightBlock weightBlock) {
+            if (weightBlock.isLockedHorizontal()) {
+                System.out.println("WeightBlock: 좌우 이동 잠김 (moveLeft 무시)");
+                return;
+            }
+        }
+
+        if (canMove(current, -1, 0)) {
+            current.move(-1, 0);
+        }
+    }
+
+    public void moveRight() {
+        if (gameOver) {
+            return;
+        }
+
+        // WeightBlock 좌우 이동 잠금 체크
+        if (currentItemBlock instanceof com.team.tetris.items.WeightBlock weightBlock) {
+            if (weightBlock.isLockedHorizontal()) {
+                System.out.println("WeightBlock: 좌우 이동 잠김 (moveRight 무시)");
+                return;
+            }
+        }
+
+        if (canMove(current, 1, 0)) {
+            current.move(1, 0);
+        }
+    }
+
+    /**
+     * 한 칸 하강 (자동/수동 동일)
+     */
     public boolean moveDown() {
-        if (gameOver) return false;
+        if (gameOver) {
+            return false;
+        }
+
+        // WeightBlock 특수 처리: 낙하 중 아래 블록 삭제
+        if (currentItemBlock instanceof com.team.tetris.items.WeightBlock weightBlock) {
+            weightBlock.eraseBelowBlocks(this, current.getX(), current.getY());
+        }
 
         if (canMove(current, 0, 1)) {
             current.move(0, 1);
             addBaseScore(10);     // 한 칸 떨어질 때마다 +10 (난이도 무관)
+
+            // WeightBlock이 블록에 닿으면 좌우 이동 잠금
+            if (currentItemBlock instanceof com.team.tetris.items.WeightBlock weightBlock) {
+                if (hasBlockBelow()) {
+                    weightBlock.setLockedHorizontal(true);
+                    System.out.println("WeightBlock: 블록 접촉, 좌우 이동 잠금");
+                }
+            }
+
             return true;
         } else {
-            // 고정 → (기존: 바로 삭제) → (변경: 삭제 대상만 확정하고 애니메이션 대기)
+
+            // WeightBlock은 바닥에 도달하면 보드에 고정하지 않고 사라짐
+            if (currentItemBlock instanceof com.team.tetris.items.WeightBlock) {
+                System.out.println("WeightBlock: 바닥 도달, 사라짐");
+                spawnNewTetromino();
+                return false;
+            }
+
+            // 고정 → (애니용) 라인 스캔/대기 또는 즉시 다음 스폰
             fixToBoard();
 
-            List<Integer> full = scanFullLines(); // 삭제 대상만 찾음 (삭제하지 않음)
+            // 애니메이션용: 꽉 찬 줄만 스캔하고, 실제 삭제/점수/스폰은 commitLineClear()에서
+            java.util.List<Integer> full = scanFullLines();
             if (!full.isEmpty()) {
                 pendingClearLines.clear();
                 pendingClearLines.addAll(full);
-                waitingLineClearAnimation = true; // UI에서 번쩍 표시 후 commitLineClear() 호출할 것
+                waitingLineClearAnimation = true;  // GamePanel이 이걸 보고 번쩍 애니 시작
+                System.out.println("라인 클리어 대기(애니메이션): " + full);
             } else {
+                // 지울 줄이 없으면 바로 다음 블록 스폰
                 spawnNewTetromino();
             }
             return false;
+
         }
     }
 
-    /** 즉시 낙하 */
+    /**
+     * 즉시 낙하
+     */
     public void hardDrop() {
-        if (gameOver) return;
+        if (gameOver) {
+            return;
+        }
         int dropDist = 0;
+
+        // WeightBlock 특수 처리: 하드드롭 시 경로상의 모든 블록 삭제
+        if (currentItemBlock instanceof com.team.tetris.items.WeightBlock) {
+            // 1단계: 아래 방향으로 모든 블록 삭제 (바닥까지)
+            for (Position block : current.getBlocks()) {
+                int blockX = current.getX() + block.x;
+
+                // 현재 블록 아래부터 바닥까지 모든 블록 삭제
+                for (int y = current.getY() + block.y + 1; y < ROWS; y++) {
+                    if (blockX >= 0 && blockX < COLS) {
+                        if (grid[y][blockX] != null) {
+                            grid[y][blockX] = null;
+                        }
+                    }
+                }
+            }
+
+            // 2단계: 블록 삭제 후 떨어질 수 있는 만큼 낙하
+            int totalDropDist = 0;
+            while (canMove(current, 0, 1)) {
+                current.move(0, 1);
+                totalDropDist++;
+            }
+
+            System.out.println("WeightBlock: 하드드롭으로 경로상 모든 블록 삭제 후 " + totalDropDist + "칸 낙하");
+            addBaseScore(totalDropDist * 10);
+            spawnNewTetromino(); // WeightBlock은 고정하지 않고 사라짐
+            return;
+        }
+
+        // 일반 블록 하드드롭
         while (canMove(current, 0, 1)) {
             current.move(0, 1);
             dropDist++;
@@ -151,9 +291,27 @@ public class Board {
     }
 
     public void rotate() {
-        if (gameOver) return;
+        if (gameOver) {
+            return;
+        }
+
+        // WeightBlock은 회전 불가
+        if (currentItemBlock instanceof com.team.tetris.items.WeightBlock) {
+            System.out.println("WeightBlock: 회전 불가");
+            return;
+        }
+
         Tetromino r = current.getRotatedCopy();
-        if (canMove(r, 0, 0)) current.rotate();
+        if (canMove(r, 0, 0)) {
+            current.rotate();
+
+            // LineBlock이나 BombBlock인 경우 회전 상태 업데이트
+            if (currentItemBlock instanceof com.team.tetris.items.LineBlock lineBlock) {
+                lineBlock.setRotation(current.getRotation());
+            } else if (currentItemBlock instanceof com.team.tetris.items.BombBlock bombBlock) {
+                bombBlock.setRotation(current.getRotation());
+            }
+        }
     }
 
     // ===== 점수 =====
@@ -167,53 +325,106 @@ public class Board {
 
     // ===== 충돌/고정/라인 =====
     private boolean canMove(Tetromino t, int dx, int dy) {
+        if (t == null || t.getBlocks() == null) {
+            System.err.println("canMove: Tetromino 또는 blocks가 null입니다!");
+            return false;
+        }
+
         for (Position p : t.getBlocks()) {
             int x = t.getX() + p.x + dx;
             int y = t.getY() + p.y + dy;
-            if (x < 0 || x >= COLS || y < 0 || y >= ROWS) return false;
-            if (grid[y][x] != null) return false;
+            if (x < 0 || x >= COLS || y < 0 || y >= ROWS) {
+                return false;
+            }
+            if (grid[y][x] != null) {
+                return false;
+            }
         }
         return true;
     }
 
     private void fixToBoard() {
-        // 현재 테트리미노가 방금 생성된 아이템 블록인지 확인
+        // 현재 테트리미노가 아이템 블록인지 확인
         boolean isCurrentItemBlock = (currentItemBlock != null);
 
-        Position[] blocks = current.getBlocks();
-        for (int i = 0; i < blocks.length; i++) {
-            Position p = blocks[i];
-            int x = current.getX() + p.x;
-            int y = current.getY() + p.y;
-            if (x >= 0 && x < COLS && y >= 0 && y < ROWS) {
-                grid[y][x] = current.getShape();
+        boolean isBombBlock = (currentItemBlock instanceof com.team.tetris.items.BombBlock);
 
-                // 아이템 블록이라면 효과 발동
-                if (isCurrentItemBlock) {
+        if (isCurrentItemBlock) {
+            System.out.println("아이템 블록 고정: " + currentItemBlock.getName());
+        }
+
+        // BombBlock이 아닌 경우에만 보드에 고정
+        if (!isBombBlock) {
+            for (int i = 0; i < current.getBlocks().length; i++) {
+                Position p = current.getBlocks()[i];
+                int x = current.getX() + p.x;
+                int y = current.getY() + p.y;
+                if (x >= 0 && x < COLS && y >= 0 && y < ROWS) {
+                    grid[y][x] = current.getShape();
+                }
+            }
+        }
+
+        // 아이템 효과 발동
+        if (isCurrentItemBlock) {
+            for (int i = 0; i < current.getBlocks().length; i++) {
+                Position p = current.getBlocks()[i];
+                int x = current.getX() + p.x;
+                int y = current.getY() + p.y;
+                if (x >= 0 && x < COLS && y >= 0 && y < ROWS) {
                     if (currentItemBlock instanceof com.team.tetris.items.LineBlock lineBlock) {
                         // LineBlock은 특별한 처리
+                        System.out.println("LineBlock 효과 발동 위치: (" + x + ", " + y + "), 블록 인덱스: " + i);
                         lineBlock.activateEffectAtPosition(this, x, y, i);
+                    } else if (currentItemBlock instanceof com.team.tetris.items.SlowBlock) {
+                        // SlowBlock은 첫 번째 블록에서만 효과 발동
+                        if (i == 0) {
+                            System.out.println("SlowBlock 효과 발동");
+                            currentItemBlock.activateEffect(this, x, y);
+                        }
+                    } else if (currentItemBlock instanceof com.team.tetris.items.BombBlock bombBlock) {
+                        // BombBlock은 폭탄 블록(B 표시된 블록)에서만 효과 발동 후 사라짐
+                        if (i == bombBlock.getBombIndex()) {
+                            System.out.println("BombBlock 효과 발동 - 3x3 폭발! 폭탄 위치: (" + x + ", " + y + ")");
+                            currentItemBlock.activateEffect(this, x, y);
+                            System.out.println("BombBlock 폭발 완료 - 블록 사라짐");
+                        }
+                    } else if (currentItemBlock instanceof com.team.tetris.items.WeightBlock) {
+                        // WeightBlock은 첫 번째 블록에서만 효과 발동
+                        if (i == 0) {
+                            System.out.println("WeightBlock 효과 발동");
+                            currentItemBlock.activateEffect(this, x, y);
+                        }
                     } else {
-                        // 다른 아이템 블록들은 기본 처리
-                        currentItemBlock.activateEffect(this, x, y);
+                        // 다른 아이템들은 첫 번째 블록에서만 효과 발동
+                        if (i == 0) {
+                            System.out.println(currentItemBlock.getName() + " 효과 발동");
+                            currentItemBlock.activateEffect(this, x, y);
+                        }
                     }
                 }
             }
         }
 
-        // 아이템 블록 효과 발동 후 초기화
+        // 아이템 효과 발동 후 초기화
         if (isCurrentItemBlock) {
+            System.out.println("아이템 블록 효과 발동 완료, currentItemBlock 초기화");
             currentItemBlock = null;
         }
     }
 
-    /** (이전과 동일) 즉시 삭제 로직 — 다른 곳에서 사용 가능하도록 유지 */
+    /**
+     * (이전과 동일) 즉시 삭제 로직 — 다른 곳에서 사용 가능하도록 유지
+     */
     private int clearFullLines() {
         int cleared = 0;
         for (int y = ROWS - 1; y >= 0; y--) {
             boolean full = true;
             for (int x = 0; x < COLS; x++) {
-                if (grid[y][x] == null) { full = false; break; }
+                if (grid[y][x] == null) {
+                    full = false;
+                    break;
+                }
             }
             if (full) {
                 cleared++;
@@ -221,7 +432,6 @@ public class Board {
                 y++; // 위에서 내려온 줄 재검사
             }
         }
-
         if (cleared > 0) {
             System.out.println(cleared + "줄 삭제됨. 아이템 모드: " + isItemMode);
         }
@@ -242,40 +452,128 @@ public class Board {
         for (int y = line; y > 0; y--) {
             System.arraycopy(grid[y - 1], 0, grid[y], 0, COLS);
         }
-        for (int x = 0; x < COLS; x++) grid[0][x] = null;
+        for (int x = 0; x < COLS; x++) {
+            grid[0][x] = null;
+        }
+    }
+
+    // ===== 아이템 효과 메서드 =====
+    /**
+     * LineBlock이 특정 줄을 삭제할 때 사용
+     */
+    public void clearLine(int y) {
+        if (y >= 0 && y < ROWS) {
+            removeLine(y);
+        }
+    }
+
+    /**
+     * SlowBlock이 슬로우 효과를 활성화할 때 사용
+     */
+    public void activateSlowEffect() {
+        slowEffectActive = true;
+        slowEffectStartTime = System.currentTimeMillis();
+        System.out.println("슬로우 효과 활성화!");
+    }
+
+    /**
+     * 슬로우 효과 상태 업데이트 (매 프레임마다 호출)
+     */
+    public void updateSlowEffect() {
+        if (slowEffectActive) {
+            long elapsed = System.currentTimeMillis() - slowEffectStartTime;
+            if (elapsed >= SLOW_EFFECT_DURATION) {
+                slowEffectActive = false;
+                System.out.println("슬로우 효과 종료!");
+            }
+        }
+    }
+
+    /**
+     * 슬로우 효과가 활성화되어 있는지 확인
+     */
+    public boolean isSlowEffectActive() {
+        return slowEffectActive;
+    }
+
+    /**
+     * 슬로우 효과 남은 시간 (밀리초)
+     */
+    public long getSlowEffectRemainingTime() {
+        if (!slowEffectActive) {
+            return 0;
+        }
+        long elapsed = System.currentTimeMillis() - slowEffectStartTime;
+        return Math.max(0, SLOW_EFFECT_DURATION - elapsed);
+    }
+
+    /**
+     * 현재 테트로미노(WeightBlock) 아래에 블록이 있는지 확인
+     */
+    private boolean hasBlockBelow() {
+        if (current == null || current.getBlocks() == null) {
+            return false;
+        }
+
+        Position[] blocks = current.getBlocks();
+        for (Position block : blocks) {
+            int boardX = current.getX() + block.x;
+            int boardY = current.getY() + block.y + 1; // 바로 아래
+
+            if (boardY >= ROWS) {
+                return true; // 바닥에 도달
+
+                        }if (boardY >= 0 && boardX >= 0 && boardX < COLS) {
+                if (grid[boardY][boardX] != null) {
+                    return true; // 블록 발견
+                }
+            }
+        }
+        return false;
     }
 
     // ===== (신규) 애니메이션을 위한 라인 스캔/커밋 =====
-
-    /** 삭제 대상 줄만 스캔 (삭제는 하지 않음) */
+    /**
+     * 삭제 대상 줄만 스캔 (삭제는 하지 않음)
+     */
     private List<Integer> scanFullLines() {
         List<Integer> full = new ArrayList<>();
         for (int y = ROWS - 1; y >= 0; y--) {
             boolean isFull = true;
             for (int x = 0; x < COLS; x++) {
-                if (grid[y][x] == null) { isFull = false; break; }
+                if (grid[y][x] == null) {
+                    isFull = false;
+                    break;
+                }
             }
-            if (isFull) full.add(y);
+            if (isFull) {
+                full.add(y);
+            }
         }
         return full;
     }
 
-    /** GamePanel이 애니메이션 시작/진행 여부를 알기 위한 플래그 */
+    /**
+     * GamePanel이 애니메이션 시작/진행 여부를 알기 위한 플래그
+     */
     public boolean isWaitingLineClearAnimation() {
         return waitingLineClearAnimation;
     }
 
-    /** GamePanel이 번쩍 표시할 줄 목록 (복사본) */
+    /**
+     * GamePanel이 번쩍 표시할 줄 목록 (복사본)
+     */
     public List<Integer> getPendingClearLines() {
         return new ArrayList<>(pendingClearLines);
     }
 
     /**
-     * GamePanel에서 플래시 애니메이션이 끝난 뒤 호출:
-     * 실제 줄 삭제 + 점수/아이템 후처리 + 다음 블록 스폰
+     * GamePanel에서 플래시 애니메이션이 끝난 뒤 호출: 실제 줄 삭제 + 점수/아이템 후처리 + 다음 블록 스폰
      */
     public void commitLineClear() {
-        if (!waitingLineClearAnimation || pendingClearLines.isEmpty()) return;
+        if (!waitingLineClearAnimation || pendingClearLines.isEmpty()) {
+            return;
+        }
 
         // 삭제할 줄을 Set으로 (O(1) 조회)
         java.util.Set<Integer> toClear = new java.util.HashSet<>(pendingClearLines);
@@ -285,8 +583,9 @@ public class Board {
         ShapeType[][] newGrid = new ShapeType[ROWS][COLS];
         int write = ROWS - 1; // 아래쪽부터 채움
         for (int read = ROWS - 1; read >= 0; read--) {
-            if (toClear.contains(read)) continue; // 지울 줄은 스킵
-            // 한 줄 복사
+            if (toClear.contains(read)) {
+                continue; // 지울 줄은 스킵
+            }            // 한 줄 복사
             for (int x = 0; x < COLS; x++) {
                 newGrid[write][x] = grid[read][x];
             }
@@ -319,47 +618,60 @@ public class Board {
     }
 
     // ===== 게임 상태/게터 =====
-    public boolean isGameOver()          { return gameOver; }
-    public int getScore()                { return score; }
-    public int getTotalLinesCleared()    { return totalLinesCleared; }
-    public Difficulty getDifficulty()    { return difficulty; }
-    public ShapeType[][] getGrid()       { return grid; }
-    public Tetromino getCurrent()        { return current; }
-    public ShapeType getNextShape()      { return nextShape; }
-    public boolean isItemMode()          { return isItemMode; }
-    public com.team.tetris.items.ItemBlock getNextItemBlock() { return nextItemBlock; }
-    public com.team.tetris.items.ItemBlock getCurrentItemBlock() { return currentItemBlock; }
-    public com.team.tetris.items.ItemManager getItemManager() { return itemManager; }
-
-    // 슬로우 효과 관련 메서드들
-    public boolean isSlowEffectActive() { return slowEffectActive; }
-    public long getSlowEffectRemainingTime() {
-        if (!slowEffectActive) return 0;
-        long elapsed = System.currentTimeMillis() - slowEffectStartTime;
-        return Math.max(0, SLOW_EFFECT_DURATION - elapsed);
+    public boolean isGameOver() {
+        return gameOver;
     }
 
-    public void activateSlowEffect() {
-        slowEffectActive = true;
-        slowEffectStartTime = System.currentTimeMillis();
-        System.out.println("슬로우 효과 활성화! 10초간 속도 감소");
+    public int getScore() {
+        return score;
     }
 
-    public void updateSlowEffect() {
-        if (slowEffectActive) {
-            long elapsed = System.currentTimeMillis() - slowEffectStartTime;
-            if (elapsed >= SLOW_EFFECT_DURATION) {
-                slowEffectActive = false;
-                System.out.println("슬로우 효과 종료");
+    public int getTotalLinesCleared() {
+        return totalLinesCleared;
+    }
+
+    public Difficulty getDifficulty() {
+        return difficulty;
+    }
+
+    public ShapeType[][] getGrid() {
+        return grid;
+    }
+
+    public Tetromino getCurrent() {
+        return current;
+    }
+
+    public ShapeType getNextShape() {
+        return nextShape;
+    }
+
+    // 아이템 모드 관련 게터 (FQCN 쓰지 말고 import 버전만 유지)
+    public boolean isItemMode() {
+        return isItemMode;
+    }
+
+    public ItemManager getItemManager() {
+        return itemManager;
+    }
+
+    public com.team.tetris.items.ItemBlock getNextItemBlock() {
+        return nextItemBlock;
+    }
+
+    public com.team.tetris.items.ItemBlock getCurrentItemBlock() {
+        return currentItemBlock;
+    }
+
+    // ===== 리셋(재시작용) =====
+    public void reset() {
+        // 보드 초기화
+        for (int y = 0; y < ROWS; y++) {
+            for (int x = 0; x < COLS; x++) {
+                grid[y][x] = null;
             }
         }
-    }
 
-    // 리셋(재시작용)
-    public void reset() {
-        for (int y = 0; y < ROWS; y++) {
-            for (int x = 0; x < COLS; x++) grid[y][x] = null;
-        }
         score = 0;
         totalLinesCleared = 0;
         gameOver = false;
@@ -372,45 +684,61 @@ public class Board {
         nextItemBlock = null;
         currentItemBlock = null;
         if (itemManager != null) {
-            // ItemManager의 totalLinesCleared도 초기화해야 함
+            // 아이템 매니저 내부 누적(라인 수 등)도 초기화
             itemManager.reset();
         }
 
+        // 라인 삭제 애니메이션 대기 초기화
         pendingClearLines.clear();
         waitingLineClearAnimation = false;
 
+        // 다음 블록 준비 후 스폰
         nextShape = pickByRoulette();
+        nextItemBlock = null; // 아이템 블록 슬롯 비우기
         spawnNewTetromino();
     }
 
-    // ===== 아이템 블록용 메서드들 =====
-
-    /**
-     * 특정 줄 전체를 제거 (라인 아이템용)
-     */
-    public void clearLine(int line) {
-        if (line >= 0 && line < ROWS) {
-            for (int x = 0; x < COLS; x++) {
-                grid[line][x] = null;
-            }
-            // 위쪽 블록들을 아래로 이동
-            for (int y = line; y > 0; y--) {
-                System.arraycopy(grid[y - 1], 0, grid[y], 0, COLS);
-            }
-            // 맨 위 줄 비우기
-            for (int x = 0; x < COLS; x++) {
-                grid[0][x] = null;
-            }
-        }
-    }
-
-    // ===== (선택) 외부에서 즉시 삭제가 필요한 경우를 위해 공개 메서드로 유지하고 싶다면 제공 =====
+    // ===== (선택) 디버그용: 즉시 삭제 실행 =====
     public int clearFullLinesImmediatelyForDebug() {
         return clearFullLines();
     }
 
-    // ===== (선택) 현재 대기 중인 삭제 줄 개수 조회 =====
+    // ===== (선택) 현재 대기 중인 삭제 줄 개수 =====
     public int getPendingClearCount() {
         return pendingClearLines.size();
     }
+    // 현재 조각이 TransformBlock일 때 I 블록으로 변환
+    public void activateTransformToI() {
+        if (gameOver || current == null) return;
+        if (!(currentItemBlock instanceof com.team.tetris.items.TransformBlock)) return;
+
+        // 현재 위치 근처에 배치 시도
+        Tetromino candidate = new Tetromino(ShapeType.I, current.getX(), current.getY());
+
+        int[] dxTry = {0, -1, 1, -2, 2};
+        int[] dyTry = {0, -1, -2};
+        boolean placed = false;
+
+        outer:
+        for (int dy : dyTry) {
+            for (int dx : dxTry) {
+                Tetromino t = new Tetromino(ShapeType.I, current.getX() + dx, current.getY() + dy);
+                if (canMove(t, 0, 0)) {
+                    current = t;                 // 현재 조각을 I로 교체
+                    placed = true;
+                    break outer;
+                }
+            }
+        }
+
+        if (placed) {
+            currentItemBlock = null;            // 1회성 소비
+            // (회전 상태 동기화 필요 없음: 새 I 블록은 rot=0으로 시작)
+        } else {
+            // 공간 부족 시 변환 실패(그냥 무시)
+            System.out.println("TransformToI: 변환 실패 - 공간 부족");
+        }
+    }
+
+    
 }

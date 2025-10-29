@@ -32,7 +32,9 @@ public class ItemManager {
     private void initializeItems() {
         availableItems.add(new LineBlock());
         availableItems.add(new SlowBlock());
-        // 추가 아이템들을 여기에 등록
+        availableItems.add(new BombBlock());
+        availableItems.add(new WeightBlock());
+        availableItems.add(new TransformBlock());
     }
     
     /**

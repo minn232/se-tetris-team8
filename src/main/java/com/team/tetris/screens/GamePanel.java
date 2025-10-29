@@ -15,19 +15,21 @@ import javax.swing.Timer;
 
 import com.team.tetris.core.Board;
 import com.team.tetris.core.Position;
+import com.team.tetris.core.Settings;
 import com.team.tetris.core.ShapeType;
 import com.team.tetris.core.Tetromino;
 import com.team.tetris.ranking.RankingManager;
 
 public class GamePanel extends JPanel {
+
     private final boolean isItemMode;
     private final Board board;
     private final Timer timer;
 
-    private static final int CELL = 30;
-    private static final int BOARD_W = Board.COLS * CELL;
-    private static final int BOARD_H = Board.ROWS * CELL;
-    private static final int SIDE_W  = 200;
+    private final int CELL;
+    private final int BOARD_W;
+    private final int BOARD_H;
+    private final int SIDE_W;
 
     // 일시정지/속도
     private boolean paused = false;
@@ -35,7 +37,7 @@ public class GamePanel extends JPanel {
     private int currentDelay;      // 현재 타이머 딜레이(ms)
     private int minDelay = 150;    // 너무 빨라지지 않도록 하한
     private int stepPerLine = 50;  // 줄 1개 삭제 시 50ms 가속
-    
+
     // 슬로우 효과 관련
     private int normalDelay;       // 슬로우 효과가 없을 때의 정상 딜레이
     private final Timer slowEffectTimer; // 슬로우 효과 타이머 (0.1초마다 업데이트)
@@ -51,12 +53,19 @@ public class GamePanel extends JPanel {
         this.board = board;
         this.isItemMode = isItemMode;
 
+        // Settings에서 셀 크기 및 화면 크기 계산
+        this.CELL = Settings.getCellSize();
+        this.BOARD_W = Board.COLS * CELL;
+        this.BOARD_H = Board.ROWS * CELL;
+        this.SIDE_W = (int) (200 * Settings.getScaleFactor());
+
         setPreferredSize(new Dimension(BOARD_W + SIDE_W, BOARD_H));
         setBackground(Color.BLACK);
         setFocusable(true);
 
         addKeyListener(new KeyAdapter() {
-            @Override public void keyPressed(KeyEvent e) {
+            @Override
+            public void keyPressed(KeyEvent e) {
                 int code = e.getKeyCode();
 
                 // P: 일시정지 / 재개 + 메뉴
@@ -72,17 +81,27 @@ public class GamePanel extends JPanel {
                     return;
                 }
 
-                if (board.isGameOver() || paused) return;
-
-                // 기본 조작키
-                switch (code) {
-                    case KeyEvent.VK_LEFT  -> board.moveLeft();
-                    case KeyEvent.VK_RIGHT -> board.moveRight();
-                    case KeyEvent.VK_DOWN  -> board.moveDown();
-                    case KeyEvent.VK_UP    -> board.rotate();
-                    case KeyEvent.VK_SPACE -> board.hardDrop();
+                if (board.isGameOver() || paused) {
+                    return;
                 }
 
+                // 기본 조작키 - Settings에서 가져옴
+                if (code == Settings.getKeyLeft()) {
+                    board.moveLeft();
+                } else if (code == Settings.getKeyRight()) {
+                    board.moveRight();
+                } else if (code == Settings.getKeyDown()) {
+                    board.moveDown();
+                } else if (code == Settings.getKeyRotate()) {
+                    // 회전키 입력 시: TransformBlock이면 I블록으로 변신, 아니면 기존 회전
+                    if (board.getCurrentItemBlock() instanceof com.team.tetris.items.TransformBlock) {
+                        board.activateTransformToI();
+                    } else {
+                        board.rotate();
+                    }
+                } else if (code == Settings.getKeyHardDrop()) {
+                    board.hardDrop();
+                }
                 // 속도 반영(줄 삭제 누적에 따라)
                 updateSpeedByClears();
                 repaint();
@@ -91,9 +110,12 @@ public class GamePanel extends JPanel {
 
         // 난이도별 시작 속도
         baseDelay = switch (board.getDifficulty()) {
-            case EASY   -> 1000;
-            case NORMAL -> 800;
-            case HARD   -> 600;
+            case EASY ->
+                1000;
+            case NORMAL ->
+                800;
+            case HARD ->
+                600;
         };
         currentDelay = baseDelay;
 
@@ -128,7 +150,7 @@ public class GamePanel extends JPanel {
         });
         timer.setInitialDelay(currentDelay);
         timer.start();
-        
+
         // 슬로우 효과 타이머 초기화 (100ms마다 실행)
         this.slowEffectTimer = new Timer(100, e -> {
             if (board.isSlowEffectActive()) {
@@ -141,12 +163,12 @@ public class GamePanel extends JPanel {
         // 약 80ms × 2틱 → 하얀색으로 한 번 번쩍
         lineClearTimer = new javax.swing.Timer(80, e -> {
             if (!lineClearAnimating) {
-                ((javax.swing.Timer)e.getSource()).stop();
+                ((javax.swing.Timer) e.getSource()).stop();
                 return;
             }
             flashTick++;
             if (flashTick >= 2) { // 플래시 끝
-                ((javax.swing.Timer)e.getSource()).stop();
+                ((javax.swing.Timer) e.getSource()).stop();
                 board.commitLineClear();     // 실제 삭제 실행 (Board 수정본에 포함)
                 lineClearAnimating = false;
                 clearingLines.clear();
@@ -163,20 +185,20 @@ public class GamePanel extends JPanel {
             timer.stop();
             slowEffectTimer.stop(); // 슬로우 효과 타이머도 정지
             int finalScore = board.getScore();
-            
-            RankingManager manager = isItemMode ? 
-                RankingManager.getInstance("item_rankings.dat") :
-                RankingManager.getInstance();
-                
-            // 게임오버 시 창 닫고 GameOverScreen 표시
+
+            RankingManager manager = isItemMode
+                    ? RankingManager.getInstance("item_rankings.dat")
+                    : RankingManager.getInstance();
+
+            // 게임오버 시 창 닫고 다음 화면으로
             SwingUtilities.invokeLater(() -> {
                 java.awt.Window w = SwingUtilities.getWindowAncestor(this);
                 if (w != null) {
-                    w.dispose();  // 현재 게임 창 닫기
+                    w.dispose();
                     if (manager.getRankings().size() < 10 || manager.shouldInputName(finalScore)) {
-                        new NameInputScreen(finalScore, isItemMode).setVisible(true);
+                        new NameInputScreen(finalScore, board.getDifficulty(), isItemMode).setVisible(true);
                     } else {
-                        new GameOverScreen(finalScore).setVisible(true);
+                        new GameOverScreen(finalScore, board.getDifficulty(), isItemMode).setVisible(true);
                     }
                 }
             });
@@ -187,7 +209,7 @@ public class GamePanel extends JPanel {
     private void updateSpeedByClears() {
         int cleared = board.getTotalLinesCleared();
         normalDelay = Math.max(minDelay, baseDelay - stepPerLine * cleared);
-        
+
         // 슬로우 효과가 활성화되어 있으면 속도를 0.5배로 감소 (딜레이 2배)
         int target;
         if (board.isSlowEffectActive()) {
@@ -195,7 +217,7 @@ public class GamePanel extends JPanel {
         } else {
             target = normalDelay;
         }
-        
+
         if (target != currentDelay) {
             currentDelay = target;
             timer.setDelay(currentDelay);
@@ -244,7 +266,8 @@ public class GamePanel extends JPanel {
                     slowEffectTimer.stop();
                     System.exit(0);
                 }
-                default -> { /* 닫기/취소 시 아무것도 안 함 */ }
+                default -> {
+                    /* 닫기/취소 시 아무것도 안 함 */ }
             }
 
         }
@@ -252,14 +275,14 @@ public class GamePanel extends JPanel {
 
     private void onForceQuit() {
         int result = JOptionPane.showOptionDialog(
-            SwingUtilities.getWindowAncestor(this),
-            "강제 종료할까요?",
-            "Quit",
-            JOptionPane.DEFAULT_OPTION,
-            JOptionPane.WARNING_MESSAGE,
-            null,
-            new Object[]{"예", "아니오"},
-            "아니오"
+                SwingUtilities.getWindowAncestor(this),
+                "Quit?",
+                "Quit",
+                JOptionPane.DEFAULT_OPTION,
+                JOptionPane.WARNING_MESSAGE,
+                null,
+                new Object[]{"Yes", "No"},
+                "No"
         );
         if (result == 0) {  // "예" 선택
             timer.stop();
@@ -267,14 +290,17 @@ public class GamePanel extends JPanel {
             System.exit(0);
         }
     }
-        
+
     private void closeGameOnly() {
         java.awt.Window w = SwingUtilities.getWindowAncestor(this);
-        if (w != null) w.dispose();
+        if (w != null) {
+            w.dispose();
+        }
     }
 
     // ==== 렌더링 ====
-    @Override protected void paintComponent(Graphics g) {
+    @Override
+    protected void paintComponent(Graphics g) {
         super.paintComponent(g);
         Graphics2D g2 = (Graphics2D) g.create();
 
@@ -296,7 +322,9 @@ public class GamePanel extends JPanel {
 
         drawSidebar(g2);
 
-        if (paused) drawPaused(g2);
+        if (paused) {
+            drawPaused(g2);
+        }
 
         g2.dispose();
     }
@@ -306,42 +334,51 @@ public class GamePanel extends JPanel {
         for (int y = 0; y < Board.ROWS; y++) {
             for (int x = 0; x < Board.COLS; x++) {
                 ShapeType s = grid[y][x];
-                if (s != null) fillCell(g, x, y, s.getColor());
+                if (s != null) {
+                    fillCell(g, x, y, s.getColor());
+                }
             }
         }
     }
 
     private void drawCurrent(Graphics2D g) {
         Tetromino cur = board.getCurrent();
-        if (cur == null) return;
-        
+        if (cur == null) {
+            return;
+        }
+
         // 현재 아이템 블록인지 확인
         com.team.tetris.items.ItemBlock currentItem = board.getCurrentItemBlock();
-        
+
         if (currentItem != null) {
-            // 아이템 블록으로 렌더링
-            Color itemColor = currentItem.getColor();
             Position[] blocks = cur.getBlocks();
-            
+
+            // 모든 아이템 블록은 흰색으로 표시
+            Color blockColor = Color.WHITE;
+
             for (int i = 0; i < blocks.length; i++) {
                 Position p = blocks[i];
                 int px = cur.getX() + p.x;
                 int py = cur.getY() + p.y;
                 if (px >= 0 && px < Board.COLS && py >= 0 && py < Board.ROWS) {
-                    // 아이템 색상으로 셀 채우기
-                    fillCell(g, px, py, itemColor);
-                    
-                    // 아이템 심볼 표시 (각 블록마다 다른 심볼)
+                    // 흰색으로 셀 채우기
+                    fillCell(g, px, py, blockColor);
+
+                    // 아이템 심볼 표시 (검정색 글자)
                     char symbol;
                     if (currentItem instanceof com.team.tetris.items.SlowBlock slowBlock) {
                         symbol = slowBlock.getBlockSymbol(i);
                     } else if (currentItem instanceof com.team.tetris.items.LineBlock lineBlock) {
                         symbol = lineBlock.getBlockSymbol(i);
+                    } else if (currentItem instanceof com.team.tetris.items.BombBlock bombBlock) {
+                        symbol = bombBlock.getBlockSymbol(i);
+                    } else if (currentItem instanceof com.team.tetris.items.WeightBlock weightBlock) {
+                        symbol = weightBlock.getBlockSymbol(i);
                     } else {
                         symbol = currentItem.getSymbol();
                     }
-                    
-                    g.setColor(Color.WHITE);
+
+                    g.setColor(Color.BLACK);
                     g.setFont(g.getFont().deriveFont(Font.BOLD, CELL * 0.8f));
                     int symbolX = px * CELL + CELL / 4;
                     int symbolY = py * CELL + CELL * 3 / 4;
@@ -363,10 +400,12 @@ public class GamePanel extends JPanel {
 
     private void drawGrid(Graphics2D g) {
         g.setColor(new Color(40, 40, 40));
-        for (int x = 0; x <= Board.COLS; x++)
+        for (int x = 0; x <= Board.COLS; x++) {
             g.drawLine(x * CELL, 0, x * CELL, BOARD_H);
-        for (int y = 0; y <= Board.ROWS; y++)
+        }
+        for (int y = 0; y <= Board.ROWS; y++) {
             g.drawLine(0, y * CELL, BOARD_W, y * CELL);
+        }
     }
 
     private void drawSidebar(Graphics2D g) {
@@ -376,41 +415,43 @@ public class GamePanel extends JPanel {
 
         g.setColor(Color.WHITE);
 
+        int baseFontSize = Settings.getBaseFontSize();
+
         // SCORE
-        g.setFont(g.getFont().deriveFont(Font.BOLD, 18f));
+        g.setFont(g.getFont().deriveFont(Font.BOLD, (float) baseFontSize));
         g.drawString("SCORE", sx + 20, 40);
-        g.setFont(g.getFont().deriveFont(Font.PLAIN, 18f));
+        g.setFont(g.getFont().deriveFont(Font.PLAIN, (float) baseFontSize));
         g.drawString(String.valueOf(board.getScore()), sx + 20, 68);
 
         // DIFFICULTY
-        g.setFont(g.getFont().deriveFont(Font.BOLD, 18f));
+        g.setFont(g.getFont().deriveFont(Font.BOLD, (float) baseFontSize));
         g.drawString("DIFFICULTY", sx + 20, 110);
-        g.setFont(g.getFont().deriveFont(Font.PLAIN, 16f));
+        g.setFont(g.getFont().deriveFont(Font.PLAIN, (float) (baseFontSize * 0.89)));
         String diff = board.getDifficulty().name().toLowerCase();
         diff = Character.toUpperCase(diff.charAt(0)) + diff.substring(1);
         g.drawString(diff, sx + 20, 134);
 
         // LEVEL (= 누적 삭제 줄 수)
-        g.setFont(g.getFont().deriveFont(Font.BOLD, 18f));
+        g.setFont(g.getFont().deriveFont(Font.BOLD, (float) baseFontSize));
         g.drawString("LEVEL", sx + 20, 170);
-        g.setFont(g.getFont().deriveFont(Font.PLAIN, 16f));
+        g.setFont(g.getFont().deriveFont(Font.PLAIN, (float) (baseFontSize * 0.89)));
         g.drawString(String.valueOf(board.getTotalLinesCleared()), sx + 20, 194);
 
         // SPEED (현재 ms)
-        g.setFont(g.getFont().deriveFont(Font.BOLD, 18f));
+        g.setFont(g.getFont().deriveFont(Font.BOLD, (float) baseFontSize));
         g.drawString("SPEED", sx + 20, 230);
-        g.setFont(g.getFont().deriveFont(Font.PLAIN, 16f));
+        g.setFont(g.getFont().deriveFont(Font.PLAIN, (float) (baseFontSize * 0.89)));
         g.drawString(currentDelay + " ms", sx + 20, 254);
 
         // NEXT
-        g.setFont(g.getFont().deriveFont(Font.BOLD, 18f));
+        g.setFont(g.getFont().deriveFont(Font.BOLD, (float) baseFontSize));
         String nextLabel = "NEXT";
         if (board.getNextItemBlock() != null) {
             nextLabel = "NEXT (ITEM)";
         }
         g.drawString(nextLabel, sx + 20, 290);
         drawNextPreview(g, sx + 20, 310);
-        
+
         // 아이템 모드에서 아이템 정보 표시
         if (isItemMode && board.getItemManager() != null) {
             g.setFont(g.getFont().deriveFont(Font.BOLD, 14f));
@@ -419,12 +460,12 @@ public class GamePanel extends JPanel {
             int itemProgress = board.getItemManager().getTotalLinesCleared() % 2;
             g.drawString(itemProgress + "/2 lines", sx + 20, 500);
         }
-        
+
         // 슬로우 효과 타이머 표시
         if (board.isSlowEffectActive()) {
             long remainingTime = board.getSlowEffectRemainingTime();
             double seconds = remainingTime / 1000.0;
-            
+
             g.setFont(g.getFont().deriveFont(Font.BOLD, 16f));
             g.setColor(new Color(173, 216, 230)); // 슬로우 블록과 같은 색상
             g.drawString("SLOW EFFECT", sx + 20, 540);
@@ -457,13 +498,15 @@ public class GamePanel extends JPanel {
         // 아이템 블록의 기본 형태를 가져옴
         ShapeType baseShape = item.getBaseShape();
         Position[] offs = baseShape.getOffsets(0);
-        
+
         int minx = 99, miny = 99, maxx = -99, maxy = -99;
         for (Position p : offs) {
-            minx = Math.min(minx, p.x); maxx = Math.max(maxx, p.x);
-            miny = Math.min(miny, p.y); maxy = Math.max(maxy, p.y);
+            minx = Math.min(minx, p.x);
+            maxx = Math.max(maxx, p.x);
+            miny = Math.min(miny, p.y);
+            maxy = Math.max(maxy, p.y);
         }
-        
+
         int cell = CELL / 2;
         int w = (maxx - minx + 1) * cell;
         int h = (maxy - miny + 1) * cell;
@@ -479,7 +522,7 @@ public class GamePanel extends JPanel {
             g.fillRect(cxp, cyp, cell, cell);
             g.setColor(item.getColor().darker());
             g.drawRect(cxp, cyp, cell, cell);
-            
+
             // 아이템 블록임을 나타내는 심볼 표시 (SlowBlock인 경우 각 블록마다 다른 심볼)
             char symbol;
             if (item instanceof com.team.tetris.items.SlowBlock slowBlock) {
@@ -487,7 +530,7 @@ public class GamePanel extends JPanel {
             } else {
                 symbol = item.getSymbol();
             }
-            
+
             g.setColor(Color.WHITE);
             g.setFont(g.getFont().deriveFont(Font.BOLD, cell * 0.8f));
             int symbolX = cxp + cell / 4;
@@ -500,8 +543,10 @@ public class GamePanel extends JPanel {
         Position[] offs = n.getOffsets(0);
         int minx = 99, miny = 99, maxx = -99, maxy = -99;
         for (Position p : offs) {
-            minx = Math.min(minx, p.x); maxx = Math.max(maxx, p.x);
-            miny = Math.min(miny, p.y); maxy = Math.max(maxy, p.y);
+            minx = Math.min(minx, p.x);
+            maxx = Math.max(maxx, p.x);
+            miny = Math.min(miny, p.y);
+            maxy = Math.max(maxy, p.y);
         }
         int cell = CELL / 2;
         int w = (maxx - minx + 1) * cell;
