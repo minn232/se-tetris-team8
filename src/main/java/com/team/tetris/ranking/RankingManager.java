@@ -29,17 +29,24 @@ public class RankingManager {
     private static RankingManager itemInstance;
     private ArrayList<RankingEntry> rankings;
     private static final int MAX_RANKINGS = 10;
+    private static final String DATA_DIR = "src/main/data/";
     private String saveFile;
 
-    private RankingManager(String saveFile) {
-        this.saveFile = saveFile;
+    private RankingManager(String fileName) {
+        // 디렉토리 생성
+        java.io.File dataDir = new java.io.File(DATA_DIR);
+        if (!dataDir.exists()) {
+            dataDir.mkdirs();
+        }
+        
+        this.saveFile = DATA_DIR + fileName;
         rankings = loadRankings();
     }
 
-    public static RankingManager getInstance(String saveFile) {
-        if ("item_rankings.dat".equals(saveFile)) {
+    public static RankingManager getInstance(String fileName) {
+        if ("item_rankings.dat".equals(fileName)) {
             if (itemInstance == null) {
-                itemInstance = new RankingManager(saveFile);
+                itemInstance = new RankingManager(fileName);
             }
             return itemInstance;
         }

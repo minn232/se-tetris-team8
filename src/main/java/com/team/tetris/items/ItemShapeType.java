@@ -7,7 +7,9 @@ import java.awt.Color;
  */
 public enum ItemShapeType {
     LINE(new Color(100, 255, 100), 'L'),      // 녹색 라인
-    SLOW(new Color(173, 216, 230), 'S');      // 연한 파란색 슬로우
+    SLOW(new Color(173, 216, 230), 'S'),      // 연한 파란색 슬로우
+    BOMB(new Color(255, 100, 100), 'B'),      // 빨간색 폭탄
+    WEIGHT(Color.WHITE, 'W');                  // 흰색 무게
     
     private final Color color;
     private final char symbol;
@@ -31,7 +33,9 @@ public enum ItemShapeType {
     public static ItemShapeType fromItemBlock(ItemBlock item) {
         return switch (item.getSymbol()) {
             case 'L' -> LINE;
-            case 'S', 'O', 'W' -> SLOW; // S, L, O, W는 모두 SLOW 블록
+            case 'S' -> SLOW;
+            case 'B' -> BOMB;
+            case 'W' -> WEIGHT;
             default -> LINE; // 기본값
         };
     }

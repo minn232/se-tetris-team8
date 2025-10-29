@@ -28,9 +28,14 @@ public class Tetromino {
         this.rot = (this.rot + 1) & 3;
         this.blocks = shape.getOffsets(this.rot);
     }
+    
+    public void setBlocks(Position[] customBlocks) {
+        this.blocks = customBlocks;
+    }
 
     public Position[] getBlocks() { return blocks; }
     public int getX() { return x; }
     public int getY() { return y; }
     public ShapeType getShape() { return shape; }
+    public int getRotation() { return rot; }
 }

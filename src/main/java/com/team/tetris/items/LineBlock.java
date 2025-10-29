@@ -13,16 +13,18 @@ public class LineBlock implements ItemBlock {
     
     private static final Random random = new Random();
     private final ShapeType baseShape;
-    private final int targetBlockIndex; // 'L' 문자를 표시할 블록의 인덱스
+    private final int lineBlockIndexInRotation0; // rotation=0일 때 'L'의 인덱스
+    private int rotation; // 현재 회전 상태
     
     public LineBlock() {
         // 모든 ShapeType 중 랜덤으로 선택
         ShapeType[] allShapes = ShapeType.values();
         this.baseShape = allShapes[random.nextInt(allShapes.length)];
+        this.rotation = 0;
         
-        // 해당 shape의 블록 개수에 따라 랜덤으로 하나 선택
+        // 해당 shape의 블록 개수에 따라 랜덤으로 하나 선택 (rotation 0 기준)
         int blockCount = baseShape.getOffsets(0).length;
-        this.targetBlockIndex = random.nextInt(blockCount);
+        this.lineBlockIndexInRotation0 = random.nextInt(blockCount);
     }
     
     @Override
@@ -54,7 +56,7 @@ public class LineBlock implements ItemBlock {
         if (!(boardObj instanceof Board)) return;
         
         // 'L' 문자가 있는 블록에서만 효과 발동
-        if (blockIndex == targetBlockIndex) {
+        if (blockIndex == getLineBlockIndex()) {
             Board board = (Board) boardObj;
             board.clearLine(y);
         }
@@ -72,16 +74,30 @@ public class LineBlock implements ItemBlock {
     
     /**
      * 특정 블록 인덱스에 대한 심볼을 반환
-     * targetBlockIndex에 해당하는 블록만 'L'을 표시하고, 나머지는 공백
+     * lineBlockIndex에 해당하는 블록만 'L'을 표시하고, 나머지는 공백
      */
     public char getBlockSymbol(int blockIndex) {
-        return (blockIndex == targetBlockIndex) ? 'L' : ' ';
+        return (blockIndex == getLineBlockIndex()) ? 'L' : ' ';
     }
     
     /**
-     * 'L' 문자가 표시되는 블록의 인덱스를 반환
+     * 현재 회전 상태에서 'L' 문자가 표시되는 블록의 인덱스를 반환
      */
-    public int getTargetBlockIndex() {
-        return targetBlockIndex;
+    public int getLineBlockIndex() {
+        return baseShape.getMappedIndex(rotation, lineBlockIndexInRotation0);
+    }
+    
+    /**
+     * 회전 상태 설정 (Board에서 Tetromino 회전 시 호출)
+     */
+    public void setRotation(int rotation) {
+        this.rotation = rotation;
+    }
+    
+    /**
+     * 현재 회전 상태 반환
+     */
+    public int getRotation() {
+        return rotation;
     }
 }

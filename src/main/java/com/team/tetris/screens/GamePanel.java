@@ -222,13 +222,13 @@ public class GamePanel extends JPanel {
     private void onForceQuit() {
         int result = JOptionPane.showOptionDialog(
             SwingUtilities.getWindowAncestor(this),
-            "강제 종료할까요?",
+            "Quit?",
             "Quit",
             JOptionPane.DEFAULT_OPTION,
             JOptionPane.WARNING_MESSAGE,
             null,
-            new Object[]{"예", "아니오"},
-            "아니오"
+            new Object[]{"Yes", "No"},
+            "No"
         );
         if (result == 0) {  // "예" 선택
         timer.stop();
@@ -276,29 +276,34 @@ public class GamePanel extends JPanel {
         com.team.tetris.items.ItemBlock currentItem = board.getCurrentItemBlock();
         
         if (currentItem != null) {
-            // 아이템 블록으로 렌더링
-            Color itemColor = currentItem.getColor();
             Position[] blocks = cur.getBlocks();
+            
+            // 모든 아이템 블록은 흰색으로 표시
+            Color blockColor = Color.WHITE;
             
             for (int i = 0; i < blocks.length; i++) {
                 Position p = blocks[i];
                 int px = cur.getX() + p.x;
                 int py = cur.getY() + p.y;
                 if (px >= 0 && px < Board.COLS && py >= 0 && py < Board.ROWS) {
-                    // 아이템 색상으로 셀 채우기
-                    fillCell(g, px, py, itemColor);
+                    // 흰색으로 셀 채우기
+                    fillCell(g, px, py, blockColor);
                     
-                    // 아이템 심볼 표시 (각 블록마다 다른 심볼)
+                    // 아이템 심볼 표시 (검정색 글자)
                     char symbol;
                     if (currentItem instanceof com.team.tetris.items.SlowBlock slowBlock) {
                         symbol = slowBlock.getBlockSymbol(i);
                     } else if (currentItem instanceof com.team.tetris.items.LineBlock lineBlock) {
                         symbol = lineBlock.getBlockSymbol(i);
+                    } else if (currentItem instanceof com.team.tetris.items.BombBlock bombBlock) {
+                        symbol = bombBlock.getBlockSymbol(i);
+                    } else if (currentItem instanceof com.team.tetris.items.WeightBlock weightBlock) {
+                        symbol = weightBlock.getBlockSymbol(i);
                     } else {
                         symbol = currentItem.getSymbol();
                     }
                     
-                    g.setColor(Color.WHITE);
+                    g.setColor(Color.BLACK);
                     g.setFont(g.getFont().deriveFont(Font.BOLD, CELL * 0.8f));
                     int symbolX = px * CELL + CELL / 4;
                     int symbolY = py * CELL + CELL * 3 / 4;
