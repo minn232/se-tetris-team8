@@ -40,6 +40,11 @@ public class GamePanel extends JPanel {
     // 슬로우 효과 관련
     private int normalDelay;       // 슬로우 효과가 없을 때의 정상 딜레이
     private final Timer slowEffectTimer; // 슬로우 효과 타이머 (0.1초마다 업데이트)
+    
+    // 플래시 애니메이션(컬럼 전체 하얗게 번쩍)용
+    private int[] flashingRows = null;
+    private long flashUntil = 0;
+    private static final long FLASH_MS = 150;
 
     public GamePanel(Board board, boolean isItemMode) {
         this.board = board;
@@ -87,7 +92,31 @@ public class GamePanel extends JPanel {
                     board.hardDrop();
                 }
 
-                // 속도 반영(줄 삭제 누적에 따라)
+                // 키 입력 직후에도 줄 삭제 애니메이션 즉시 시작
+                int[] rows = board.pollClearingRows();
+                if (rows != null && rows.length > 0) {
+                    flashingRows = rows;
+                    flashUntil = System.currentTimeMillis() + FLASH_MS;
+                    repaint(); // 즉시 화면 갱신하여 플래시 표시
+
+                    Timer flashTimer = new Timer(16, ev -> {
+                        if (flashingRows == null) {
+                            ((Timer) ev.getSource()).stop();
+                            return;
+                        }
+                        if (System.currentTimeMillis() >= flashUntil) {
+                            board.clearRows(flashingRows);
+                            flashingRows = null;
+                            updateSpeedByClears();
+                            ((Timer) ev.getSource()).stop();
+                        }
+                        repaint();
+                    });
+                    flashTimer.setRepeats(true);
+                    flashTimer.start();
+                    return; // 플래시 시작했으면 여기서 종료
+                }
+
                 updateSpeedByClears();
                 repaint();
             }
@@ -105,7 +134,34 @@ public class GamePanel extends JPanel {
             if (!board.isGameOver() && !paused) {
                 board.updateSlowEffect(); // 슬로우 효과 상태 업데이트
                 board.moveDown();
-                updateSpeedByClears(); // 자동 낙하 후에도 갱신
+
+                // (3) 삭제 예약 확인 - moveDown() 직후 즉시 확인
+                int[] rows = board.pollClearingRows();
+                if (rows != null && rows.length > 0) {
+                    flashingRows = rows;
+                    flashUntil = System.currentTimeMillis() + FLASH_MS;
+
+                    // 🔥 고속 플래시 타이머 (16ms 간격 = 약 60FPS)
+                    Timer flashTimer = new Timer(16, ev -> {
+                        if (flashingRows == null) {
+                            ((Timer) ev.getSource()).stop();
+                            return;
+                        }
+                        if (System.currentTimeMillis() >= flashUntil) {
+                            board.clearRows(flashingRows);
+                            flashingRows = null;
+                            updateSpeedByClears();
+                            ((Timer) ev.getSource()).stop();
+                        }
+                        repaint();
+                    });
+                    flashTimer.setRepeats(true);
+                    flashTimer.start();
+                    repaint(); // 즉시 화면 갱신하여 플래시 시작
+                    return; // 플래시 시작했으면 여기서 종료
+                }
+
+                updateSpeedByClears();
                 repaint();
             } else {
                 if (board.isGameOver()) {
@@ -266,9 +322,23 @@ public class GamePanel extends JPanel {
     private void drawBoard(Graphics2D g) {
         ShapeType[][] grid = board.getGrid();
         for (int y = 0; y < Board.ROWS; y++) {
+            // 플래시 효과: 삭제될 줄은 흰색으로 번쩍임
+            boolean isFlashing = false;
+            if (flashingRows != null) {
+                for (int fr : flashingRows) {
+                    if (fr == y) {
+                        isFlashing = true;
+                        break;
+                    }
+                }
+            }
+            
             for (int x = 0; x < Board.COLS; x++) {
                 ShapeType s = grid[y][x];
-                if (s != null) fillCell(g, x, y, s.getColor());
+                if (s != null) {
+                    Color color = isFlashing ? Color.WHITE : s.getColor();
+                    fillCell(g, x, y, color);
+                }
             }
         }
     }
@@ -276,6 +346,9 @@ public class GamePanel extends JPanel {
     private void drawCurrent(Graphics2D g) {
         Tetromino cur = board.getCurrent();
         if (cur == null) return;
+        
+        // 플래시 애니메이션 중에는 현재 블록을 그리지 않음 (이미 fixToBoard()로 그리드에 고정됨)
+        if (flashingRows != null) return;
         
         // 현재 아이템 블록인지 확인
         com.team.tetris.items.ItemBlock currentItem = board.getCurrentItemBlock();
