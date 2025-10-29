@@ -141,11 +141,11 @@ public class GamePanel extends JPanel {
         SwingUtilities.invokeLater(() -> {
             java.awt.Window w = SwingUtilities.getWindowAncestor(this);
             if (w != null) {
-                w.dispose();  // 현재 게임 창 닫기
+                w.dispose();
                 if (manager.getRankings().size() < 10 || manager.shouldInputName(finalScore)) {
-                    new NameInputScreen(finalScore, isItemMode).setVisible(true);
+                    new NameInputScreen(finalScore, board.getDifficulty(), isItemMode).setVisible(true);
                 } else {
-                    new GameOverScreen(finalScore).setVisible(true);
+                    new GameOverScreen(finalScore, board.getDifficulty(), isItemMode).setVisible(true);
                 }
             }
         });
