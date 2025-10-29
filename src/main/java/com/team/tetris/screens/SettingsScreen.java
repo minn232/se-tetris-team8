@@ -93,9 +93,12 @@ public class SettingsScreen extends JFrame {
         // 버튼 패널
         JPanel south = new JPanel(new FlowLayout(FlowLayout.RIGHT));
         JButton btnSave = new JButton("Save");
+        JButton btnResetDefaults = new JButton("Reset to Default");
         JButton btnCancel = new JButton("Cancel");
         btnSave.setFont(new Font(Font.SANS_SERIF, Font.BOLD, fontSize));
+        btnResetDefaults.setFont(new Font(Font.SANS_SERIF, Font.BOLD, fontSize));
         btnCancel.setFont(new Font(Font.SANS_SERIF, Font.BOLD, fontSize));
+        south.add(btnResetDefaults);
         south.add(btnCancel);
         south.add(btnSave);
 
@@ -156,6 +159,32 @@ public class SettingsScreen extends JFrame {
             }
         });
 
+        btnResetDefaults.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                int confirm = JOptionPane.showConfirmDialog(SettingsScreen.this,
+                        "Reset all settings to default values?", "Reset to Default",
+                        JOptionPane.YES_NO_OPTION);
+                if (confirm == JOptionPane.YES_OPTION) {
+                    Settings.resetToDefaults();
+                    
+                    // UI 업데이트
+                    resCombo.setSelectedItem("360x450");
+                    chkColorBlind.setSelected(false);
+                    
+                    // 키 바인딩 버튼 텍스트 업데이트
+                    for (Map.Entry<Settings.KeyBinding, JButton> entry : keyButtons.entrySet()) {
+                        Settings.KeyBinding binding = entry.getKey();
+                        JButton button = entry.getValue();
+                        button.setText(KeyEvent.getKeyText(binding.getValue()));
+                    }
+                    
+                    JOptionPane.showMessageDialog(SettingsScreen.this, 
+                            "All settings have been reset to default values.\nClick 'Save' to apply the changes.");
+                }
+            }
+        });
+
         chkColorBlind.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
@@ -168,7 +197,7 @@ public class SettingsScreen extends JFrame {
         setFocusable(true);
 
         // 버튼 배열 초기화
-        buttons = new JButton[]{btnSave, btnCancel, btnClearScores};
+        buttons = new JButton[]{btnSave, btnCancel, btnResetDefaults, btnClearScores};
 
         // 키보드 이벤트 리스너 추가
         addKeyListener(new KeyAdapter() {

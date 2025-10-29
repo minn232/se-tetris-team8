@@ -169,4 +169,19 @@ public class Settings {
             default -> 22;
         };
     }
+
+    /**
+     * 모든 설정을 기본값으로 재설정합니다.
+     */
+    public static void resetToDefaults() {
+        // 모든 키 바인딩 초기화
+        for (KeyBinding kb : KeyBinding.values()) {
+            kb.reset();
+        }
+        
+        // 기타 설정 초기화
+        colorBlind = false;
+        scoreboardFile = "scoreboard.csv";
+        resolution = "360x450";
+    }
 }
