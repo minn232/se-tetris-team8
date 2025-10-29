@@ -8,7 +8,7 @@ import java.util.Random;
  * 아이템 블록들을 관리하는 매니저 클래스
  */
 public class ItemManager {
-    private static final int LINES_FOR_ITEM = 2; // 10줄마다 아이템 생성
+    private static final int LINES_FOR_ITEM = 10; // 10줄마다 아이템 생성
     
     private final List<ItemBlock> availableItems;
     private final Random random;
