@@ -137,15 +137,19 @@ public class GamePanel extends JPanel {
             RankingManager.getInstance("item_rankings.dat") :
             RankingManager.getInstance();
             
-        // 게임오버 시 창 닫고 GameOverScreen 표시
+        // 게임오버 시 처리
         SwingUtilities.invokeLater(() -> {
             java.awt.Window w = SwingUtilities.getWindowAncestor(this);
             if (w != null) {
                 w.dispose();
+                
+                // 랭킹에 들어가는지 확인
                 if (manager.getRankings().size() < 10 || manager.shouldInputName(finalScore)) {
+                    // 랭킹 진입: 이름 입력 화면 표시 (이름 입력 후 스코어보드 표시)
                     new NameInputScreen(finalScore, board.getDifficulty(), isItemMode).setVisible(true);
                 } else {
-                    new GameOverScreen(finalScore, board.getDifficulty(), isItemMode).setVisible(true);
+                    // 랭킹 미진입: 스코어보드 먼저 표시
+                    new com.team.tetris.ranking.RankingBoard(null, finalScore, true).setVisible(true);
                 }
             }
         });

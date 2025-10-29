@@ -1,6 +1,7 @@
 package com.team.tetris.ranking;
 
 import java.awt.BorderLayout;
+import java.awt.Color;
 import java.awt.Component;
 import java.awt.Font;
 import java.time.format.DateTimeFormatter;
@@ -9,6 +10,7 @@ import java.util.List;
 import javax.swing.BorderFactory;
 import javax.swing.Box;
 import javax.swing.BoxLayout;
+import javax.swing.JButton;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
@@ -26,8 +28,18 @@ public class RankingBoard extends JFrame {
     private static final String NORMAL_RANKING_FILE = "normal_rankings.dat";
     private static final String ITEM_RANKING_FILE = "item_rankings.dat";
     
+    private final String highlightPlayerName;
+    private final int highlightScore;
+    private final boolean showReturnButton;
     
     public RankingBoard() {
+        this(null, -1, false);
+    }
+    
+    public RankingBoard(String highlightPlayerName, int highlightScore, boolean showReturnButton) {
+        this.highlightPlayerName = highlightPlayerName;
+        this.highlightScore = highlightScore;
+        this.showReturnButton = showReturnButton;
         initializeUI();
     }
 
@@ -40,25 +52,37 @@ public class RankingBoard extends JFrame {
         setLocationRelativeTo(null);
         setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
 
+        JPanel mainContainer = new JPanel(new BorderLayout());
+        
         JTabbedPane tabbedPane = new JTabbedPane();
         
         JPanel normalModePanel = createRankingPanel(
             RankingManager.getInstance(NORMAL_RANKING_FILE).getRankings(),
-            "Normal Mode"
+            "Normal Mode",
+            false // 일반 모드
         );
         
         JPanel itemModePanel = createRankingPanel(
             RankingManager.getInstance(ITEM_RANKING_FILE).getRankings(),
-            "Item Mode"
+            "Item Mode",
+            true // 아이템 모드
         );
 
         tabbedPane.addTab("Normal Mode", normalModePanel);
         tabbedPane.addTab("Item Mode", itemModePanel);
 
-        add(tabbedPane);
+        mainContainer.add(tabbedPane, BorderLayout.CENTER);
+        
+        // 게임 종료 후 표시되는 경우 버튼 추가
+        if (showReturnButton) {
+            JPanel buttonPanel = createButtonPanel();
+            mainContainer.add(buttonPanel, BorderLayout.SOUTH);
+        }
+
+        add(mainContainer);
     }
 
-    private JPanel createRankingPanel(List<RankingEntry> rankings, String title) {
+    private JPanel createRankingPanel(List<RankingEntry> rankings, String title, boolean isItemMode) {
         int baseFontSize = Settings.getBaseFontSize();
         
         JPanel mainPanel = new JPanel(new BorderLayout());
@@ -70,13 +94,45 @@ public class RankingBoard extends JFrame {
         contentPanel.add(titlePanel);
         contentPanel.add(Box.createVerticalStrut(20));
 
-        addRankingEntries(contentPanel, rankings, baseFontSize);
+        addRankingEntries(contentPanel, rankings, baseFontSize, isItemMode);
 
         JScrollPane scrollPane = new JScrollPane(contentPanel);
         scrollPane.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED);
         mainPanel.add(scrollPane, BorderLayout.CENTER);
         
         return mainPanel;
+    }
+    
+    private JPanel createButtonPanel() {
+        int baseFontSize = Settings.getBaseFontSize();
+        double scaleFactor = Settings.getScaleFactor();
+        
+        JPanel buttonPanel = new JPanel();
+        buttonPanel.setBorder(BorderFactory.createEmptyBorder(10, 20, 10, 20));
+        buttonPanel.setLayout(new BoxLayout(buttonPanel, BoxLayout.X_AXIS));
+        
+        JButton mainMenuButton = new JButton("Main Menu");
+        mainMenuButton.setFont(new Font("Arial", Font.PLAIN, baseFontSize));
+        mainMenuButton.setPreferredSize(new java.awt.Dimension((int)(150 * scaleFactor), (int)(40 * scaleFactor)));
+        mainMenuButton.addActionListener(e -> {
+            dispose();
+            new com.team.tetris.screens.Mainmenu().setVisible(true);
+        });
+        
+        JButton exitButton = new JButton("Exit");
+        exitButton.setFont(new Font("Arial", Font.PLAIN, baseFontSize));
+        exitButton.setPreferredSize(new java.awt.Dimension((int)(150 * scaleFactor), (int)(40 * scaleFactor)));
+        exitButton.addActionListener(e -> {
+            System.exit(0);
+        });
+        
+        buttonPanel.add(Box.createHorizontalGlue());
+        buttonPanel.add(mainMenuButton);
+        buttonPanel.add(Box.createHorizontalStrut(20));
+        buttonPanel.add(exitButton);
+        buttonPanel.add(Box.createHorizontalGlue());
+        
+        return buttonPanel;
     }
     
     private JPanel createTitlePanel(String title, int baseFontSize) {
@@ -94,16 +150,36 @@ public class RankingBoard extends JFrame {
         return titlePanel;
     }
     
-    private void addRankingEntries(JPanel panel, List<RankingEntry> rankings, int baseFontSize) {
+    private void addRankingEntries(JPanel panel, List<RankingEntry> rankings, int baseFontSize, boolean isItemMode) {
         for (int i = 0; i < rankings.size(); i++) {
             RankingEntry entry = rankings.get(i);
+            
+            // 방금 입력한 항목인지 확인 (이름과 점수가 모두 일치)
+            boolean isHighlighted = highlightPlayerName != null 
+                && entry.getPlayerName().equals(highlightPlayerName)
+                && entry.getScore() == highlightScore;
+            
             JLabel rankLabel = new JLabel(String.format("%d. %s - %d (%s)",
                 i + 1,
                 entry.getPlayerName(),
                 entry.getScore(),
                 entry.getTimestamp().format(DATE_FORMATTER)
             ));
-            rankLabel.setFont(new Font("Arial", Font.PLAIN, (int)(baseFontSize * 0.89)));
+            
+            // 강조 표시
+            if (isHighlighted) {
+                rankLabel.setFont(new Font("Arial", Font.BOLD, (int)(baseFontSize * 1.0)));
+                rankLabel.setForeground(new Color(255, 215, 0)); // 골드 색상
+                rankLabel.setOpaque(true);
+                rankLabel.setBackground(new Color(50, 50, 50)); // 어두운 배경
+                rankLabel.setBorder(BorderFactory.createCompoundBorder(
+                    BorderFactory.createLineBorder(new Color(255, 215, 0), 2),
+                    BorderFactory.createEmptyBorder(5, 10, 5, 10)
+                ));
+            } else {
+                rankLabel.setFont(new Font("Arial", Font.PLAIN, (int)(baseFontSize * 0.89)));
+            }
+            
             rankLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
             panel.add(rankLabel);
             panel.add(Box.createVerticalStrut(10));
