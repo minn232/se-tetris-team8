@@ -1,9 +1,12 @@
 package com.team.tetris.screens;
 
 import java.awt.BorderLayout;
+import java.awt.Color;
 import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.Font;
+import java.awt.event.KeyAdapter;
+import java.awt.event.KeyEvent;
 
 import javax.swing.BorderFactory;
 import javax.swing.Box;
@@ -14,7 +17,6 @@ import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.SwingUtilities;
 
-import com.team.tetris.ranking.RankingBoard;
 import com.team.tetris.core.Board;
 import com.team.tetris.core.Difficulty;
 import com.team.tetris.core.Settings;
@@ -28,6 +30,8 @@ public class GameOverScreen extends JFrame {
     private final int finalScore;
     private final Difficulty difficulty;
     private final boolean isItemMode;
+    private JButton[] buttons;
+    private int selectedIndex = 0;
 
     public GameOverScreen(int finalScore, Difficulty difficulty, boolean isItemMode) {
         this.finalScore = finalScore;
@@ -56,7 +60,7 @@ public class GameOverScreen extends JFrame {
         
         JButton restartButton = createButton("Restart");
         JButton mainMenuButton = createButton("Main Menu");
-        JButton leaderboardButton = createButton("Leaderboard");
+        JButton exitButton = createButton("Exit");
 
         restartButton.addActionListener(e -> {
             dispose();
@@ -68,8 +72,8 @@ public class GameOverScreen extends JFrame {
             new Mainmenu().setVisible(true);
         });
         
-        leaderboardButton.addActionListener(e -> {
-            new RankingBoard().setVisible(true);
+        exitButton.addActionListener(e -> {
+            System.exit(0);
         });
         
         mainPanel.add(Box.createVerticalStrut(30));
@@ -79,9 +83,31 @@ public class GameOverScreen extends JFrame {
         mainPanel.add(Box.createVerticalStrut(10));
         mainPanel.add(mainMenuButton);
         mainPanel.add(Box.createVerticalStrut(10));
-        mainPanel.add(leaderboardButton);
+        mainPanel.add(exitButton);
         
         add(mainPanel);
+        
+        // 키보드 포커스를 받을 수 있도록 설정
+        setFocusable(true);
+        
+        // 버튼 배열 초기화
+        buttons = new JButton[]{restartButton, mainMenuButton, exitButton};
+        
+        // 키보드 이벤트 리스너 추가
+        addKeyListener(new KeyAdapter() {
+            @Override
+            public void keyPressed(KeyEvent e) {
+                handleKeyPress(e);
+            }
+        });
+        
+        // 버튼들이 포커스를 받지 않도록 설정
+        for (JButton button : buttons) {
+            button.setFocusable(false);
+        }
+        
+        // 초기 하이라이트 설정
+        updateButtonHighlight();
     }
     
     private void restartGame() {
@@ -109,5 +135,41 @@ public class GameOverScreen extends JFrame {
         button.setMaximumSize(new Dimension((int)(200 * scaleFactor), (int)(40 * scaleFactor)));
         button.setFont(new Font("Arial", Font.PLAIN, (int)(baseFontSize * 0.89)));
         return button;
+    }
+    
+    // 키보드 입력 처리
+    private void handleKeyPress(KeyEvent e) {
+        switch (e.getKeyCode()) {
+            case KeyEvent.VK_UP:
+                selectedIndex = (selectedIndex - 1 + buttons.length) % buttons.length;
+                updateButtonHighlight();
+                break;
+            case KeyEvent.VK_DOWN:
+                selectedIndex = (selectedIndex + 1) % buttons.length;
+                updateButtonHighlight();
+                break;
+            case KeyEvent.VK_ENTER:
+                buttons[selectedIndex].doClick();
+                break;
+            case KeyEvent.VK_ESCAPE:
+                System.exit(0);
+                break;
+        }
+    }
+    
+    // 버튼 하이라이트 업데이트
+    private void updateButtonHighlight() {
+        for (int i = 0; i < buttons.length; i++) {
+            if (i == selectedIndex) {
+                buttons[i].setBackground(new Color(100, 150, 255));
+                buttons[i].setForeground(Color.BLACK);
+                buttons[i].setOpaque(true);
+            } else {
+                buttons[i].setBackground(null);
+                buttons[i].setForeground(Color.BLACK);
+                buttons[i].setOpaque(false);
+            }
+        }
+        repaint();
     }
 }

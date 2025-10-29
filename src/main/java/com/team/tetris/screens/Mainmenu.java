@@ -13,20 +13,21 @@ import javax.swing.JButton;
 import javax.swing.JDialog;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
-import javax.swing.JOptionPane;
 import javax.swing.JPanel;
-import javax.swing.JTextArea;
 import javax.swing.JScrollPane;
+import javax.swing.JTextArea;
 import javax.swing.SwingUtilities;
 
 import com.team.tetris.core.Board;
 import com.team.tetris.core.Difficulty;
 import com.team.tetris.core.Settings;
-import com.team.tetris.ranking.RankingBoard;  // RankingBoard import 추가
+import com.team.tetris.ranking.RankingBoard;
 
 public class Mainmenu extends JFrame {
     // 랭킹 보드 버튼 추가
     private final JButton startButton, itemModeButton, rankingButton, settingsButton, helpButton, exitButton;
+    private final JButton[] buttons;  
+    private int selectedIndex = 0;   
     private boolean isItemMode;
 
     public Mainmenu() {
@@ -44,6 +45,7 @@ public class Mainmenu extends JFrame {
         setSize(width, height);                   // 창 크기
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);   // 창 완전히 닫기
         setLocationRelativeTo(null);                    // 창 화면 중앙에 오도록
+        setFocusable(true);
         
         // 메인 패널 설정
         JPanel mainPanel = new JPanel(); //메인 패널 오브젝트 생성
@@ -70,6 +72,17 @@ public class Mainmenu extends JFrame {
         settingsButton.addActionListener(e -> openSettings());
         helpButton.addActionListener(e -> showHelp());
         exitButton.addActionListener(e -> System.exit(0));
+
+        // 버튼 배열 초기화 (추가)
+        buttons = new JButton[]{startButton, itemModeButton, rankingButton, settingsButton, helpButton, exitButton};
+        
+        // 키보드 이벤트 리스너 추가 (추가)
+        addKeyListener(new java.awt.event.KeyAdapter() {
+            @Override
+            public void keyPressed(KeyEvent e) {
+                handleKeyPress(e);
+            }
+        });
         
         // 컴포넌트를 간격설정해서 추가
         mainPanel.add(Box.createVerticalGlue()); //윗공간 확보
@@ -89,6 +102,7 @@ public class Mainmenu extends JFrame {
         mainPanel.add(Box.createVerticalGlue()); //아랫공간 확보
         
         add(mainPanel);
+        updateButtonHighlight();
     }
     
     // 랭킹 보드 표시 메서드 추가
@@ -144,29 +158,134 @@ public class Mainmenu extends JFrame {
     }
 
     private void showDifficultyDialog() {
-        Object[] options = {"HARD", "NORMAL", "EASY"};
-        int sel = JOptionPane.showOptionDialog(
-            this,
-            "choose a difficulty",
-            "Difficulty",
-            JOptionPane.DEFAULT_OPTION,
-            JOptionPane.QUESTION_MESSAGE,
-            null,
-            options,
-            options[1]
-        );
-
-        Difficulty difficulty;
-        switch (sel) {
-            case 0 -> difficulty = Difficulty.HARD;
-            case 1 -> difficulty = Difficulty.NORMAL;
-            case 2 -> difficulty = Difficulty.EASY;
-            default -> {
-                return;  // 취소하거나 창을 닫은 경우
-            }
+        // 커스텀 다이얼로그 생성
+        JDialog difficultyDialog = new JDialog(this, "Difficulty", true);
+        difficultyDialog.setSize(400, 200);
+        difficultyDialog.setLocationRelativeTo(this);
+        difficultyDialog.setFocusable(true);
+        
+        JPanel dialogPanel = new JPanel();
+        dialogPanel.setLayout(new BoxLayout(dialogPanel, BoxLayout.Y_AXIS));
+        dialogPanel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
+        
+        JLabel messageLabel = new JLabel("Choose a difficulty");
+        messageLabel.setFont(new Font("Arial", Font.PLAIN, Settings.getBaseFontSize()));
+        messageLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
+        
+        // 난이도 버튼들 생성
+        JButton hardButton = new JButton("HARD");
+        JButton normalButton = new JButton("NORMAL");
+        JButton easyButton = new JButton("EASY");
+        
+        // 버튼 스타일링
+        JButton[] diffButtons = {hardButton, normalButton, easyButton};
+        for (JButton btn : diffButtons) {
+            btn.setAlignmentX(Component.CENTER_ALIGNMENT);
+            btn.setMaximumSize(new Dimension(150, 35));
+            btn.setFont(new Font("Arial", Font.PLAIN, Settings.getBaseFontSize()));
+            btn.setFocusable(false);
         }
-
-        startTetrisGame(difficulty);
+        
+        // 선택된 난이도를 저장할 변수
+        final int[] selectedDifficulty = {1}; // 0=HARD, 1=NORMAL, 2=EASY (기본값: NORMAL)
+        final boolean[] dialogClosed = {false};
+        
+        // 버튼 하이라이트 업데이트 함수
+        Runnable updateDifficultyHighlight = () -> {
+            for (int i = 0; i < diffButtons.length; i++) {
+                if (i == selectedDifficulty[0]) {
+                    diffButtons[i].setBackground(new java.awt.Color(100, 150, 255));
+                    diffButtons[i].setForeground(java.awt.Color.BLACK);
+                    diffButtons[i].setOpaque(true);
+                } else {
+                    diffButtons[i].setBackground(null);
+                    diffButtons[i].setForeground(java.awt.Color.BLACK);
+                    diffButtons[i].setOpaque(false);
+                }
+            }
+            difficultyDialog.repaint();
+        };
+        
+        // 버튼 클릭 이벤트
+        hardButton.addActionListener(e -> {
+            selectedDifficulty[0] = 0;
+            dialogClosed[0] = true;
+            difficultyDialog.dispose();
+        });
+        normalButton.addActionListener(e -> {
+            selectedDifficulty[0] = 1;
+            dialogClosed[0] = true;
+            difficultyDialog.dispose();
+        });
+        easyButton.addActionListener(e -> {
+            selectedDifficulty[0] = 2;
+            dialogClosed[0] = true;
+            difficultyDialog.dispose();
+        });
+        
+        // 키보드 이벤트 리스너
+        difficultyDialog.addKeyListener(new java.awt.event.KeyAdapter() {
+            @Override
+            public void keyPressed(KeyEvent e) {
+                switch (e.getKeyCode()) {
+                    case KeyEvent.VK_LEFT:
+                        selectedDifficulty[0] = (selectedDifficulty[0] - 1 + diffButtons.length) % diffButtons.length;
+                        updateDifficultyHighlight.run();
+                        break;
+                    case KeyEvent.VK_RIGHT:
+                        selectedDifficulty[0] = (selectedDifficulty[0] + 1) % diffButtons.length;
+                        updateDifficultyHighlight.run();
+                        break;
+                    case KeyEvent.VK_ENTER:
+                        diffButtons[selectedDifficulty[0]].doClick();
+                        break;
+                    case KeyEvent.VK_ESCAPE:
+                        dialogClosed[0] = false;
+                        difficultyDialog.dispose();
+                        break;
+                }
+            }
+        });
+        
+        // 컴포넌트 배치
+        dialogPanel.add(Box.createVerticalGlue());
+        dialogPanel.add(messageLabel);
+        dialogPanel.add(Box.createVerticalStrut(30));
+        
+        JPanel buttonPanel = new JPanel();
+        buttonPanel.setLayout(new BoxLayout(buttonPanel, BoxLayout.X_AXIS));
+        buttonPanel.add(Box.createHorizontalGlue());
+        buttonPanel.add(hardButton);
+        buttonPanel.add(Box.createHorizontalStrut(20));
+        buttonPanel.add(normalButton);
+        buttonPanel.add(Box.createHorizontalStrut(20));
+        buttonPanel.add(easyButton);
+        buttonPanel.add(Box.createHorizontalGlue());
+        
+        dialogPanel.add(buttonPanel);
+        dialogPanel.add(Box.createVerticalGlue());
+        
+        difficultyDialog.add(dialogPanel);
+        
+        // 초기 하이라이트 설정
+        updateDifficultyHighlight.run();
+        
+        // 다이얼로그 표시
+        difficultyDialog.setVisible(true);
+        
+        // 다이얼로그가 닫힌 후 처리
+        if (dialogClosed[0]) {
+            Difficulty difficulty;
+            switch (selectedDifficulty[0]) {
+                case 0 -> difficulty = Difficulty.HARD;
+                case 1 -> difficulty = Difficulty.NORMAL;
+                case 2 -> difficulty = Difficulty.EASY;
+                default -> {
+                    return;
+                }
+            }
+            startTetrisGame(difficulty);
+        }
     }
 
     private void startTetrisGame(Difficulty difficulty) {
@@ -193,6 +312,43 @@ public class Mainmenu extends JFrame {
         });
     }
 
+    // 키보드 입력 처리 (추가)
+    private void handleKeyPress(KeyEvent e) {
+        switch (e.getKeyCode()) {
+            case KeyEvent.VK_UP:
+                selectedIndex = (selectedIndex - 1 + buttons.length) % buttons.length;
+                updateButtonHighlight();
+                break;
+            case KeyEvent.VK_DOWN:
+                selectedIndex = (selectedIndex + 1) % buttons.length;
+                updateButtonHighlight();
+                break;
+            case KeyEvent.VK_ENTER:
+                buttons[selectedIndex].doClick();
+                break;
+            case KeyEvent.VK_ESCAPE:
+                System.exit(0);
+                break;
+        }
+    }
+
+    // 버튼 하이라이트 업데이트 (추가)
+    private void updateButtonHighlight() {
+        for (int i = 0; i < buttons.length; i++) {
+            if (i == selectedIndex) {
+                // 선택된 버튼 하이라이트
+                buttons[i].setBackground(new java.awt.Color(100, 150, 255));
+                buttons[i].setForeground(java.awt.Color.BLACK);
+                buttons[i].setOpaque(true);
+            } else {
+                // 선택되지 않은 버튼 기본 스타일
+                buttons[i].setBackground(null);
+                buttons[i].setForeground(java.awt.Color.BLACK);
+                buttons[i].setOpaque(false);
+            }
+        }
+        repaint();
+    }
 
     // 게임 방법 함수
     private void showHelp() {

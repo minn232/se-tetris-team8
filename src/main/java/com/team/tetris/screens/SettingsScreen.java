@@ -12,6 +12,7 @@ import java.awt.event.KeyEvent;
 import java.util.HashMap;
 import java.util.Map;
 
+
 import javax.swing.JButton;
 import javax.swing.JCheckBox;
 import javax.swing.JDialog;
@@ -35,6 +36,9 @@ public class SettingsScreen extends JFrame {
     private Map<Settings.KeyBinding, JButton> keyButtons = new HashMap<>();
     private JCheckBox chkColorBlind;
     private JButton btnClearScores;
+
+    private JButton[] buttons;
+    private int selectedIndex = 0;
 
     public SettingsScreen() {
         super("Settings");
@@ -160,6 +164,27 @@ public class SettingsScreen extends JFrame {
             }
         });
 
+        // 키보드 포커스를 받을 수 있도록 설정
+        setFocusable(true);
+
+        // 버튼 배열 초기화
+        buttons = new JButton[]{btnSave, btnCancel, btnClearScores};
+
+        // 키보드 이벤트 리스너 추가
+        addKeyListener(new KeyAdapter() {
+            @Override
+            public void keyPressed(KeyEvent e) {
+                handleKeyPress(e);
+            }
+        });
+
+        // 버튼들이 포커스를 받지 않도록 설정
+        for (JButton button : buttons) {
+            button.setFocusable(false);
+        }
+
+        // 초기 하이라이트 설정
+        updateButtonHighlight();
     }
 
     /**
@@ -213,4 +238,39 @@ public class SettingsScreen extends JFrame {
         }
     }
 
+    // 키보드 입력 처리
+    private void handleKeyPress(KeyEvent e) {
+        switch (e.getKeyCode()) {
+            case KeyEvent.VK_UP:
+                selectedIndex = (selectedIndex - 1 + buttons.length) % buttons.length;
+                updateButtonHighlight();
+                break;
+            case KeyEvent.VK_DOWN:
+                selectedIndex = (selectedIndex + 1) % buttons.length;
+                updateButtonHighlight();
+                break;
+            case KeyEvent.VK_ENTER:
+                buttons[selectedIndex].doClick();
+                break;
+            case KeyEvent.VK_ESCAPE:
+                dispose();
+                break;
+        }
+    }
+
+    // 버튼 하이라이트 업데이트
+    private void updateButtonHighlight() {
+        for (int i = 0; i < buttons.length; i++) {
+            if (i == selectedIndex) {
+                buttons[i].setBackground(new Color(100, 150, 255));
+                buttons[i].setForeground(Color.BLACK);
+                buttons[i].setOpaque(true);
+            } else {
+                buttons[i].setBackground(null);
+                buttons[i].setForeground(Color.BLACK);
+                buttons[i].setOpaque(false);
+            }
+        }
+        repaint();
+    }
 }

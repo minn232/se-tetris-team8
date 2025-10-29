@@ -26,6 +26,7 @@ public class RankingBoard extends JFrame {
     private static final String NORMAL_RANKING_FILE = "normal_rankings.dat";
     private static final String ITEM_RANKING_FILE = "item_rankings.dat";
     
+    
     public RankingBoard() {
         initializeUI();
     }
