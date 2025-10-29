@@ -295,7 +295,7 @@ public class Mainmenu extends JFrame {
             
             Board board = new Board(difficulty, isItemMode);
             GamePanel panel = new GamePanel(board, isItemMode);
-            
+
             if (isItemMode) {
                 // TODO: 아이템 모드에 필요한 추가 설정
                 // board.enableItemMode(); 같은 메서드 호출
