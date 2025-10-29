@@ -8,7 +8,7 @@ import java.util.Random;
  * 아이템 블록들을 관리하는 매니저 클래스
  */
 public class ItemManager {
-    private static final int LINES_FOR_ITEM = 10; // 10줄마다 아이템 생성
+    private static final int LINES_FOR_ITEM = 2; // 10줄마다 아이템 생성
     
     private final List<ItemBlock> availableItems;
     private final Random random;
@@ -32,14 +32,16 @@ public class ItemManager {
      * 현재 사용 가능한 아이템들:
      * - LineBlock: 한 줄을 자동으로 완성해주는 아이템
      * - SlowBlock: 게임 속도를 느리게 만드는 아이템
-     * - TransformBlock: 블록을 다른 모양으로 변환하는 아이템
+     * - TransformBlock: 다음 블록을 I 블록으로 변환하는 아이템
      * - WeightBlock: 아래의 블록들을 지우며 낙하하는 무게추 아이템
+     * - BombBlock: 주변 블록을 폭파하는 아이템
      */
     private void initializeItems() {
         availableItems.add(new LineBlock());
         availableItems.add(new SlowBlock());
         availableItems.add(new TransformBlock());
         availableItems.add(new WeightBlock());
+        availableItems.add(new BombBlock());
     }
     
     /**
@@ -88,6 +90,8 @@ public class ItemManager {
             return new TransformBlock();
         } else if (template instanceof WeightBlock) {
             return new WeightBlock();
+        } else if (template instanceof BombBlock) {
+            return new BombBlock();
         }
         
         return null;

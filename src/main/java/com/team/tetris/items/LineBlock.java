@@ -65,8 +65,9 @@ public class LineBlock implements ItemBlock {
         return 'L';
     }
     
-    public char getBlockSymbol(int blockIndex) {
-        return (blockIndex == getLineBlockIndex()) ? 'L' : ' ';
+    public char getBlockSymbol(int blockIndexInCurrentRotation) {
+        // 현재 rotation에서의 인덱스가 라인 블록 인덱스와 일치하는지 확인
+        return (blockIndexInCurrentRotation == getLineBlockIndex()) ? 'L' : ' ';
     }
     
     public int getLineBlockIndex() {

@@ -57,8 +57,9 @@ public class BombBlock implements ItemBlock {
         return 'B';
     }
     
-    public char getBlockSymbol(int blockIndex) {
-        return (blockIndex == getBombIndex()) ? 'B' : ' ';
+    public char getBlockSymbol(int blockIndexInCurrentRotation) {
+        // 현재 rotation에서의 인덱스가 폭탄 블록 인덱스와 일치하는지 확인
+        return (blockIndexInCurrentRotation == getBombIndex()) ? 'B' : ' ';
     }
     
     private void explode(Board board, int centerX, int centerY) {
