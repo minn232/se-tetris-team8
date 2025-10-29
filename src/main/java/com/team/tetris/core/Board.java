@@ -540,9 +540,9 @@ public class Board {
      * Transform 효과 활성화 - 다음 5개의 블록을 I 블록으로 변환
      */
     public void activateTransformEffect() {
-        // nextShape를 I로 설정하므로 첫 번째 블록 확정
-        // 나머지 4개는 pickByRoulette()에서 처리
-        transformRemainingBlocks = 4;
+        // nextShape를 I로 설정하고, 전체 5개 블록을 카운트
+        // nextShape 사용 시와 pickByRoulette() 호출 시 각각 카운터 감소
+        transformRemainingBlocks = 5;
         // 이미 준비된 nextShape도 I 블록으로 변경 (첫 번째 블록)
         nextShape = ShapeType.I;
         System.out.println("Transform 효과 활성화: 다음 5개의 블록이 I 블록으로 변환됩니다.");
