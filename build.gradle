@@ -23,7 +23,7 @@ java {
 }
 
 application {
-    mainClass = 'com.team.tetris.App'
+    mainClass = 'com.team.tetris.screens.Mainmenu'
 }
 
 tasks.named('test') {
