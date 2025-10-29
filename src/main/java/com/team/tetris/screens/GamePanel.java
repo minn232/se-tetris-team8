@@ -85,6 +85,29 @@ public class GamePanel extends JPanel {
                     case KeyEvent.VK_SPACE -> board.hardDrop();
                 }
 
+                // 키 입력 직후에도 줄 삭제 애니메이션 즉시 시작
+                int[] rows = board.pollClearingRows();
+                if (rows != null && rows.length > 0) {
+                    flashingRows = rows;
+                    flashUntil = System.currentTimeMillis() + FLASH_MS;
+
+                    Timer flashTimer = new Timer(16, ev -> {
+                        if (flashingRows == null) {
+                            ((Timer) ev.getSource()).stop();
+                            return;
+                        }
+                        if (System.currentTimeMillis() >= flashUntil) {
+                            board.clearRows(flashingRows);
+                            flashingRows = null;
+                            updateSpeedByClears();
+                            ((Timer) ev.getSource()).stop();
+                        }
+                        repaint();
+                    });
+                    flashTimer.setRepeats(true);
+                    flashTimer.start();
+                }
+
                 updateSpeedByClears();
                 repaint();
             }
@@ -116,7 +139,7 @@ public class GamePanel extends JPanel {
                 // (2) 일반 낙하
                 board.moveDown();
 
-                // (3) 삭제 예약 확인
+                // (3) 삭제 예약 확인 - moveDown() 직후 즉시 확인
                 int[] rows = board.pollClearingRows();
                 if (rows != null && rows.length > 0) {
                     flashingRows = rows;
@@ -138,6 +161,8 @@ public class GamePanel extends JPanel {
                     });
                     flashTimer.setRepeats(true);
                     flashTimer.start();
+                    repaint(); // 즉시 화면 갱신하여 플래시 시작
+                    return; // 플래시 시작했으면 여기서 종료
                 }
 
                 updateSpeedByClears();
