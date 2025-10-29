@@ -115,8 +115,8 @@ public class NameInputScreen extends JFrame {
                 RankingManager.getInstance(ITEM_RANKING_FILE) :
                 RankingManager.getInstance();
             
-            // 랭킹에 추가
-            manager.addEntry(new RankingEntry(playerName, finalScore, LocalDateTime.now()));
+            // 랭킹에 추가 (난이도 정보 포함)
+            manager.addEntry(new RankingEntry(playerName, finalScore, LocalDateTime.now(), difficulty));
             dispose();
             
             // 스코어보드를 표시하고 새로 입력한 항목 강조 (isItemMode 전달)

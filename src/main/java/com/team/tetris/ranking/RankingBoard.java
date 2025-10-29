@@ -170,10 +170,16 @@ public class RankingBoard extends JFrame {
                 && entry.getPlayerName().equals(highlightPlayerName)
                 && entry.getScore() == highlightScore;
             
-            JLabel rankLabel = new JLabel(String.format("%d. %s - %d (%s)",
+            // 난이도 정보 가져오기 (null이면 기본값 표시)
+            String difficultyStr = entry.getDifficulty() != null 
+                ? entry.getDifficulty().name() 
+                : "NORMAL";
+            
+            JLabel rankLabel = new JLabel(String.format("%d. %s - %d [%s] (%s)",
                 i + 1,
                 entry.getPlayerName(),
                 entry.getScore(),
+                difficultyStr,
                 entry.getTimestamp().format(DATE_FORMATTER)
             ));
             
