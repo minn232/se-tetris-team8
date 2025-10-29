@@ -38,6 +38,9 @@ public class Board {
     private long slowEffectStartTime = 0;
     private static final long SLOW_EFFECT_DURATION = 10000; // 10초
     
+    // Transform 효과 관련
+    private int transformRemainingBlocks = 0; // 남은 Transform 효과 블록 수
+    
     // 줄 삭제 애니메이션 관련
     private int[] pendingClearRows = null;
 
@@ -75,6 +78,12 @@ public class Board {
 
     // ===== RWS (stochastic acceptance) =====
     private ShapeType pickByRoulette() {
+        // Transform 효과가 활성화되어 있으면 I 블록 반환
+        if (transformRemainingBlocks > 0) {
+            transformRemainingBlocks--;
+            return ShapeType.I;
+        }
+        
         double max = 0;
         for (double w : weights) if (w > max) max = w;
         if (max <= 0) max = 1.0;
@@ -106,6 +115,11 @@ public class Board {
         }
         
         current = new Tetromino(shape, COLS / 2 - 2, 0);
+        
+        // WeightBlock의 경우 커스텀 블록 설정
+        if (currentItemBlock instanceof com.team.tetris.items.WeightBlock weightBlock) {
+            current.setBlocks(weightBlock.getCustomBlocks());
+        }
         
         // 2. 다음 블록 준비
         nextShape = pickByRoulette();
@@ -518,6 +532,27 @@ public class Board {
         if (!slowEffectActive) return 0;
         long elapsed = System.currentTimeMillis() - slowEffectStartTime;
         return Math.max(0, SLOW_EFFECT_DURATION - elapsed);
+    }
+    
+    // ===== Transform 효과 메서드 =====
+    
+    /**
+     * Transform 효과 활성화 - 다음 5개의 블록을 I 블록으로 변환
+     */
+    public void activateTransformEffect() {
+        // nextShape를 I로 설정하므로 첫 번째 블록 확정
+        // 나머지 4개는 pickByRoulette()에서 처리
+        transformRemainingBlocks = 4;
+        // 이미 준비된 nextShape도 I 블록으로 변경 (첫 번째 블록)
+        nextShape = ShapeType.I;
+        System.out.println("Transform 효과 활성화: 다음 5개의 블록이 I 블록으로 변환됩니다.");
+    }
+    
+    /**
+     * Transform 효과 남은 블록 수
+     */
+    public int getTransformRemainingBlocks() {
+        return transformRemainingBlocks;
     }
     
     /**

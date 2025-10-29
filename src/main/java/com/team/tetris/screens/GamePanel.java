@@ -464,15 +464,28 @@ public class GamePanel extends JPanel {
         }
         
         // 슬로우 효과 타이머 표시
+        int effectYPos = 480;
         if (board.isSlowEffectActive()) {
             long remainingTime = board.getSlowEffectRemainingTime();
             double seconds = remainingTime / 1000.0;
             
             g.setFont(g.getFont().deriveFont(Font.BOLD, 16f));
             g.setColor(new Color(173, 216, 230)); // 슬로우 블록과 같은 색상
-            g.drawString("SLOW EFFECT", sx + 20, 480);
+            g.drawString("SLOW EFFECT", sx + 20, effectYPos);
             g.setFont(g.getFont().deriveFont(Font.PLAIN, 14f));
-            g.drawString(String.format("%.1f sec", seconds), sx + 20, 500);
+            g.drawString(String.format("%.1f sec", seconds), sx + 20, effectYPos + 20);
+            g.setColor(Color.WHITE); // 색상 원복
+            effectYPos += 50;
+        }
+        
+        // Transform 효과 표시
+        int transformRemaining = board.getTransformRemainingBlocks();
+        if (transformRemaining > 0) {
+            g.setFont(g.getFont().deriveFont(Font.BOLD, 16f));
+            g.setColor(new Color(255, 215, 0)); // 골드 색상
+            g.drawString("TRANSFORM", sx + 20, effectYPos);
+            g.setFont(g.getFont().deriveFont(Font.PLAIN, 14f));
+            g.drawString(String.format("%d blocks left", transformRemaining), sx + 20, effectYPos + 20);
             g.setColor(Color.WHITE); // 색상 원복
         }
     }

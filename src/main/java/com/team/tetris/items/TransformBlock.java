@@ -7,9 +7,8 @@ import com.team.tetris.core.Board;
 import com.team.tetris.core.ShapeType;
 
 /**
- * 변환 아이템 블록 - 현재 조각이 이 아이템일 때 '회전' 키를 누르면 I 블록으로 즉시 변환.
+ * 변환 아이템 블록 - 고정 시 다음 5개의 블록을 I 블록으로 변환합니다.
  * 랜덤한 테트로미노 기본형을 가지며, 표시 문자는 'T'.
- * (키 입력으로 발동하므로 activateEffect는 사용하지 않음)
  */
 public class TransformBlock implements ItemBlock {
 
@@ -39,12 +38,14 @@ public class TransformBlock implements ItemBlock {
 
     @Override
     public void activateEffect(Object board, int x, int y) {
-        // 키 입력으로만 발동. 여기서는 별도 처리 없음.
+        if (board instanceof Board) {
+            ((Board) board).activateTransformEffect();
+        }
     }
 
     @Override
     public String getDescription() {
-        return "회전 키를 누르면 현재 조각을 I 블록으로 즉시 변환합니다.";
+        return "다음 5개의 블록을 I 블록으로 변환합니다.";
     }
 
     @Override

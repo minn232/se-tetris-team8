@@ -33,11 +33,13 @@ public class ItemManager {
      * - LineBlock: 한 줄을 자동으로 완성해주는 아이템
      * - SlowBlock: 게임 속도를 느리게 만드는 아이템
      * - TransformBlock: 블록을 다른 모양으로 변환하는 아이템
+     * - WeightBlock: 아래의 블록들을 지우며 낙하하는 무게추 아이템
      */
     private void initializeItems() {
         availableItems.add(new LineBlock());
         availableItems.add(new SlowBlock());
         availableItems.add(new TransformBlock());
+        availableItems.add(new WeightBlock());
     }
     
     /**
@@ -66,14 +68,29 @@ public class ItemManager {
     }
     
     /**
-     * 랜덤한 아이템 블록을 반환
+     * 랜덤한 아이템 블록을 반환 (매번 새로운 인스턴스 생성)
      * @return 랜덤 아이템 블록 (사용 가능한 아이템이 없으면 null)
      */
     public ItemBlock getRandomItem() {
         if (availableItems.isEmpty()) {
             return null;
         }
-        return availableItems.get(random.nextInt(availableItems.size()));
+        
+        // 랜덤으로 아이템 타입 선택 후 새 인스턴스 생성
+        ItemBlock template = availableItems.get(random.nextInt(availableItems.size()));
+        
+        // 타입별로 새 인스턴스 생성하여 반환 (상태 초기화)
+        if (template instanceof LineBlock) {
+            return new LineBlock();
+        } else if (template instanceof SlowBlock) {
+            return new SlowBlock();
+        } else if (template instanceof TransformBlock) {
+            return new TransformBlock();
+        } else if (template instanceof WeightBlock) {
+            return new WeightBlock();
+        }
+        
+        return null;
     }
     
     /**
