@@ -236,10 +236,10 @@ public class GamePanel extends JPanel {
     private void togglePauseAndMenu() {
         paused = !paused;
         if (paused) {
-            Object[] options = {"게임 재개", "게임 재시작", "메인 메뉴", "프로그램 종료"};
+            Object[] options = {"resume", "restart", "main menu", "exit"};
             int sel = JOptionPane.showOptionDialog(
                     SwingUtilities.getWindowAncestor(this),
-                    "일시정지",
+                    "pause",
                     "Pause",
                     JOptionPane.DEFAULT_OPTION,
                     JOptionPane.INFORMATION_MESSAGE,
@@ -280,6 +280,11 @@ public class GamePanel extends JPanel {
     }
 
     private void onForceQuit() {
+        // 헤드리스 환경(테스트 환경)에서는 다이얼로그를 띄울 수 없으므로 조용히 리턴
+        if (java.awt.GraphicsEnvironment.isHeadless()) {
+            return;
+        }
+        
         int result = JOptionPane.showOptionDialog(
             SwingUtilities.getWindowAncestor(this),
             "Quit?",
@@ -291,11 +296,10 @@ public class GamePanel extends JPanel {
             "No"
         );
         if (result == 0) {  // "예" 선택
-        timer.stop();
-        slowEffectTimer.stop();
-        System.exit(0);
-    }
-        
+            timer.stop();
+            slowEffectTimer.stop();
+            System.exit(0);
+        }
     }
 
      private void closeGameOnly() {

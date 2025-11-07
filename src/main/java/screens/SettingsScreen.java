@@ -128,9 +128,9 @@ public class SettingsScreen extends JFrame {
                         RankingManager normalRankings = RankingManager.getInstance("normal_rankings.dat");
                         normalRankings.clearRankings();
                         
-                        // item_rankings.dat 초기화 (있다면)
-                        // RankingManager itemRankings = RankingManager.getInstance("item_rankings.dat");
-                        // itemRankings.clearRankings();
+                        // item_rankings.dat 초기화
+                        RankingManager itemRankings = RankingManager.getInstance("item_rankings.dat");
+                        itemRankings.clearRankings();
                         
                         JOptionPane.showMessageDialog(SettingsScreen.this, "Scoreboard cleared.");
                     } catch (Exception ex) {
