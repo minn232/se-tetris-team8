@@ -6,7 +6,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 public class Settings {
-    private static final File SETTINGS_FILE = new File("src/main/data/settings.dat");
+    private static final File SETTINGS_FILE = new File("data/settings.dat");
 
     // Key binding enum for better organization
     public enum KeyBinding {

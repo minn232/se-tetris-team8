@@ -20,7 +20,7 @@ import javax.swing.JOptionPane;
  */
 public class RankingManager {
     private static final int MAX_RANKINGS = 10;
-    private static final String DATA_DIR = "src/main/data/";
+    private static final String DATA_DIR = "data/";
     private static final String NORMAL_RANKING_FILE = "normal_rankings.dat";
     private static final String ITEM_RANKING_FILE = "item_rankings.dat";
     
@@ -70,8 +70,8 @@ public class RankingManager {
         } catch (IOException | ClassNotFoundException e) {
             JOptionPane.showMessageDialog(
                 null,
-                "랭킹 데이터를 불러오는 중 오류가 발생했습니다: " + e.getMessage(),
-                "오류",
+                "An error occurred while loading ranking data: " + e.getMessage(),
+                "Error",
                 JOptionPane.ERROR_MESSAGE
             );
             return new ArrayList<>();
@@ -84,8 +84,8 @@ public class RankingManager {
         } catch (IOException e) {
             JOptionPane.showMessageDialog(
                 null,
-                "랭킹 데이터를 저장하는 중 오류가 발생했습니다: " + e.getMessage(),
-                "오류",
+                "An error occurred while saving ranking data: " + e.getMessage(),
+                "Error",
                 JOptionPane.ERROR_MESSAGE
             );
         }
