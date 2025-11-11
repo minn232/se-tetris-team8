@@ -20,7 +20,7 @@ import javax.swing.JOptionPane;
  */
 public class RankingManager {
     private static final int MAX_RANKINGS = 10;
-    private static final String DATA_DIR = "data/";
+    private static final String DATA_DIR = "src/main/data/";
     private static final String NORMAL_RANKING_FILE = "normal_rankings.dat";
     private static final String ITEM_RANKING_FILE = "item_rankings.dat";
     
