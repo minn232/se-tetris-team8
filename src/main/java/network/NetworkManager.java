@@ -1,58 +1,103 @@
 package network;
 
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.io.PrintWriter;
+import java.net.ServerSocket;
+import java.net.Socket;
+import java.util.function.Consumer;
+
 public class NetworkManager {
 
-    private static NetworkManager instance;
-
-    private Server server;
-    private Client client;
-
-    public enum Mode {
-        NONE,
-        SERVER,
-        CLIENT
-    }
-
-    private Mode mode = Mode.NONE;
-
-    private NetworkManager() {}
-
+    private static NetworkManager instance = new NetworkManager();
     public static NetworkManager getInstance() {
-        if (instance == null) {
-            instance = new NetworkManager();
-        }
         return instance;
     }
 
-    public Mode getMode() {
-        return mode;
-    }
+    private Socket socket;
+    private PrintWriter out;
+    private BufferedReader in;
 
-    public void startServer(int port) {
-        server = new Server();
-        mode = Mode.SERVER;
-        server.start(port);
-    }
+    private boolean connected = false;
 
-    public void startClient(String ip, int port) {
-        client = new Client();
-        mode = Mode.CLIENT;
-        client.connect(ip, port);
+    private Consumer<String> messageListener;  // 🔥 추가된 부분
+
+    public void setMessageListener(Consumer<String> listener) {
+        this.messageListener = listener;
     }
 
     public boolean isConnected() {
-        return switch (mode) {
-            case SERVER -> server != null && server.isConnected();
-            case CLIENT -> client != null && client.isConnected();
-            default -> false;
-        };
+        return connected;
     }
 
+    // ======================================
+    // SERVER MODE
+    // ======================================
+    public void startServer(int port) {
+        new Thread(() -> {
+            try {
+                ServerSocket server = new ServerSocket(port);
+                socket = server.accept();
+
+                out = new PrintWriter(socket.getOutputStream(), true);
+                in  = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+
+                connected = true;
+
+                listenLoop();   // 🔥 메시지 수신 시작
+
+                server.close();
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }).start();
+    }
+
+    // ======================================
+    // CLIENT MODE
+    // ======================================
+    public void startClient(String ip, int port) {
+        new Thread(() -> {
+            try {
+                socket = new Socket(ip, port);
+
+                out = new PrintWriter(socket.getOutputStream(), true);
+                in  = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+
+                connected = true;
+
+                listenLoop();  // 🔥 메시지 수신 시작
+
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }).start();
+    }
+
+    // ======================================
+    // 메시지 수신 루프
+    // ======================================
+    private void listenLoop() {
+        new Thread(() -> {
+            try {
+                String msg;
+                while ((msg = in.readLine()) != null) {
+
+                    // 🔥 UI로 메시지 전달
+                    if (messageListener != null) {
+                        messageListener.accept(msg);
+                    }
+                }
+            } catch (Exception ignored) {}
+        }).start();
+    }
+
+    // ======================================
+    // SEND
+    // ======================================
     public void send(String msg) {
-        if (mode == Mode.SERVER && server != null) {
-            server.send(msg);
-        } else if (mode == Mode.CLIENT && client != null) {
-            client.send(msg);
+        if (out != null) {
+            out.println(msg);
         }
     }
 }
