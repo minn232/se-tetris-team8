@@ -25,7 +25,7 @@ import ranking.RankingBoard;
 
 public class Mainmenu extends JFrame {
     // 랭킹 보드 버튼 추가
-    private final JButton startButton, itemModeButton, rankingButton, settingsButton, helpButton, exitButton;
+    private final JButton startButton, itemModeButton, p2pButton, rankingButton, settingsButton, helpButton, exitButton;
     private final JButton[] buttons;  
     private int selectedIndex = 0;   
     private boolean isItemMode;
@@ -60,6 +60,7 @@ public class Mainmenu extends JFrame {
         // 버튼 생성 함수로 버튼 초기화
         startButton = createButton("Start Game");
         itemModeButton = createButton("Start Item Mode");
+        p2pButton = createButton("P2P Battle Mode");
         rankingButton = createButton("Ranking Board");
         settingsButton = createButton("Settings");
         helpButton = createButton("How to Play");
@@ -72,9 +73,12 @@ public class Mainmenu extends JFrame {
         settingsButton.addActionListener(e -> openSettings());
         helpButton.addActionListener(e -> showHelp());
         exitButton.addActionListener(e -> System.exit(0));
+        // 🔥 여기만 새로 추가된 부분
+        p2pButton.addActionListener(e -> openP2PMode());
+        // 🔥 여기까지
 
         // 버튼 배열 초기화 (추가)
-        buttons = new JButton[]{startButton, itemModeButton, rankingButton, settingsButton, helpButton, exitButton};
+        buttons = new JButton[]{startButton, itemModeButton, p2pButton, rankingButton, settingsButton, helpButton, exitButton};
         
         // 키보드 이벤트 리스너 추가 (추가)
         addKeyListener(new java.awt.event.KeyAdapter() {
@@ -91,6 +95,8 @@ public class Mainmenu extends JFrame {
         mainPanel.add(startButton);
         mainPanel.add(Box.createVerticalStrut(20));
         mainPanel.add(itemModeButton);
+        mainPanel.add(Box.createVerticalStrut(20));
+        mainPanel.add(p2pButton);   // ★ 추가
         mainPanel.add(Box.createVerticalStrut(20));
         mainPanel.add(rankingButton);  // 랭킹 보드 버튼 배치
         mainPanel.add(Box.createVerticalStrut(20));
@@ -463,6 +469,23 @@ public class Mainmenu extends JFrame {
         SwingUtilities.invokeLater(() -> {
             Mainmenu menu = new Mainmenu();
             menu.setVisible(true);
+        });
+    }
+    
+    // 🔥 여기: P2P 모드 전환 (창 크기도 메인과 맞춤)
+    private void openP2PMode() {
+        int width = Settings.getWindowWidth();
+        int height = Settings.getWindowHeight();
+
+        dispose();
+        SwingUtilities.invokeLater(() -> {
+            JFrame frame = new JFrame("P2P Battle Mode");
+            frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+            frame.setLayout(new BorderLayout());
+            frame.setContentPane(new P2PMenuScreen(frame));
+            frame.setSize(width, height);      // 메인 메뉴와 동일 해상도
+            frame.setLocationRelativeTo(null);
+            frame.setVisible(true);
         });
     }
 }
