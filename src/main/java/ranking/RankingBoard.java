@@ -4,6 +4,8 @@ import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Component;
 import java.awt.Font;
+import java.awt.event.KeyAdapter;
+import java.awt.event.KeyEvent;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 
@@ -32,6 +34,9 @@ public class RankingBoard extends JDialog {
     private final int highlightScore;
     private final boolean showReturnButton;
     private final boolean isItemMode;
+    
+    private JButton[] buttons;
+    private int selectedIndex = 0;
     
     public RankingBoard() {
         super((java.awt.Frame) null, "Ranking Board", true); // 모달 다이얼로그로 생성
@@ -114,9 +119,72 @@ public class RankingBoard extends JDialog {
         if (showReturnButton) {
             JPanel buttonPanel = createButtonPanel();
             mainContainer.add(buttonPanel, BorderLayout.SOUTH);
+            
+            // 키보드 네비게이션 설정
+            setupKeyboardNavigation();
         }
 
         add(mainContainer);
+    }
+    
+    private void setupKeyboardNavigation() {
+        // 키보드 포커스를 받을 수 있도록 설정
+        setFocusable(true);
+        
+        // 버튼들의 포커스 비활성화
+        for (JButton btn : buttons) {
+            btn.setFocusable(false);
+        }
+        
+        // 초기 하이라이트 설정
+        updateButtonHighlight();
+        
+        // 키보드 이벤트 리스너 추가
+        addKeyListener(new KeyAdapter() {
+            @Override
+            public void keyPressed(KeyEvent e) {
+                handleKeyPress(e);
+            }
+        });
+    }
+    
+    private void handleKeyPress(KeyEvent e) {
+        switch (e.getKeyCode()) {
+            case KeyEvent.VK_LEFT:
+                if (selectedIndex > 0) {
+                    selectedIndex--;
+                    updateButtonHighlight();
+                }
+                break;
+            case KeyEvent.VK_RIGHT:
+                if (selectedIndex < buttons.length - 1) {
+                    selectedIndex++;
+                    updateButtonHighlight();
+                }
+                break;
+            case KeyEvent.VK_ENTER:
+            case KeyEvent.VK_SPACE:
+                buttons[selectedIndex].doClick();
+                break;
+            case KeyEvent.VK_ESCAPE:
+                dispose();
+                break;
+        }
+    }
+    
+    private void updateButtonHighlight() {
+        for (int i = 0; i < buttons.length; i++) {
+            if (i == selectedIndex) {
+                buttons[i].setBackground(new Color(100, 150, 255));
+                buttons[i].setForeground(Color.BLACK);
+                buttons[i].setOpaque(true);
+            } else {
+                buttons[i].setBackground(null);
+                buttons[i].setForeground(Color.BLACK);
+                buttons[i].setOpaque(false);
+            }
+        }
+        repaint();
     }
 
     private JPanel createRankingPanel(List<RankingEntry> rankings, String title, boolean isItemMode) {
@@ -162,6 +230,9 @@ public class RankingBoard extends JDialog {
         exitButton.addActionListener(e -> {
             System.exit(0);
         });
+        
+        // 버튼 배열 초기화
+        buttons = new JButton[]{mainMenuButton, exitButton};
         
         buttonPanel.add(Box.createHorizontalGlue());
         buttonPanel.add(mainMenuButton);

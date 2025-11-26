@@ -81,6 +81,9 @@ public class NameInputScreen extends JFrame {
         nameField.setAlignmentX(Component.CENTER_ALIGNMENT);
         nameField.setMaximumSize(new Dimension((int)(250 * scaleFactor), (int)(35 * scaleFactor)));
         
+        // 엔터 키로 제출
+        nameField.addActionListener(e -> submitScore());
+        
         ((AbstractDocument) nameField.getDocument()).setDocumentFilter(new DocumentFilter() {
             @Override
             public void replace(FilterBypass fb, int offset, int length, String text, AttributeSet attrs)
