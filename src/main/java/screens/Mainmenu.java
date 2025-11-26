@@ -20,6 +20,7 @@ public class Mainmenu extends JFrame {
         int width = Settings.getWindowWidth();
         int height = Settings.getWindowHeight();
         int baseFontSize = Settings.getBaseFontSize();
+        double scale = Settings.getScaleFactor(); // 스케일 팩터 가져오기
         
         // UIManager를 통해 다이얼로그 폰트 크기 조정
         javax.swing.UIManager.put("OptionPane.messageFont", new Font("Arial", Font.PLAIN, baseFontSize));
@@ -28,6 +29,7 @@ public class Mainmenu extends JFrame {
         // 기본 화면(WINDOW) 설정
         setTitle("Tetris");
         setSize(width, height);
+        setResizable(false);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setLocationRelativeTo(null);
         setFocusable(true);
@@ -37,13 +39,44 @@ public class Mainmenu extends JFrame {
         mainPanel.setOpaque(false); // 투명하게 설정해야 배경이 보임
         mainPanel.setLayout(null); // 절대 위치 지정을 위해 null 레이아웃 사용
         
-        // StartGame 버튼 생성
-        JButton singleplayButton = addButton(mainPanel, "/images/SinglePlayButton.png", 100, 100, width / 2 - 0, height / 2 - 50);
-        JButton multiplayButton = addButton(mainPanel, "/images/MultiPlayButton.png", 100, 100, width / 2 + 100, height / 2 - 50);
-        JButton rankingBoardButton = addButton(mainPanel, "/images/RankingboardButton.png", 160, 160, width / 2 + 155, height / 2 - 80);
-        JButton howtoplayButton = addButton(mainPanel, "/images/HowtoplayButton.png", 150, 150, width / 2 - 20, height / 2 + 10);
-        JButton settingsButton = addButton(mainPanel, "/images/SettingButton.png", 130, 130, width / 2 + 80, height / 2 + 20);
-        JButton exitButton = addButton(mainPanel, "/images/ExitButton.png", 130, 130, width / 2 + 170, height / 2 + 20);
+        // 버튼 크기와 위치를 스케일 팩터에 맞춰 조정 (640x360 기준)
+        int btnSingleW = (int)(100 * scale);
+        int btnSingleH = (int)(100 * scale);
+        int btnMultiW = (int)(100 * scale);
+        int btnMultiH = (int)(100 * scale);
+        int btnRankingW = (int)(160 * scale);
+        int btnRankingH = (int)(160 * scale);
+        int btnHowtoW = (int)(150 * scale);
+        int btnHowtoH = (int)(150 * scale);
+        int btnSettingsW = (int)(130 * scale);
+        int btnSettingsH = (int)(130 * scale);
+        int btnExitW = (int)(130 * scale);
+        int btnExitH = (int)(130 * scale);
+        
+        // 버튼 위치도 스케일 팩터에 맞춰 조정 (중앙 기준 상대 위치)
+        JButton singleplayButton = addButton(mainPanel, "/images/SinglePlayButton.png", 
+            btnSingleW, btnSingleH, 
+            (int)(width / 2.0), (int)(height / 2.0 - 50 * scale));
+            
+        JButton multiplayButton = addButton(mainPanel, "/images/MultiPlayButton.png", 
+            btnMultiW, btnMultiH, 
+            (int)(width / 2.0 + 100 * scale), (int)(height / 2.0 - 50 * scale));
+            
+        JButton rankingBoardButton = addButton(mainPanel, "/images/RankingboardButton.png", 
+            btnRankingW, btnRankingH, 
+            (int)(width / 2.0 + 155 * scale), (int)(height / 2.0 - 80 * scale));
+            
+        JButton howtoplayButton = addButton(mainPanel, "/images/HowtoplayButton.png", 
+            btnHowtoW, btnHowtoH, 
+            (int)(width / 2.0 - 20 * scale), (int)(height / 2.0 + 10 * scale));
+            
+        JButton settingsButton = addButton(mainPanel, "/images/SettingButton.png", 
+            btnSettingsW, btnSettingsH, 
+            (int)(width / 2.0 + 80 * scale), (int)(height / 2.0 + 20 * scale));
+            
+        JButton exitButton = addButton(mainPanel, "/images/ExitButton.png", 
+            btnExitW, btnExitH, 
+            (int)(width / 2.0 + 170 * scale), (int)(height / 2.0 + 20 * scale));
         
         // 배경 패널 설정
         BackgroundPanel bg = new BackgroundPanel("images/MainScreen.png");
