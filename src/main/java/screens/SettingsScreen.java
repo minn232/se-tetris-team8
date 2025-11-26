@@ -12,21 +12,18 @@ import java.awt.event.KeyEvent;
 import java.util.HashMap;
 import java.util.Map;
 
-
+import javax.swing.BorderFactory;
 import javax.swing.JButton;
 import javax.swing.JCheckBox;
+import javax.swing.JComboBox;
 import javax.swing.JDialog;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.SwingConstants;
-import javax.swing.BorderFactory;
 
 import core.Settings;
-
-import javax.swing.JComboBox;
-
 import ranking.RankingManager;
 
 public class SettingsScreen extends JFrame {
@@ -47,9 +44,27 @@ public class SettingsScreen extends JFrame {
 
         // 해상도에 따라 폰트 크기와 창 크기를 동적으로 적용
         String res = Settings.getResolution();
-        int fontSize = 14, width = 360, height = 450;
-        if ("480x600".equals(res)) { fontSize = 18; width = 480; height = 600; }
-        else if ("600x750".equals(res)) { fontSize = 22; width = 600; height = 750; }
+        // 허용 해상도 목록
+        String[] resolutions = {"640x360", "1280x720", "1920x1080"};
+
+        // 기본값 파싱 (Settings에 저장된 값이 형식에 맞지 않으면 첫 항목 사용)
+        int width = 640, height = 360;
+        try {
+            String[] parts = (res != null ? res : resolutions[0]).split("x");
+            if (parts.length == 2) {
+                width = Integer.parseInt(parts[0].trim());
+                height = Integer.parseInt(parts[1].trim());
+            }
+        } catch (Exception ex) {
+            width = 640; height = 360;
+        }
+
+        // 높이에 따라 폰트 크기 결정 (간단한 기준)
+        int fontSize;
+        if (height >= 1080) fontSize = 28;
+        else if (height >= 720) fontSize = 22;
+        else fontSize = 14;
+
         setSize(width, height);
 
         // 해상도 패널
@@ -57,7 +72,6 @@ public class SettingsScreen extends JFrame {
         JLabel resLabel = new JLabel("Window size:");
         resLabel.setFont(new Font(Font.SANS_SERIF, Font.BOLD, fontSize));
         resPanel.add(resLabel);
-        String[] resolutions = {"360x450", "480x600", "600x750"};
         JComboBox<String> resCombo = new JComboBox<>(resolutions);
         resCombo.setFont(new Font(Font.MONOSPACED, Font.BOLD, fontSize));
         resCombo.setSelectedItem(Settings.getResolution());
@@ -190,7 +204,6 @@ public class SettingsScreen extends JFrame {
             @Override
             public void actionPerformed(ActionEvent e) {
                 Settings.setColorBlind(chkColorBlind.isSelected());
-                // TODO: Board 색상 즉시 반영 로직 필요시 구현
             }
         });
 
