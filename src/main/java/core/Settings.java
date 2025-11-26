@@ -36,6 +36,10 @@ public class Settings {
         public int getValue() { return currentValue; }
         public void setValue(int value) { this.currentValue = value; }
         public void reset() { this.currentValue = defaultValue; }
+
+        public int getKeyCode() {
+            return currentValue;
+        }
     }
 
     // Other settings

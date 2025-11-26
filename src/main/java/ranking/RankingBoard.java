@@ -11,7 +11,7 @@ import javax.swing.BorderFactory;
 import javax.swing.Box;
 import javax.swing.BoxLayout;
 import javax.swing.JButton;
-import javax.swing.JFrame;
+import javax.swing.JDialog;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
@@ -23,7 +23,7 @@ import core.Settings;
  * 랭킹 보드 UI
  * 일반 모드와 아이템 모드 랭킹을 탭으로 분리하여 표시
  */
-public class RankingBoard extends JFrame {
+public class RankingBoard extends JDialog {
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
     private static final String NORMAL_RANKING_FILE = "normal_rankings.dat";
     private static final String ITEM_RANKING_FILE = "item_rankings.dat";
@@ -34,7 +34,22 @@ public class RankingBoard extends JFrame {
     private final boolean isItemMode;
     
     public RankingBoard() {
-        this(null, -1, false, false);
+        super((java.awt.Frame) null, "Ranking Board", true); // 모달 다이얼로그로 생성
+        int width = Settings.getWindowWidth();
+        int height = Settings.getWindowHeight();
+        int baseFontSize = Settings.getBaseFontSize();
+        
+        setTitle("Ranking Board");
+        setSize((int)(width * 0.8), (int)(height * 0.9));
+        setResizable(false);
+        setDefaultCloseOperation(JDialog.DISPOSE_ON_CLOSE);
+        setLocationRelativeTo(null);
+        
+        this.highlightPlayerName = null;
+        this.highlightScore = -1;
+        this.showReturnButton = false;
+        this.isItemMode = false;
+        initializeUI();
     }
     
     public RankingBoard(String highlightPlayerName, int highlightScore, boolean showReturnButton) {
@@ -42,6 +57,17 @@ public class RankingBoard extends JFrame {
     }
     
     public RankingBoard(String highlightPlayerName, int highlightScore, boolean showReturnButton, boolean isItemMode) {
+        super((java.awt.Frame) null, "Ranking Board", true); // 모달 다이얼로그로 생성
+        int width = Settings.getWindowWidth();
+        int height = Settings.getWindowHeight();
+        int baseFontSize = Settings.getBaseFontSize();
+        
+        setTitle("Ranking Board");
+        setSize((int)(width * 0.8), (int)(height * 0.9));
+        setResizable(false);
+        setDefaultCloseOperation(JDialog.DISPOSE_ON_CLOSE);
+        setLocationRelativeTo(null);
+        
         this.highlightPlayerName = highlightPlayerName;
         this.highlightScore = highlightScore;
         this.showReturnButton = showReturnButton;
@@ -50,13 +76,13 @@ public class RankingBoard extends JFrame {
     }
 
     private void initializeUI() {
-        int width = (int)(Settings.getWindowWidth() * 1.39);
-        int height = (int)(Settings.getWindowHeight() * 1.33);
+        int width = (int)(Settings.getWindowWidth() * 0.5);
+        int height = (int)(Settings.getWindowHeight());
         
         setTitle("Ranking Board");
         setSize(width, height);
         setLocationRelativeTo(null);
-        setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
+        setDefaultCloseOperation(JDialog.DISPOSE_ON_CLOSE);
 
         JPanel mainContainer = new JPanel(new BorderLayout());
         

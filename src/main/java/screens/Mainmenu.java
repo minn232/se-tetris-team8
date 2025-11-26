@@ -9,6 +9,7 @@ import javax.swing.JPanel;
 import javax.swing.SwingUtilities;
 
 import core.Settings;
+import ranking.RankingBoard;
 
 public class Mainmenu extends JFrame {
 
@@ -58,10 +59,18 @@ public class Mainmenu extends JFrame {
         JButton rankingBoardButton = addButton(mainPanel, "/images/RankingboardButton.png", 
             btnRankingW, btnRankingH, 
             (int)(width / 2.0 + 200 * scale), (int)(height / 2.0 - 32 * scale));
+        rankingBoardButton.addActionListener(e -> {
+            RankingBoard rankingBoard = new RankingBoard();
+            rankingBoard.setVisible(true); // 모달이므로 이 줄이 끝나기 전까지 다른 창 클릭 불가
+        });
             
         JButton howtoplayButton = addButton(mainPanel, "/images/HowtoplayButton.png", 
             btnHowtoW, btnHowtoH, 
             (int)(width / 2.0 + 5 * scale), (int)(height / 2.0 + 65 * scale));
+        howtoplayButton.addActionListener(e -> {
+            HowToPlayScreen howToPlayScreen = new HowToPlayScreen();
+            howToPlayScreen.setVisible(true); // 모달이므로 창이 닫힐 때까지 메인메뉴 클릭 불가
+        });
             
         JButton settingsButton = addButton(mainPanel, "/images/SettingButton.png", 
             btnSettingsW, btnSettingsH, 
