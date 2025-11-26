@@ -80,6 +80,9 @@ public class Mainmenu extends JFrame {
         JButton exitButton = addButton(mainPanel, "/images/ExitButton.png", 
             btnExitW, btnExitH, 
             (int)(width / 2.0 + 204 * scale), (int)(height / 2.0 + 63 * scale));
+        exitButton.addActionListener(e -> {
+            System.exit(0); // 프로그램 종료
+        });
         
         BackgroundPanel bg = new BackgroundPanel("images/MainScreen.png");
         bg.setLayout(new BorderLayout());

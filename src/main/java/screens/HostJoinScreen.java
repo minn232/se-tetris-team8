@@ -9,16 +9,16 @@ import javax.swing.JPanel;
 import core.Settings;
 
 /**
- * 멀티플레이 모드 선택 화면
+ * 네트워크 배틀 - Host/Join 선택 화면
  */
-public class MultiplaySelectionScreen extends JFrame {
+public class HostJoinScreen extends JFrame {
 
-    public MultiplaySelectionScreen() {
+    public HostJoinScreen() {
         int width = Settings.getWindowWidth();
         int height = Settings.getWindowHeight();
         double scale = Settings.getScaleFactor();
         
-        setTitle("Select Multiplayer Mode");
+        setTitle("Host or Join");
         setSize(width, height);
         setResizable(false);
         setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
@@ -28,25 +28,25 @@ public class MultiplaySelectionScreen extends JFrame {
         mainPanel.setOpaque(false);
         mainPanel.setLayout(null);
         
-        int btnWidth = (int)(100 * scale);
-        int btnHeight = (int)(100 * scale);
+        int btnWidth = (int)(120 * scale);
+        int btnHeight = (int)(120 * scale);
         
-        JButton p2pButton = addButton(mainPanel, "/images/P2PBattleButton.png", 
-            btnWidth, btnHeight, 
-            (int)(width / 2.0 - btnWidth / 2.0 + 60 * scale), (int)(height / 2.0 - 20 * scale));
-        p2pButton.addActionListener(e -> {
-            System.out.println("[MultiplaySelection] P2P Battle selected");
+        JButton hostButton = addButton(mainPanel, "/images/HostButton.png", 
+            btnWidth-50, btnHeight, 
+            (int)(width / 2.0 - btnWidth / 2.0 + 80 * scale), (int)(height / 2.0 - 30 * scale));
+        hostButton.addActionListener(e -> {
+            System.out.println("[HostJoin] Host selected");
             dispose();
             new ModeSelectionScreen().setVisible(true);
         });
         
-        JButton networkButton = addButton(mainPanel, "/images/NetworkBattleButton.png", 
-            btnWidth, btnHeight, 
-            (int)(width / 2.0 - btnWidth / 2.0 + 200 * scale), (int)(height / 2.0 - 19 * scale));
-        networkButton.addActionListener(e -> {
-            System.out.println("[MultiplaySelection] Network Battle selected");
+        JButton joinButton = addButton(mainPanel, "/images/HostingButton.png", 
+            btnWidth+30, btnHeight, 
+            (int)(width / 2.0 - btnWidth / 2.0 +170 * scale), (int)(height / 2.0 - 30 * scale));
+        joinButton.addActionListener(e -> {
+            System.out.println("[HostJoin] Join selected");
             dispose();
-            new HostJoinScreen().setVisible(true);
+            // TODO: Join 게임 시작 로직
         });
         
         BackgroundPanel bg = new BackgroundPanel("/images/MainScreen.png");
