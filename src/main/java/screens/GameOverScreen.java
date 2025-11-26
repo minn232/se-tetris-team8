@@ -149,6 +149,7 @@ public class GameOverScreen extends JFrame {
                 updateButtonHighlight();
                 break;
             case KeyEvent.VK_ENTER:
+            case KeyEvent.VK_SPACE:
                 buttons[selectedIndex].doClick();
                 break;
             case KeyEvent.VK_ESCAPE:

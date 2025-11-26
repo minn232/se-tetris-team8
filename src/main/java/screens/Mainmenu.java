@@ -12,6 +12,9 @@ import core.Settings;
 import ranking.RankingBoard;
 
 public class Mainmenu extends JFrame {
+    
+    private JButton[] buttons;
+    private int selectedIndex = 0;
 
     public Mainmenu() {
         int width = Settings.getWindowWidth();
@@ -28,6 +31,10 @@ public class Mainmenu extends JFrame {
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setLocationRelativeTo(null);
         setFocusable(true);
+        
+        // 배경음악 재생 시작
+        BackgroundMusicPlayer.getInstance().play("/music/MainBGM.wav");
+        BackgroundMusicPlayer.getInstance().setVolume(Settings.getMainMusicVolume());
         
         JPanel mainPanel = new JPanel();
         mainPanel.setOpaque(false);
@@ -49,12 +56,18 @@ public class Mainmenu extends JFrame {
         JButton singleplayButton = addButton(mainPanel, "/images/SinglePlayButton.png", 
             btnSingleW, btnSingleH, 
             (int)(width / 2.0 + 10), (int)(height / 2.0 - 35 * scale));
-        singleplayButton.addActionListener(e -> new ModeSelectionScreen().setVisible(true));
+        singleplayButton.addActionListener(e -> {
+            dispose(); // 메인메뉴 닫기
+            new ModeSelectionScreen().setVisible(true);
+        });
         
         JButton multiplayButton = addButton(mainPanel, "/images/MultiPlayButton.png", 
             btnMultiW, btnMultiH, 
             (int)(width / 2.0 + 100 * scale), (int)(height / 2.0 - 40 * scale));
-        multiplayButton.addActionListener(e -> new MultiplaySelectionScreen().setVisible(true));
+        multiplayButton.addActionListener(e -> {
+            dispose(); // 메인메뉴 닫기
+            new MultiplaySelectionScreen().setVisible(true);
+        });
             
         JButton rankingBoardButton = addButton(mainPanel, "/images/RankingboardButton.png", 
             btnRankingW, btnRankingH, 
@@ -81,6 +94,7 @@ public class Mainmenu extends JFrame {
             btnExitW, btnExitH, 
             (int)(width / 2.0 + 204 * scale), (int)(height / 2.0 + 63 * scale));
         exitButton.addActionListener(e -> {
+            BackgroundMusicPlayer.getInstance().stop(); // 음악 정지
             System.exit(0); // 프로그램 종료
         });
         
@@ -88,6 +102,88 @@ public class Mainmenu extends JFrame {
         bg.setLayout(new BorderLayout());
         bg.add(mainPanel, BorderLayout.CENTER);
         setContentPane(bg);
+        
+        // 버튼 배열 초기화 (키보드 네비게이션용)
+        buttons = new JButton[]{singleplayButton, multiplayButton, rankingBoardButton, 
+                                 howtoplayButton, settingsButton, exitButton};
+        
+        // 모든 버튼의 포커스 비활성화 (프레임만 키 이벤트를 받도록)
+        for (JButton btn : buttons) {
+            btn.setFocusable(false);
+        }
+        
+        // 초기 포커스 설정
+        updateButtonFocus();
+        
+        // 키보드 리스너 추가
+        addKeyListener(new java.awt.event.KeyAdapter() {
+            @Override
+            public void keyPressed(java.awt.event.KeyEvent e) {
+                handleKeyPress(e.getKeyCode());
+            }
+        });
+        
+        setFocusable(true);
+        requestFocusInWindow();
+    }
+    
+    private void handleKeyPress(int keyCode) {
+        switch (keyCode) {
+            case java.awt.event.KeyEvent.VK_LEFT -> {
+                // 왼쪽으로 이동
+                if (selectedIndex == 1) selectedIndex = 0; // multi -> single
+                else if (selectedIndex == 2) selectedIndex = 1; // ranking -> multi
+                else if (selectedIndex == 4) selectedIndex = 3; // settings -> howto
+                else if (selectedIndex == 5) selectedIndex = 4; // exit -> settings
+                updateButtonFocus();
+            }
+                
+            case java.awt.event.KeyEvent.VK_RIGHT -> {
+                // 오른쪽으로 이동
+                if (selectedIndex == 0) selectedIndex = 1; // single -> multi
+                else if (selectedIndex == 1) selectedIndex = 2; // multi -> ranking
+                else if (selectedIndex == 3) selectedIndex = 4; // howto -> settings
+                else if (selectedIndex == 4) selectedIndex = 5; // settings -> exit
+                updateButtonFocus();
+            }
+                
+            case java.awt.event.KeyEvent.VK_UP -> {
+                // 위로 이동
+                if (selectedIndex == 3) selectedIndex = 0; // howto -> single
+                else if (selectedIndex == 4) selectedIndex = 1; // settings -> multi
+                else if (selectedIndex == 5) selectedIndex = 2; // exit -> ranking
+                updateButtonFocus();
+            }
+                
+            case java.awt.event.KeyEvent.VK_DOWN -> {
+                // 아래로 이동
+                if (selectedIndex == 0) selectedIndex = 3; // single -> howto
+                else if (selectedIndex == 1) selectedIndex = 4; // multi -> settings
+                else if (selectedIndex == 2) selectedIndex = 5; // ranking -> exit
+                updateButtonFocus();
+            }
+                
+            case java.awt.event.KeyEvent.VK_SPACE, java.awt.event.KeyEvent.VK_ENTER -> // 선택된 버튼 클릭
+                buttons[selectedIndex].doClick();
+        }
+    }
+    
+    private void updateButtonFocus() {
+        for (int i = 0; i < buttons.length; i++) {
+            if (i == selectedIndex) {
+                // 선택된 버튼: 75% 불투명도
+                if (buttons[i] instanceof javax.swing.JComponent) {
+                    ((javax.swing.JComponent) buttons[i]).putClientProperty("opacity", 0.75f);
+                    buttons[i].repaint();
+                }
+            } else {
+                // 선택되지 않은 버튼: 100% 불투명도
+                if (buttons[i] instanceof javax.swing.JComponent) {
+                    ((javax.swing.JComponent) buttons[i]).putClientProperty("opacity", 1.0f);
+                    buttons[i].repaint();
+                }
+            }
+        }
     }
 
     private JButton addButton(JPanel panel, String imagePath, int buttonWidth, int buttonHeight, int x, int y) {

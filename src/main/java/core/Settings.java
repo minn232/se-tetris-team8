@@ -46,6 +46,8 @@ public class Settings {
     private static boolean colorBlind = false;
     private static String scoreboardFile = "scoreboard.csv";
     private static String resolution = "640x360";
+    private static float mainMusicVolume = 1.0f;
+    private static float gameMusicVolume = 1.0f;
     
     static {
         load();
@@ -74,6 +76,12 @@ public class Settings {
             if (settingsMap.containsKey("resolution")) {
                 resolution = (String) settingsMap.get("resolution");
             }
+            if (settingsMap.containsKey("mainMusicVolume")) {
+                mainMusicVolume = (Float) settingsMap.get("mainMusicVolume");
+            }
+            if (settingsMap.containsKey("gameMusicVolume")) {
+                gameMusicVolume = (Float) settingsMap.get("gameMusicVolume");
+            }
         } catch (IOException | ClassNotFoundException e) {
             // ignore and keep defaults
         }
@@ -99,6 +107,8 @@ public class Settings {
             settingsMap.put("colorBlind", colorBlind);
             settingsMap.put("scoreboardFile", scoreboardFile);
             settingsMap.put("resolution", resolution);
+            settingsMap.put("mainMusicVolume", mainMusicVolume);
+            settingsMap.put("gameMusicVolume", gameMusicVolume);
             
             // 직렬화하여 저장
             try (ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream(SETTINGS_FILE))) {
@@ -134,6 +144,12 @@ public class Settings {
 
     public static String getResolution() { return resolution; }
     public static void setResolution(String r) { resolution = r; }
+
+    public static float getMainMusicVolume() { return mainMusicVolume; }
+    public static void setMainMusicVolume(float v) { mainMusicVolume = Math.max(0f, Math.min(1f, v)); }
+
+    public static float getGameMusicVolume() { return gameMusicVolume; }
+    public static void setGameMusicVolume(float v) { gameMusicVolume = Math.max(0f, Math.min(1f, v)); }
 
     // 해상도에 따른 scale factor (기본 기준: 640x360 -> 1.0)
     public static double getScaleFactor() {
@@ -192,5 +208,7 @@ public class Settings {
         colorBlind = false;
         scoreboardFile = "scoreboard.csv";
         resolution = "640x360";
+        mainMusicVolume = 1.0f;
+        gameMusicVolume = 1.0f;
     }
 }

@@ -149,8 +149,15 @@ public class ImageButtonUtils {
                 java.awt.Graphics2D g2d = (java.awt.Graphics2D) g.create();
                 
                 if (buttonImage != null) {
+                    // clientProperty로 설정된 opacity 값이 있으면 우선 사용
+                    float finalOpacity = opacity;
+                    Object clientOpacity = getClientProperty("opacity");
+                    if (clientOpacity instanceof Float) {
+                        finalOpacity = (Float) clientOpacity;
+                    }
+                    
                     g2d.setComposite(java.awt.AlphaComposite.getInstance(
-                        java.awt.AlphaComposite.SRC_OVER, opacity));
+                        java.awt.AlphaComposite.SRC_OVER, finalOpacity));
                     
                     int w = getWidth();
                     int h = getHeight();

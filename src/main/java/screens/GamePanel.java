@@ -49,6 +49,11 @@ public class GamePanel extends JPanel {
     public GamePanel(Board board, boolean isItemMode) {
         this.board = board;
         this.isItemMode = isItemMode;
+        
+        // 메인 메뉴 음악 끄고 게임 음악 켜기
+        BackgroundMusicPlayer.getInstance().stop();
+        BackgroundMusicPlayer.getInstance().play("/music/InGameBGM.wav");
+        BackgroundMusicPlayer.getInstance().setVolume(Settings.getGameMusicVolume());
 
         // Settings에서 셀 크기 및 화면 크기 계산
         this.CELL = Settings.getCellSize();
@@ -187,6 +192,7 @@ public class GamePanel extends JPanel {
     if (board.isGameOver()) {
         timer.stop();
         slowEffectTimer.stop(); // 슬로우 효과 타이머도 정지
+        BackgroundMusicPlayer.getInstance().stop(); // 게임 음악 정지
         int finalScore = board.getScore();
         
         RankingManager manager = isItemMode ? 
@@ -236,6 +242,7 @@ public class GamePanel extends JPanel {
     private void togglePauseAndMenu() {
         paused = !paused;
         if (paused) {
+            BackgroundMusicPlayer.getInstance().pause(); // 음악 일시정지
             Object[] options = {"resume", "restart", "main menu", "exit"};
             int sel = JOptionPane.showOptionDialog(
                     SwingUtilities.getWindowAncestor(this),
@@ -248,6 +255,7 @@ public class GamePanel extends JPanel {
             switch (sel) {
                 case 0 -> { // 재개
                     paused = false;
+                    BackgroundMusicPlayer.getInstance().resume(); // 음악 재개
                 }
                 case 1 -> { // 재시작
                     board.reset();
@@ -259,13 +267,16 @@ public class GamePanel extends JPanel {
                     if (!slowEffectTimer.isRunning()) {
                         slowEffectTimer.start(); // 슬로우 효과 타이머 재시작
                     }
+                    BackgroundMusicPlayer.getInstance().resume(); // 음악 재개
                 }
                 case 2 -> { // 메인 메뉴
                     timer.stop();
                     slowEffectTimer.stop(); // 슬로우 효과 타이머 정지
+                    BackgroundMusicPlayer.getInstance().stop(); // 게임 음악 정지
                     closeGameOnly();
                     SwingUtilities.invokeLater(() -> {
-                        new Mainmenu().setVisible(true);  // 메인메뉴 화면 표시
+                        Mainmenu mainmenu = new Mainmenu();
+                        mainmenu.setVisible(true);  // 메인메뉴 화면 표시 (생성자에서 MainBGM 재생)
                     });
                 }
                 case 3 -> { // 종료
@@ -273,7 +284,11 @@ public class GamePanel extends JPanel {
                     slowEffectTimer.stop();
                     System.exit(0);
                 }
-                default -> { /* 닫기/취소 시 아무것도 안 함 */ }
+                default -> { 
+                    // 닫기/취소 시 재개
+                    paused = false;
+                    BackgroundMusicPlayer.getInstance().resume();
+                }
             }
 
         }
@@ -298,6 +313,7 @@ public class GamePanel extends JPanel {
         if (result == 0) {  // "예" 선택
             timer.stop();
             slowEffectTimer.stop();
+            BackgroundMusicPlayer.getInstance().stop();
             System.exit(0);
         }
     }
@@ -421,6 +437,11 @@ public class GamePanel extends JPanel {
         g.setColor(Color.WHITE);
         
         int baseFontSize = Settings.getBaseFontSize();
+        double scale = Settings.getScaleFactor();
+        int margin = (int)(20 * scale);
+        int lineSpacing = (int)(24 * scale);
+        
+        int yPos = (int)(30 * scale);
 
         // NEXT - 맨 위로 이동
         g.setFont(g.getFont().deriveFont(Font.BOLD, (float)baseFontSize));
@@ -428,76 +449,93 @@ public class GamePanel extends JPanel {
         if (board.getNextItemBlock() != null) {
             nextLabel = "NEXT (ITEM)";
         }
-        g.drawString(nextLabel, sx + 20, 30);
-        drawNextPreview(g, sx + 20, 50);
+        g.drawString(nextLabel, sx + margin, yPos);
+        yPos += (int)(20 * scale);
+        drawNextPreview(g, sx + margin, yPos);
         g.setColor(Color.WHITE);
+        yPos += (int)(110 * scale);
 
         // SCORE - 미리보기 아래로 이동
         g.setFont(g.getFont().deriveFont(Font.BOLD, (float)baseFontSize));
-        g.drawString("SCORE", sx + 20, 160);
+        g.drawString("SCORE", sx + margin, yPos);
+        yPos += lineSpacing;
         g.setFont(g.getFont().deriveFont(Font.PLAIN, (float)baseFontSize));
-        g.drawString(String.valueOf(board.getScore()), sx + 20, 188);
+        g.drawString(String.valueOf(board.getScore()), sx + margin, yPos);
+        yPos += (int)(40 * scale);
 
         // DIFFICULTY
         g.setFont(g.getFont().deriveFont(Font.BOLD, (float)baseFontSize));
-        g.drawString("DIFFICULTY", sx + 20, 230);
+        g.drawString("DIFFICULTY", sx + margin, yPos);
+        yPos += lineSpacing;
         g.setFont(g.getFont().deriveFont(Font.PLAIN, (float)(baseFontSize * 0.89)));
         String diff = board.getDifficulty().name().toLowerCase();
         diff = Character.toUpperCase(diff.charAt(0)) + diff.substring(1);
-        g.drawString(diff, sx + 20, 254);
+        g.drawString(diff, sx + margin, yPos);
+        yPos += (int)(35 * scale);
 
         // LEVEL (= 누적 삭제 줄 수)
         g.setFont(g.getFont().deriveFont(Font.BOLD, (float)baseFontSize));
-        g.drawString("LEVEL", sx + 20, 290);
+        g.drawString("LEVEL", sx + margin, yPos);
+        yPos += lineSpacing;
         g.setFont(g.getFont().deriveFont(Font.PLAIN, (float)(baseFontSize * 0.89)));
-        g.drawString(String.valueOf(board.getTotalLinesCleared()), sx + 20, 314);
+        g.drawString(String.valueOf(board.getTotalLinesCleared()), sx + margin, yPos);
+        yPos += (int)(35 * scale);
 
         // SPEED (현재 ms)
         g.setFont(g.getFont().deriveFont(Font.BOLD, (float)baseFontSize));
-        g.drawString("SPEED", sx + 20, 350);
+        g.drawString("SPEED", sx + margin, yPos);
+        yPos += lineSpacing;
         g.setFont(g.getFont().deriveFont(Font.PLAIN, (float)(baseFontSize * 0.89)));
-        g.drawString(currentDelay + " ms", sx + 20, 374);
+        g.drawString(currentDelay + " ms", sx + margin, yPos);
+        yPos += (int)(45 * scale);
         
         // 아이템 모드에서 아이템 정보 표시
         if (isItemMode && board.getItemManager() != null) {
-            g.setFont(g.getFont().deriveFont(Font.BOLD, 14f));
-            g.drawString("ITEMS PROGRESS", sx + 20, 420);
-            g.setFont(g.getFont().deriveFont(Font.PLAIN, 12f));
+            g.setFont(g.getFont().deriveFont(Font.BOLD, (float)(baseFontSize * 0.78)));
+            g.drawString("ITEMS PROGRESS", sx + margin, yPos);
+            yPos += (int)(20 * scale);
+            g.setFont(g.getFont().deriveFont(Font.PLAIN, (float)(baseFontSize * 0.67)));
             int itemProgress = board.getItemManager().getTotalLinesCleared() % 10;
-            g.drawString(itemProgress + "/10 lines", sx + 20, 440);
+            g.drawString(itemProgress + "/10 lines", sx + margin, yPos);
+            yPos += (int)(30 * scale);
         }
         
         // 슬로우 효과 타이머 표시
-        int effectYPos = 480;
+        int effectYPos = yPos;
         if (board.isSlowEffectActive()) {
             long remainingTime = board.getSlowEffectRemainingTime();
             double seconds = remainingTime / 1000.0;
             
-            g.setFont(g.getFont().deriveFont(Font.BOLD, 16f));
+            g.setFont(g.getFont().deriveFont(Font.BOLD, (float)(baseFontSize * 0.89)));
             g.setColor(new Color(173, 216, 230)); // 슬로우 블록과 같은 색상
-            g.drawString("SLOW EFFECT", sx + 20, effectYPos);
-            g.setFont(g.getFont().deriveFont(Font.PLAIN, 14f));
-            g.drawString(String.format("%.1f sec", seconds), sx + 20, effectYPos + 20);
+            g.drawString("SLOW EFFECT", sx + margin, effectYPos);
+            effectYPos += (int)(20 * scale);
+            g.setFont(g.getFont().deriveFont(Font.PLAIN, (float)(baseFontSize * 0.78)));
+            g.drawString(String.format("%.1f sec", seconds), sx + margin, effectYPos);
             g.setColor(Color.WHITE); // 색상 원복
-            effectYPos += 50;
+            effectYPos += (int)(30 * scale);
         }
         
         // Transform 효과 표시
         int transformRemaining = board.getTransformRemainingBlocks();
         if (transformRemaining > 0) {
-            g.setFont(g.getFont().deriveFont(Font.BOLD, 16f));
+            g.setFont(g.getFont().deriveFont(Font.BOLD, (float)(baseFontSize * 0.89)));
             g.setColor(new Color(255, 215, 0)); // 골드 색상
-            g.drawString("TRANSFORM", sx + 20, effectYPos);
-            g.setFont(g.getFont().deriveFont(Font.PLAIN, 14f));
-            g.drawString(String.format("%d blocks left", transformRemaining), sx + 20, effectYPos + 20);
+            g.drawString("TRANSFORM", sx + margin, effectYPos);
+            effectYPos += (int)(20 * scale);
+            g.setFont(g.getFont().deriveFont(Font.PLAIN, (float)(baseFontSize * 0.78)));
+            g.drawString(String.format("%d blocks left", transformRemaining), sx + margin, effectYPos);
             g.setColor(Color.WHITE); // 색상 원복
         }
     }
 
     private void drawNextPreview(Graphics2D g, int px, int py) {
-        // 배경
+        // 배경 크기를 스케일에 맞게 조정
+        double scale = Settings.getScaleFactor();
+        int previewSize = (int)(80 * scale);
+        int padding = (int)(10 * scale);
         g.setColor(new Color(60, 60, 60));
-        g.fillRoundRect(px - 10, py - 10, 80, 80, 8, 8);
+        g.fillRoundRect(px - padding, py - padding, previewSize, previewSize, 8, 8);
 
         // 아이템 블록이 있는지 먼저 확인
         items.ItemBlock nextItem = board.getNextItemBlock();
@@ -523,11 +561,14 @@ public class GamePanel extends JPanel {
             miny = Math.min(miny, p.y); maxy = Math.max(maxy, p.y);
         }
         
+        double scale = Settings.getScaleFactor();
         int cell = CELL / 2;
+        int previewSize = (int)(80 * scale);
+        int padding = (int)(10 * scale);
         int w = (maxx - minx + 1) * cell;
         int h = (maxy - miny + 1) * cell;
-        int cx = px + (80 - w) / 2 - 10;
-        int cy = py + (80 - h) / 2 - 10;
+        int cx = px + (previewSize - w) / 2 - padding;
+        int cy = py + (previewSize - h) / 2 - padding;
 
         // 아이템 블록은 흰색 배경에 검은색 문자로 표시
         for (int i = 0; i < offs.length; i++) {
@@ -567,11 +608,14 @@ public class GamePanel extends JPanel {
             minx = Math.min(minx, p.x); maxx = Math.max(maxx, p.x);
             miny = Math.min(miny, p.y); maxy = Math.max(maxy, p.y);
         }
+        double scale = Settings.getScaleFactor();
         int cell = CELL / 2;
+        int previewSize = (int)(80 * scale);
+        int padding = (int)(10 * scale);
         int w = (maxx - minx + 1) * cell;
         int h = (maxy - miny + 1) * cell;
-        int cx = px + (80 - w) / 2 - 10;
-        int cy = py + (80 - h) / 2 - 10;
+        int cx = px + (previewSize - w) / 2 - padding;
+        int cy = py + (previewSize - h) / 2 - padding;
 
         for (Position p : offs) {
             int cxp = cx + (p.x - minx) * cell;

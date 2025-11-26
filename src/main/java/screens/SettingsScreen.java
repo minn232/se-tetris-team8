@@ -67,6 +67,49 @@ public class SettingsScreen extends JFrame {
 
         setSize(width, height);
 
+        // 음량 패널 (맨 위에 추가)
+        JPanel volumePanel = new JPanel(new GridLayout(2, 2, 10, 10));
+        volumePanel.setBorder(BorderFactory.createEmptyBorder(10, 30, 10, 30));
+        
+        JLabel mainMusicLabel = new JLabel("Main Music Volume:");
+        mainMusicLabel.setFont(new Font(Font.SANS_SERIF, Font.BOLD, fontSize));
+        
+        JLabel gameMusicLabel = new JLabel("Game Music Volume:");
+        gameMusicLabel.setFont(new Font(Font.SANS_SERIF, Font.BOLD, fontSize));
+        
+        javax.swing.JSlider mainVolumeSlider = new javax.swing.JSlider(0, 100, 
+            (int)(Settings.getMainMusicVolume() * 100));
+        mainVolumeSlider.setFont(new Font(Font.MONOSPACED, Font.PLAIN, fontSize));
+        mainVolumeSlider.setMajorTickSpacing(25);
+        mainVolumeSlider.setMinorTickSpacing(5);
+        mainVolumeSlider.setPaintTicks(true);
+        mainVolumeSlider.setPaintLabels(true);
+        
+        javax.swing.JSlider gameVolumeSlider = new javax.swing.JSlider(0, 100, 
+            (int)(Settings.getGameMusicVolume() * 100));
+        gameVolumeSlider.setFont(new Font(Font.MONOSPACED, Font.PLAIN, fontSize));
+        gameVolumeSlider.setMajorTickSpacing(25);
+        gameVolumeSlider.setMinorTickSpacing(5);
+        gameVolumeSlider.setPaintTicks(true);
+        gameVolumeSlider.setPaintLabels(true);
+        
+        // 실시간 볼륨 조절
+        mainVolumeSlider.addChangeListener(e -> {
+            float volume = mainVolumeSlider.getValue() / 100f;
+            Settings.setMainMusicVolume(volume);
+            BackgroundMusicPlayer.getInstance().setVolume(volume);
+        });
+        
+        gameVolumeSlider.addChangeListener(e -> {
+            float volume = gameVolumeSlider.getValue() / 100f;
+            Settings.setGameMusicVolume(volume);
+        });
+        
+        volumePanel.add(mainMusicLabel);
+        volumePanel.add(mainVolumeSlider);
+        volumePanel.add(gameMusicLabel);
+        volumePanel.add(gameVolumeSlider);
+
         // 해상도 패널
         JPanel resPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
         JLabel resLabel = new JLabel("Window size:");
@@ -121,9 +164,14 @@ public class SettingsScreen extends JFrame {
         mainSouthPanel.add(bottom, BorderLayout.CENTER);
         mainSouthPanel.add(south, BorderLayout.SOUTH);
 
-        add(resPanel, BorderLayout.NORTH);
+        // 상단 패널 (음량 + 해상도)
+        JPanel topPanel = new JPanel(new BorderLayout());
+        topPanel.add(volumePanel, BorderLayout.CENTER);
+        topPanel.add(resPanel, BorderLayout.SOUTH);
+
+        add(topPanel, BorderLayout.NORTH);
         add(keyPanel, BorderLayout.CENTER);
-        add(mainSouthPanel, BorderLayout.SOUTH); // 수정된 부분
+        add(mainSouthPanel, BorderLayout.SOUTH);
 
         pack();
         setLocationRelativeTo(null);
