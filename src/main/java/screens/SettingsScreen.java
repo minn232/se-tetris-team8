@@ -21,6 +21,7 @@ import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.SwingConstants;
+import javax.swing.BorderFactory;
 
 import core.Settings;
 
@@ -223,6 +224,7 @@ public class SettingsScreen extends JFrame {
         JLabel lbl = new JLabel(labelText);
         lbl.setFont(font);
         lbl.setForeground(Color.BLACK);
+        lbl.setBorder(BorderFactory.createEmptyBorder(0, 30, 0, 0));
         
         JButton btn = new JButton(KeyEvent.getKeyText(binding.getValue()));
         btn.setFont(font);

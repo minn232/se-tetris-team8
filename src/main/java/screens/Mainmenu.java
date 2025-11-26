@@ -228,21 +228,19 @@ public class Mainmenu extends JFrame {
             @Override
             public void keyPressed(KeyEvent e) {
                 switch (e.getKeyCode()) {
-                    case KeyEvent.VK_LEFT:
+                    case KeyEvent.VK_LEFT -> {
                         selectedDifficulty[0] = (selectedDifficulty[0] - 1 + diffButtons.length) % diffButtons.length;
                         updateDifficultyHighlight.run();
-                        break;
-                    case KeyEvent.VK_RIGHT:
+                    }
+                    case KeyEvent.VK_RIGHT -> {
                         selectedDifficulty[0] = (selectedDifficulty[0] + 1) % diffButtons.length;
                         updateDifficultyHighlight.run();
-                        break;
-                    case KeyEvent.VK_ENTER:
-                        diffButtons[selectedDifficulty[0]].doClick();
-                        break;
-                    case KeyEvent.VK_ESCAPE:
+                    }
+                    case KeyEvent.VK_ENTER -> diffButtons[selectedDifficulty[0]].doClick();
+                    case KeyEvent.VK_ESCAPE -> {
                         dialogClosed[0] = false;
                         difficultyDialog.dispose();
-                        break;
+                    }
                 }
             }
         });
@@ -296,11 +294,6 @@ public class Mainmenu extends JFrame {
             Board board = new Board(difficulty, isItemMode);
             GamePanel panel = new GamePanel(board, isItemMode);
 
-            if (isItemMode) {
-                // TODO: 아이템 모드에 필요한 추가 설정
-                // board.enableItemMode(); 같은 메서드 호출
-            }
-
             JFrame gameFrame = new JFrame("SE Tetris Team8");
             gameFrame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
             gameFrame.setLayout(new BorderLayout());
@@ -315,20 +308,16 @@ public class Mainmenu extends JFrame {
     // 키보드 입력 처리 (추가)
     private void handleKeyPress(KeyEvent e) {
         switch (e.getKeyCode()) {
-            case KeyEvent.VK_UP:
+            case KeyEvent.VK_UP -> {
                 selectedIndex = (selectedIndex - 1 + buttons.length) % buttons.length;
                 updateButtonHighlight();
-                break;
-            case KeyEvent.VK_DOWN:
+            }
+            case KeyEvent.VK_DOWN -> {
                 selectedIndex = (selectedIndex + 1) % buttons.length;
                 updateButtonHighlight();
-                break;
-            case KeyEvent.VK_ENTER:
-                buttons[selectedIndex].doClick();
-                break;
-            case KeyEvent.VK_ESCAPE:
-                System.exit(0);
-                break;
+            }
+            case KeyEvent.VK_ENTER -> buttons[selectedIndex].doClick();
+            case KeyEvent.VK_ESCAPE -> System.exit(0);
         }
     }
 
