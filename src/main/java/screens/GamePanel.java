@@ -204,8 +204,8 @@ public class GamePanel extends JPanel {
                     // 랭킹 진입: 이름 입력 화면 표시 (이름 입력 후 스코어보드 표시)
                     new NameInputScreen(finalScore, board.getDifficulty(), isItemMode).setVisible(true);
                 } else {
-                    // 랭킹 미진입: 스코어보드 먼저 표시 (isItemMode 전달)
-                    new ranking.RankingBoard(null, finalScore, true, isItemMode).setVisible(true);
+                    // 랭킹 미진입: 게임오버 화면 표시
+                    new GameOverScreen(finalScore, board.getDifficulty(), isItemMode).setVisible(true);
                 }
             }
         });
@@ -463,8 +463,8 @@ public class GamePanel extends JPanel {
             g.setFont(g.getFont().deriveFont(Font.BOLD, 14f));
             g.drawString("ITEMS PROGRESS", sx + 20, 420);
             g.setFont(g.getFont().deriveFont(Font.PLAIN, 12f));
-            int itemProgress = board.getItemManager().getTotalLinesCleared() % 2;
-            g.drawString(itemProgress + "/2 lines", sx + 20, 440);
+            int itemProgress = board.getItemManager().getTotalLinesCleared() % 10;
+            g.drawString(itemProgress + "/10 lines", sx + 20, 440);
         }
         
         // 슬로우 효과 타이머 표시

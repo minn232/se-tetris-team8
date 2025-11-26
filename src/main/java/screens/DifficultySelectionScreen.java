@@ -6,19 +6,25 @@ import javax.swing.JButton;
 import javax.swing.JFrame;
 import javax.swing.JPanel;
 
+import core.Board;
+import core.Difficulty;
 import core.Settings;
 
 /**
- * 싱글플레이 모드 선택 화면
+ * 난이도 선택 화면
  */
-public class ModeSelectionScreen extends JFrame {
+public class DifficultySelectionScreen extends JFrame {
+    
+    private final boolean isItemMode;
 
-    public ModeSelectionScreen() {
+    public DifficultySelectionScreen(boolean isItemMode) {
+        this.isItemMode = isItemMode;
+        
         int width = Settings.getWindowWidth();
         int height = Settings.getWindowHeight();
         double scale = Settings.getScaleFactor();
         
-        setTitle("Select Game Mode");
+        setTitle("Select Difficulty");
         setSize(width, height);
         setResizable(false);
         setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
@@ -31,37 +37,48 @@ public class ModeSelectionScreen extends JFrame {
         int btnWidth = (int)(80 * scale);
         int btnHeight = (int)(120 * scale);
         
-        JButton softButton = addButton(mainPanel, "/images/SoftModeButton.png", 
+        JButton easyButton = addButton(mainPanel, "/images/EasyModeButton.png", 
             btnWidth, btnHeight, 
             (int)(width / 2.0 - btnWidth / 2.0 + 30 * scale), (int)(height / 2.0 - 20 * scale));
-        softButton.addActionListener(e -> {
-            System.out.println("[ModeSelection] Soft Mode selected");
-            dispose();
-            new DifficultySelectionScreen(false).setVisible(true);
+        easyButton.addActionListener(e -> {
+            System.out.println("[DifficultySelection] Easy Mode selected, ItemMode: " + isItemMode);
+            startGame(Difficulty.EASY);
         });
         
-        JButton timeAttackButton = addButton(mainPanel, "/images/TimeattackModeButton.png", 
+        JButton normalButton = addButton(mainPanel, "/images/NormalModeButton.png", 
             btnWidth, btnHeight, 
             (int)(width / 2.0 - btnWidth / 2.0 + 130 * scale), (int)(height / 2.0 - 20 * scale));
-        timeAttackButton.addActionListener(e -> {
-            System.out.println("[ModeSelection] Time Attack Mode selected");
-            dispose();
-            new DifficultySelectionScreen(false).setVisible(true);
+        normalButton.addActionListener(e -> {
+            System.out.println("[DifficultySelection] Normal Mode selected, ItemMode: " + isItemMode);
+            startGame(Difficulty.NORMAL);
         });
         
-        JButton itemButton = addButton(mainPanel, "/images/ItemModeButton.png", 
+        JButton hardButton = addButton(mainPanel, "/images/HardModeButton.png", 
             btnWidth, btnHeight, 
             (int)(width / 2.0 - btnWidth / 2.0 + 230 * scale), (int)(height / 2.0 - 20 * scale));
-        itemButton.addActionListener(e -> {
-            System.out.println("[ModeSelection] Item Mode selected");
-            dispose();
-            new DifficultySelectionScreen(true).setVisible(true);
+        hardButton.addActionListener(e -> {
+            System.out.println("[DifficultySelection] Hard Mode selected, ItemMode: " + isItemMode);
+            startGame(Difficulty.HARD);
         });
         
         BackgroundPanel bg = new BackgroundPanel("/images/MainScreen.png");
         bg.setLayout(new BorderLayout());
         bg.add(mainPanel, BorderLayout.CENTER);
         setContentPane(bg);
+    }
+    
+    private void startGame(Difficulty difficulty) {
+        dispose();
+        Board board = new Board(difficulty, isItemMode);
+        GamePanel gamePanel = new GamePanel(board, isItemMode);
+        
+        JFrame gameFrame = new JFrame("Tetris - " + difficulty.name());
+        gameFrame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
+        gameFrame.add(gamePanel);
+        gameFrame.pack();
+        gameFrame.setResizable(false);
+        gameFrame.setLocationRelativeTo(null);
+        gameFrame.setVisible(true);
     }
     
     private JButton addButton(JPanel panel, String imagePath, int buttonWidth, int buttonHeight, int x, int y) {

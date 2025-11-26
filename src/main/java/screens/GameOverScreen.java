@@ -23,7 +23,7 @@ import core.Settings;
 
 /**
  * 게임 오버 화면
- * 최종 점수를 표시하고 재시작, 메인메뉴, 랭킹보드 버튼 제공
+ * 최종 점수를 표시하고 재시작, 메인메뉴, 종료 버튼 제공
  */
 public class GameOverScreen extends JFrame {
 
@@ -41,7 +41,7 @@ public class GameOverScreen extends JFrame {
     }
     
     private void initializeUI() {
-        int width = (int)(Settings.getWindowWidth() * 1.1);
+        int width = (int)(Settings.getWindowWidth() * 0.5);
         int height = (int)(Settings.getWindowHeight() * 0.7);
         int baseFontSize = Settings.getBaseFontSize();
         

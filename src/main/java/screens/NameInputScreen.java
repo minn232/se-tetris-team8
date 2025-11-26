@@ -20,10 +20,10 @@ import javax.swing.text.AttributeSet;
 import javax.swing.text.BadLocationException;
 import javax.swing.text.DocumentFilter;
 
-import ranking.RankingEntry;
-import ranking.RankingManager;
 import core.Difficulty;
 import core.Settings;
+import ranking.RankingEntry;
+import ranking.RankingManager;
 
 /**
  * 랭킹 등록을 위한 이름 입력 화면
@@ -49,8 +49,8 @@ public class NameInputScreen extends JFrame {
     }
 
     private void initializeUI() {
-        int width = (int)(Settings.getWindowWidth() * 1.2);
-        int height = (int)(Settings.getWindowHeight() * 0.35);
+        int width = (int)(Settings.getWindowWidth() * 0.6);
+        int height = (int)(Settings.getWindowHeight() * 0.525);
         int baseFontSize = Settings.getBaseFontSize();
         double scaleFactor = Settings.getScaleFactor();
         

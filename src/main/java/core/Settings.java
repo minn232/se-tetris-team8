@@ -173,10 +173,10 @@ public class Settings {
         return 14;
     }
 
-    // 게임 셀 크기 (기본 22 @ 640x360, 비례 확장)
+    // 게임 셀 크기 (기본 24 @ 640x360, 비례 확장)
     public static int getCellSize() {
         double scale = getScaleFactor();
-        return (int) Math.max(8, Math.round(22 * scale));
+        return (int) Math.max(8, Math.round(24 * scale));
     }
      
     /**
