@@ -53,6 +53,7 @@ public class Mainmenu extends JFrame {
         JButton multiplayButton = addButton(mainPanel, "/images/MultiPlayButton.png", 
             btnMultiW, btnMultiH, 
             (int)(width / 2.0 + 100 * scale), (int)(height / 2.0 - 40 * scale));
+        multiplayButton.addActionListener(e -> new MultiplaySelectionScreen().setVisible(true));
             
         JButton rankingBoardButton = addButton(mainPanel, "/images/RankingboardButton.png", 
             btnRankingW, btnRankingH, 
