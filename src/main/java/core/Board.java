@@ -43,14 +43,23 @@ public class Board {
     
     // 줄 삭제 애니메이션 관련
     private int[] pendingClearRows = null;
+    
+    // 대전 모드 관련
+    private BattleMode battleMode = null;
+    private final PendingLines pendingLines = new PendingLines();
 
     public Board(Difficulty difficulty) {
         this(difficulty, false); // 기본값: 아이템 모드 비활성화
     }
 
     public Board(Difficulty difficulty, boolean isItemMode) {
+        this(difficulty, isItemMode, null);
+    }
+    
+    public Board(Difficulty difficulty, boolean isItemMode, BattleMode battleMode) {
         this.difficulty = difficulty;
         this.isItemMode = isItemMode;
+        this.battleMode = battleMode;
         this.itemManager = new ItemManager(isItemMode);
         setWeightsByDifficulty();
         setScoreMultiplier();
@@ -98,6 +107,12 @@ public class Board {
     // ===== 스폰/오버 =====
     private void spawnNewTetromino() {
         if (gameOver) return;
+        
+        // 대전 모드: 대기 중인 줄이 있으면 보드에 추가
+        if (battleMode != null && pendingLines.hasPendingLines()) {
+            int added = pendingLines.applyToBoard(grid);
+            System.out.println("대전 모드: " + added + "줄 추가됨");
+        }
         
         // 1. 먼저 현재 미리보기 블록을 스폰
         ShapeType shape;
@@ -462,6 +477,13 @@ public class Board {
         // 점수/누적
         addBonusScore(1000 * cleared);
         totalLinesCleared += cleared;
+        
+        // 대전 모드: 2줄 이상 클리어 시 상대에게 줄 전송
+        if (battleMode != null && cleared >= 2) {
+            int linesToSend = cleared - 1;
+            battleMode.sendLinesToOpponent(linesToSend);
+            System.out.println("대전 모드: 상대에게 " + linesToSend + "줄 전송");
+        }
 
         // 아이템 후처리
         if (isItemMode && itemManager != null) {
@@ -585,6 +607,10 @@ public class Board {
     public Tetromino getCurrent()        { return current; }
     public ShapeType getNextShape()      { return nextShape; }
     
+    // 대전 모드 관련 게터
+    public PendingLines getPendingLines() { return pendingLines; }
+    public void setBattleMode(BattleMode battleMode) { this.battleMode = battleMode; }
+    
     // 아이템 모드 관련 게터
     public boolean isItemMode()                                  { return isItemMode; }
     public ItemManager getItemManager()                          { return itemManager; }
@@ -601,6 +627,7 @@ public class Board {
         gameOver = false;
         nextShape = pickByRoulette();
         nextItemBlock = null; // 아이템 블록 초기화
+        pendingLines.reset(); // 대전 모드 대기 줄 초기화
         spawnNewTetromino();
     }
 }
