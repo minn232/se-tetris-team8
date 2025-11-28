@@ -24,8 +24,8 @@ import core.Settings;
 import ranking.RankingBoard;
 
 public class Mainmenu extends JFrame {
-    // 랜킹 보드 버튼 추가
-    private final JButton startButton, itemModeButton, battleModeButton, rankingButton, settingsButton, helpButton, exitButton;
+    // 랭킹 보드 버튼 추가
+    private final JButton startButton, itemModeButton, rankingButton, settingsButton, helpButton, exitButton;
     private final JButton[] buttons;  
     private int selectedIndex = 0;   
     private boolean isItemMode;
@@ -60,7 +60,6 @@ public class Mainmenu extends JFrame {
         // 버튼 생성 함수로 버튼 초기화
         startButton = createButton("Start Game");
         itemModeButton = createButton("Start Item Mode");
-        battleModeButton = createButton("Battle Mode");
         rankingButton = createButton("Ranking Board");
         settingsButton = createButton("Settings");
         helpButton = createButton("How to Play");
@@ -69,14 +68,13 @@ public class Mainmenu extends JFrame {
         // 각 버튼 이벤트 처리
         startButton.addActionListener(e -> startGame());
         itemModeButton.addActionListener(e -> startItemMode());
-        battleModeButton.addActionListener(e -> startBattleMode());
-        rankingButton.addActionListener(e -> showRankingBoard());  // 랜킹 보드 이벤트 추가
+        rankingButton.addActionListener(e -> showRankingBoard());  // 랭킹 보드 이벤트 추가
         settingsButton.addActionListener(e -> openSettings());
         helpButton.addActionListener(e -> showHelp());
         exitButton.addActionListener(e -> System.exit(0));
 
         // 버튼 배열 초기화 (추가)
-        buttons = new JButton[]{startButton, itemModeButton, battleModeButton, rankingButton, settingsButton, helpButton, exitButton};
+        buttons = new JButton[]{startButton, itemModeButton, rankingButton, settingsButton, helpButton, exitButton};
         
         // 키보드 이벤트 리스너 추가 (추가)
         addKeyListener(new java.awt.event.KeyAdapter() {
@@ -94,9 +92,7 @@ public class Mainmenu extends JFrame {
         mainPanel.add(Box.createVerticalStrut(20));
         mainPanel.add(itemModeButton);
         mainPanel.add(Box.createVerticalStrut(20));
-        mainPanel.add(battleModeButton);
-        mainPanel.add(Box.createVerticalStrut(20));
-        mainPanel.add(rankingButton);  // 랜킹 보드 버튼 배치
+        mainPanel.add(rankingButton);  // 랭킹 보드 버튼 배치
         mainPanel.add(Box.createVerticalStrut(20));
         mainPanel.add(settingsButton);
         mainPanel.add(Box.createVerticalStrut(20));
@@ -134,11 +130,6 @@ public class Mainmenu extends JFrame {
     private void startItemMode() {
         isItemMode = true;
         showDifficultyDialog();
-    }
-    
-    private void startBattleMode() {
-        // 대전 모드는 난이도 선택 없이 바로 시작
-        showBattleDifficultyDialog();
     }
     
     private void openSettings() {
@@ -295,143 +286,6 @@ public class Mainmenu extends JFrame {
             }
             startTetrisGame(difficulty);
         }
-    }
-    
-    private void showBattleDifficultyDialog() {
-        // 커스텀 다이얼로그 생성
-        JDialog difficultyDialog = new JDialog(this, "Battle Mode - Difficulty", true);
-        difficultyDialog.setSize(400, 200);
-        difficultyDialog.setLocationRelativeTo(this);
-        difficultyDialog.setFocusable(true);
-        
-        JPanel dialogPanel = new JPanel();
-        dialogPanel.setLayout(new BoxLayout(dialogPanel, BoxLayout.Y_AXIS));
-        dialogPanel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
-        
-        JLabel messageLabel = new JLabel("Choose a difficulty");
-        messageLabel.setFont(new Font("Arial", Font.PLAIN, Settings.getBaseFontSize()));
-        messageLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
-        
-        // 난이도 버튼들 생성
-        JButton hardButton = new JButton("HARD");
-        JButton normalButton = new JButton("NORMAL");
-        JButton easyButton = new JButton("EASY");
-        
-        // 버튼 스타일링
-        JButton[] diffButtons = {hardButton, normalButton, easyButton};
-        for (JButton btn : diffButtons) {
-            btn.setAlignmentX(Component.CENTER_ALIGNMENT);
-            btn.setMaximumSize(new Dimension(150, 35));
-            btn.setFont(new Font("Arial", Font.PLAIN, Settings.getBaseFontSize()));
-            btn.setFocusable(false);
-        }
-        
-        // 선택된 난이도를 저장할 변수
-        final int[] selectedDifficulty = {1}; // 0=HARD, 1=NORMAL, 2=EASY (기본값: NORMAL)
-        final boolean[] dialogClosed = {false};
-        
-        // 버튼 하이라이트 업데이트 함수
-        Runnable updateDifficultyHighlight = () -> {
-            for (int i = 0; i < diffButtons.length; i++) {
-                if (i == selectedDifficulty[0]) {
-                    diffButtons[i].setBackground(new java.awt.Color(100, 150, 255));
-                    diffButtons[i].setForeground(java.awt.Color.BLACK);
-                    diffButtons[i].setOpaque(true);
-                } else {
-                    diffButtons[i].setBackground(null);
-                    diffButtons[i].setForeground(java.awt.Color.BLACK);
-                    diffButtons[i].setOpaque(false);
-                }
-            }
-            difficultyDialog.repaint();
-        };
-        
-        // 버튼 클릭 이벤트
-        hardButton.addActionListener(e -> {
-            selectedDifficulty[0] = 0;
-            dialogClosed[0] = true;
-            difficultyDialog.dispose();
-        });
-        normalButton.addActionListener(e -> {
-            selectedDifficulty[0] = 1;
-            dialogClosed[0] = true;
-            difficultyDialog.dispose();
-        });
-        easyButton.addActionListener(e -> {
-            selectedDifficulty[0] = 2;
-            dialogClosed[0] = true;
-            difficultyDialog.dispose();
-        });
-        
-        // 키보드 이벤트 리스너
-        difficultyDialog.addKeyListener(new java.awt.event.KeyAdapter() {
-            @Override
-            public void keyPressed(KeyEvent e) {
-                switch (e.getKeyCode()) {
-                    case KeyEvent.VK_LEFT:
-                        selectedDifficulty[0] = (selectedDifficulty[0] - 1 + diffButtons.length) % diffButtons.length;
-                        updateDifficultyHighlight.run();
-                        break;
-                    case KeyEvent.VK_RIGHT:
-                        selectedDifficulty[0] = (selectedDifficulty[0] + 1) % diffButtons.length;
-                        updateDifficultyHighlight.run();
-                        break;
-                    case KeyEvent.VK_ENTER:
-                        diffButtons[selectedDifficulty[0]].doClick();
-                        break;
-                    case KeyEvent.VK_ESCAPE:
-                        dialogClosed[0] = false;
-                        difficultyDialog.dispose();
-                        break;
-                }
-            }
-        });
-        
-        // 컴포넌트 배치
-        dialogPanel.add(messageLabel);
-        dialogPanel.add(Box.createVerticalStrut(20));
-        dialogPanel.add(hardButton);
-        dialogPanel.add(Box.createVerticalStrut(10));
-        dialogPanel.add(normalButton);
-        dialogPanel.add(Box.createVerticalStrut(10));
-        dialogPanel.add(easyButton);
-        
-        difficultyDialog.add(dialogPanel);
-        updateDifficultyHighlight.run();
-        
-        // 다이얼로그 표시
-        difficultyDialog.setVisible(true);
-        
-        // 다이얼로그가 닫힌 후 처리
-        if (dialogClosed[0]) {
-            Difficulty difficulty;
-            switch (selectedDifficulty[0]) {
-                case 0 -> difficulty = Difficulty.HARD;
-                case 1 -> difficulty = Difficulty.NORMAL;
-                case 2 -> difficulty = Difficulty.EASY;
-                default -> {
-                    return;
-                }
-            }
-            startBattleGame(difficulty);
-        }
-    }
-    
-    private void startBattleGame(Difficulty difficulty) {
-        dispose();  // 메인 메뉴 창 닫기
-        
-        SwingUtilities.invokeLater(() -> {
-            BattleGamePanel battlePanel = new BattleGamePanel(difficulty);
-            
-            JFrame gameFrame = new JFrame("Tetris - Battle Mode");
-            gameFrame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-            gameFrame.add(battlePanel);
-            gameFrame.pack();
-            gameFrame.setLocationRelativeTo(null);
-            gameFrame.setVisible(true);
-            
-            battlePanel.requestFocusInWindow();
-        });
     }
 
     private void startTetrisGame(Difficulty difficulty) {
