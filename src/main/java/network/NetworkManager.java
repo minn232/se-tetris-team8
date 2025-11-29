@@ -100,4 +100,33 @@ public class NetworkManager {
             out.println(msg);
         }
     }
+
+    // ======================================
+    // CLOSE
+    // ======================================
+    public void close() {
+        try {
+            connected = false;
+            
+            if (out != null) {
+                out.close();
+                out = null;
+            }
+            
+            if (in != null) {
+                in.close();
+                in = null;
+            }
+            
+            if (socket != null && !socket.isClosed()) {
+                socket.close();
+                socket = null;
+            }
+            
+            messageListener = null;
+            
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
 }

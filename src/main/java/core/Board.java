@@ -12,7 +12,9 @@ public class Board {
 
     private final ShapeType[][] grid = new ShapeType[ROWS][COLS];
     private final Random random = new Random();
-    private final double[] weights = new double[ShapeType.values().length];
+    // GRAY를 제외한 실제 스폰 가능한 블록들 (I, O, T, S, Z, J, L)
+    private static final ShapeType[] SPAWNABLE_SHAPES = {ShapeType.I, ShapeType.O, ShapeType.T, ShapeType.S, ShapeType.Z, ShapeType.J, ShapeType.L};
+    private final double[] weights = new double[SPAWNABLE_SHAPES.length];
 
     private final Difficulty difficulty;
 
@@ -70,11 +72,25 @@ public class Board {
 
     // ===== 난이도별 블록 가중치 =====
     private void setWeightsByDifficulty() {
+        // 모든 블록을 1.0으로 초기화
         for (int i = 0; i < weights.length; i++) weights[i] = 1.0;
-        switch (difficulty) {
-            case EASY   -> weights[ShapeType.I.ordinal()] = 1.2; // +20%
-            case NORMAL -> weights[ShapeType.I.ordinal()] = 1.0;
-            case HARD   -> weights[ShapeType.I.ordinal()] = 0.8; // -20%
+        
+        // I 블록의 인덱스 찾기 (SPAWNABLE_SHAPES에서)
+        int iIndex = -1;
+        for (int i = 0; i < SPAWNABLE_SHAPES.length; i++) {
+            if (SPAWNABLE_SHAPES[i] == ShapeType.I) {
+                iIndex = i;
+                break;
+            }
+        }
+        
+        // 난이도별 I 블록 가중치 조정
+        if (iIndex >= 0) {
+            switch (difficulty) {
+                case EASY   -> weights[iIndex] = 1.2; // +20%
+                case NORMAL -> weights[iIndex] = 1.0;
+                case HARD   -> weights[iIndex] = 0.8; // -20%
+            }
         }
     }
 
@@ -101,7 +117,7 @@ public class Board {
         while (true) {
             int i = random.nextInt(weights.length);
             if (random.nextDouble() < (weights[i] / max))
-                return ShapeType.values()[i];
+                return SPAWNABLE_SHAPES[i];
         }
     }
 

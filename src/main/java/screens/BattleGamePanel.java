@@ -21,6 +21,7 @@ import core.Settings;
 import core.ShapeType;
 import core.Tetromino;
 import core.PendingLines;
+import network.NetworkManager;
 
 /**
  * 대전 모드 게임 패널
@@ -64,12 +65,24 @@ public class BattleGamePanel extends JPanel {
         BackgroundMusicPlayer.getInstance().play("/music/InGameBGM.wav");
         BackgroundMusicPlayer.getInstance().setVolume(Settings.getGameMusicVolume());
         
+        // 네트워크 메시지 수신 리스너 등록
+        if (NetworkManager.getInstance().isConnected()) {
+            NetworkManager.getInstance().setMessageListener(this::handleNetworkMessage);
+        }
+        
         // 플레이어1 보드 (왼쪽)
         player1Board = new Board(difficulty, isItemMode, new BattleMode() {
             @Override
             public void sendLinesToOpponent(int lines) {
-                player2Board.getPendingLines().addLines(lines);
-                System.out.println("플레이어1 -> 플레이어2: " + lines + "줄 전송");
+                // 네트워크 모드에서는 네트워크로 전송
+                if (NetworkManager.getInstance().isConnected()) {
+                    NetworkManager.getInstance().send("LINES:" + lines);
+                    System.out.println("네트워크로 " + lines + "줄 전송");
+                } else {
+                    // 로컬 모드에서는 직접 전달
+                    player2Board.getPendingLines().addLines(lines);
+                    System.out.println("플레이어1 -> 플레이어2: " + lines + "줄 전송");
+                }
             }
         });
         
@@ -178,6 +191,40 @@ public class BattleGamePanel extends JPanel {
         animationTimer.start();
     }
     
+    private void handleNetworkMessage(String message) {
+        SwingUtilities.invokeLater(() -> {
+            try {
+                if (message.startsWith("LINES:")) {
+                    // 상대방이 보낸 줄 수신
+                    int lines = Integer.parseInt(message.substring(6));
+                    player1Board.getPendingLines().addLines(lines);
+                    System.out.println("네트워크로부터 " + lines + "줄 받음");
+                    
+                } else if (message.startsWith("GAMEOVER:")) {
+                    // 상대방 게임 오버
+                    handleOpponentGameOver();
+                }
+            } catch (Exception e) {
+                System.err.println("네트워크 메시지 처리 오류: " + e.getMessage());
+            }
+        });
+    }
+    
+    private void handleOpponentGameOver() {
+        timer.stop();
+        
+        SwingUtilities.invokeLater(() -> {
+            JOptionPane.showMessageDialog(this, 
+                "상대방이 게임 오버!\n당신이 승리했습니다!",
+                "승리!",
+                JOptionPane.INFORMATION_MESSAGE);
+            
+            NetworkManager.getInstance().close();
+            SwingUtilities.getWindowAncestor(this).dispose();
+            new Mainmenu().setVisible(true);
+        });
+    }
+    
     private void checkFlashAnimations() {
         long now = System.currentTimeMillis();
         
@@ -281,6 +328,11 @@ public class BattleGamePanel extends JPanel {
             }
         }
         
+        // 네트워크로 게임오버 알림
+        if (NetworkManager.getInstance().isConnected()) {
+            NetworkManager.getInstance().send("GAMEOVER:" + winner);
+        }
+        
         String message = String.format(
             "%s\n\n플레이어 1 점수: %d\n플레이어 2 점수: %d",
             winner,
@@ -323,6 +375,7 @@ public class BattleGamePanel extends JPanel {
     
     private void goToMainMenu() {
         timer.stop();
+        NetworkManager.getInstance().close();
         SwingUtilities.getWindowAncestor(this).dispose();
         SwingUtilities.invokeLater(() -> new Mainmenu().setVisible(true));
     }

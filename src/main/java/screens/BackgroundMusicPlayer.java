@@ -47,85 +47,85 @@ public class BackgroundMusicPlayer {
             if (clip != null && clip.isOpen()) {
                 clip.close();
             }
-            
-            // 음악 파일 로드 - 이미지 로딩과 동일한 방식
-            InputStream audioSrc = null;
-            
-            // 1. getResource() 시도
-            String absPath = musicPath.startsWith("/") ? musicPath : "/" + musicPath;
-            java.net.URL url = getClass().getResource(absPath);
-            if (url != null) {
-                System.out.println("✓ Found via getResource(): " + url);
-                audioSrc = url.openStream();
-            }
-            
-            // 2. ClassLoader.getResourceAsStream() 시도
-            if (audioSrc == null) {
-                String loaderPath = musicPath.startsWith("/") ? musicPath.substring(1) : musicPath;
-                audioSrc = getClass().getClassLoader().getResourceAsStream(loaderPath);
-                if (audioSrc != null) {
-                    System.out.println("✓ Found via ClassLoader: " + loaderPath);
+                
+                // 음악 파일 로드 - 이미지 로딩과 동일한 방식
+                InputStream audioSrc = null;
+                
+                // 1. getResource() 시도
+                String absPath = musicPath.startsWith("/") ? musicPath : "/" + musicPath;
+                java.net.URL url = getClass().getResource(absPath);
+                if (url != null) {
+                    System.out.println("✓ Found via getResource(): " + url);
+                    audioSrc = url.openStream();
                 }
-            }
-            
-            // 3. 파일 시스템 직접 접근 시도
-            if (audioSrc == null) {
-                String cwd = System.getProperty("user.dir");
-                java.io.File f = new java.io.File(cwd + "/src/main/resources" + absPath);
-                if (f.exists()) {
-                    System.out.println("✓ Found via file system: " + f.getAbsolutePath());
-                    audioSrc = new java.io.FileInputStream(f);
+                
+                // 2. ClassLoader.getResourceAsStream() 시도
+                if (audioSrc == null) {
+                    String loaderPath = musicPath.startsWith("/") ? musicPath.substring(1) : musicPath;
+                    audioSrc = getClass().getClassLoader().getResourceAsStream(loaderPath);
+                    if (audioSrc != null) {
+                        System.out.println("✓ Found via ClassLoader: " + loaderPath);
+                    }
                 }
-            }
-            
-            if (audioSrc == null) {
-                System.err.println("❌ Music file not found: " + musicPath);
-                System.err.println("Tried:");
-                System.err.println("  1. getResource(" + absPath + ")");
-                System.err.println("  2. ClassLoader.getResourceAsStream(" + (musicPath.startsWith("/") ? musicPath.substring(1) : musicPath) + ")");
-                System.err.println("  3. File: " + System.getProperty("user.dir") + "/src/main/resources" + absPath);
-                return;
-            }
-            
-            System.out.println("✓ Music file found, loading...");
-            
-            // BufferedInputStream으로 감싸기
-            InputStream bufferedIn = new BufferedInputStream(audioSrc);
-            
-            // WAV 파일 로드
-            AudioInputStream audioStream = AudioSystem.getAudioInputStream(bufferedIn);
-            
-            System.out.println("✓ Audio stream created");
-            
-            // Clip 생성 및 로드
-            clip = AudioSystem.getClip();
-            clip.open(audioStream);
-            
-            System.out.println("✓ Clip opened");
-            
-            // 볼륨 조절 (선택사항: 0.0 ~ 1.0)
-            setVolume(0.7f);
-            
-            // 무한 반복 설정
-            clip.loop(Clip.LOOP_CONTINUOUSLY);
-            
-            // 재생 시작
-            clip.start();
-            isPlaying = true;
-            
-            System.out.println("✓ Music playback started successfully!");
-            
-            // 클립이 종료되면 상태 업데이트 (정지 시)
-            clip.addLineListener(event -> {
-                if (event.getType() == LineEvent.Type.STOP && !clip.isRunning()) {
-                    isPlaying = false;
+                
+                // 3. 파일 시스템 직접 접근 시도
+                if (audioSrc == null) {
+                    String cwd = System.getProperty("user.dir");
+                    java.io.File f = new java.io.File(cwd + "/src/main/resources" + absPath);
+                    if (f.exists()) {
+                        System.out.println("✓ Found via file system: " + f.getAbsolutePath());
+                        audioSrc = new java.io.FileInputStream(f);
+                    }
                 }
-            });
-            
-        } catch (Exception e) {
-            System.err.println("❌ Failed to play background music: " + e.getMessage());
-            e.printStackTrace();
-        }
+                
+                if (audioSrc == null) {
+                    System.err.println("❌ Music file not found: " + musicPath);
+                    System.err.println("Tried:");
+                    System.err.println("  1. getResource(" + absPath + ")");
+                    System.err.println("  2. ClassLoader.getResourceAsStream(" + (musicPath.startsWith("/") ? musicPath.substring(1) : musicPath) + ")");
+                    System.err.println("  3. File: " + System.getProperty("user.dir") + "/src/main/resources" + absPath);
+                    return;
+                }
+                
+                System.out.println("✓ Music file found, loading...");
+                
+                // BufferedInputStream으로 감싸기
+                InputStream bufferedIn = new BufferedInputStream(audioSrc);
+                
+                // WAV 파일 로드
+                AudioInputStream audioStream = AudioSystem.getAudioInputStream(bufferedIn);
+                
+                System.out.println("✓ Audio stream created");
+                
+                // Clip 생성 및 로드
+                clip = AudioSystem.getClip();
+                clip.open(audioStream);
+                
+                System.out.println("✓ Clip opened");
+                
+                // 볼륨 조절 (선택사항: 0.0 ~ 1.0)
+                setVolume(0.7f);
+                
+                // 무한 반복 설정
+                clip.loop(Clip.LOOP_CONTINUOUSLY);
+                
+                // 재생 시작
+                clip.start();
+                isPlaying = true;
+                
+                System.out.println("✓ Music playback started successfully!");
+                
+                // 클립이 종료되면 상태 업데이트 (정지 시)
+                clip.addLineListener(event -> {
+                    if (event.getType() == LineEvent.Type.STOP && !clip.isRunning()) {
+                        isPlaying = false;
+                    }
+                });
+                
+            } catch (Exception e) {
+                System.err.println("❌ Failed to play background music: " + e.getMessage());
+                e.printStackTrace();
+            }
     }
     
     /**
