@@ -135,7 +135,7 @@ public class DifficultySelectionScreen extends JFrame {
         if (isBattleMode) {
             // 배틀 모드 시작
             JFrame gameFrame = new JFrame("Tetris Battle - " + difficulty.name());
-            BattleGamePanel battlePanel = new BattleGamePanel(difficulty, isItemMode);
+            BattleGamePanel battlePanel = new BattleGamePanel(difficulty);
             gameFrame.add(battlePanel);
             gameFrame.pack();
             gameFrame.setResizable(false);
