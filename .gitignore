@@ -7,6 +7,9 @@ monitoring.json
 .idea/
 *.iml
 
+/bin/
+*.class
+
 # OS generated files
 Thumbs.db
 ehthumbs.db

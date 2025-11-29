@@ -17,16 +17,22 @@ public class DifficultySelectionScreen extends JFrame {
     
     private final boolean isItemMode;
     private final boolean isBattleMode;
+    private final boolean isTimeAttack;
     private JButton[] buttons;
     private int selectedIndex = 0;
 
     public DifficultySelectionScreen(boolean isItemMode) {
-        this(isItemMode, false);
+        this(isItemMode, false, false);
     }
 
     public DifficultySelectionScreen(boolean isItemMode, boolean isBattleMode) {
+        this(isItemMode, isBattleMode, false);
+    }
+
+    public DifficultySelectionScreen(boolean isItemMode, boolean isBattleMode, boolean isTimeAttack) {
         this.isItemMode = isItemMode;
         this.isBattleMode = isBattleMode;
+        this.isTimeAttack = isTimeAttack;
         
         int width = Settings.getWindowWidth();
         int height = Settings.getWindowHeight();
@@ -135,7 +141,7 @@ public class DifficultySelectionScreen extends JFrame {
         if (isBattleMode) {
             // 배틀 모드 시작
             JFrame gameFrame = new JFrame("Tetris Battle - " + difficulty.name());
-            BattleGamePanel battlePanel = new BattleGamePanel(difficulty);
+            BattleGamePanel battlePanel = new BattleGamePanel(difficulty, isItemMode, isTimeAttack);
             gameFrame.add(battlePanel);
             gameFrame.pack();
             gameFrame.setResizable(false);

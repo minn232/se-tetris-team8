@@ -38,6 +38,13 @@ public class BattleGamePanel extends JPanel {
     private boolean paused = false;
     private final int baseDelay = 800;  // 대전모드 기본 속도
     
+    // 시간제한 모드
+    private final boolean isTimeAttack;
+    private long timeLimit = 180000;  // 3분 (밀리초)
+    private long gameStartTime;
+    private long pausedTime = 0;
+    private long pauseStartTime = 0;
+    
     // 각 보드별 플래시 애니메이션
     private int[] flashingRows1 = null;
     private int[] flashingRows2 = null;
@@ -53,8 +60,23 @@ public class BattleGamePanel extends JPanel {
     private Tetromino lastCurrent2 = null;
     
     public BattleGamePanel(Difficulty difficulty) {
-        this.board1 = new Board(difficulty, false);
-        this.board2 = new Board(difficulty, false);
+        this(difficulty, false, false);
+    }
+    
+    public BattleGamePanel(Difficulty difficulty, boolean isItemMode) {
+        this(difficulty, isItemMode, false);
+    }
+    
+    public BattleGamePanel(Difficulty difficulty, boolean isItemMode, boolean isTimeAttack) {
+        this.isTimeAttack = isTimeAttack;
+        this.board1 = new Board(difficulty, isItemMode);
+        this.board2 = new Board(difficulty, isItemMode);
+        this.gameStartTime = System.currentTimeMillis();
+
+        // 메인 메뉴 음악 끄고 게임 음악 켜기
+        BackgroundMusicPlayer.getInstance().stop();
+        BackgroundMusicPlayer.getInstance().play("/music/InGameBGM.wav");
+        BackgroundMusicPlayer.getInstance().setVolume(Settings.getGameMusicVolume());
         
         // Settings에서 셀 크기 및 화면 크기 계산
         this.CELL = Settings.getCellSize();
@@ -83,14 +105,14 @@ public class BattleGamePanel extends JPanel {
                 // Player 1 업데이트
                 if (!board1.isGameOver()) {
                     checkBlockPlacement(board1, board2, 1);
-                    board1.moveDown();   // DEBUG: 자동 낙하 일시 중지
+                    //board1.moveDown();   // DEBUG: 자동 낙하 일시 중지
                     checkFlashing(board1, 1);
                 }
                 
                 // Player 2 업데이트
                 if (!board2.isGameOver()) {
                     checkBlockPlacement(board2, board1, 2);
-                    board2.moveDown();   // DEBUG: 자동 낙하 일시 중지
+                    //board2.moveDown();   // DEBUG: 자동 낙하 일시 중지
                     checkFlashing(board2, 2);
                 }
                 
@@ -235,7 +257,15 @@ public class BattleGamePanel extends JPanel {
     private void togglePause() {
         paused = !paused;
         if (paused) {
+            if (isTimeAttack) {
+                pauseStartTime = System.currentTimeMillis();
+            }
             showPauseMenu();
+        } else {
+            if (isTimeAttack && pauseStartTime > 0) {
+                pausedTime += System.currentTimeMillis() - pauseStartTime;
+                pauseStartTime = 0;
+            }
         }
         repaint();
     }
@@ -269,10 +299,28 @@ public class BattleGamePanel extends JPanel {
     }
     
     private void checkWinner() {
-        if (winner != null) return;
-        
         boolean p1Over = board1.isGameOver();
         boolean p2Over = board2.isGameOver();
+        
+        // 시간제한 모드: 시간이 다 되면 점수로 승부 판정
+        if (isTimeAttack && winner == null) {
+            long elapsedTime = System.currentTimeMillis() - gameStartTime - pausedTime;
+            if (elapsedTime >= timeLimit) {
+                int score1 = board1.getScore();
+                int score2 = board2.getScore();
+                
+                if (score1 > score2) {
+                    winner = "PLAYER 1";
+                } else if (score2 > score1) {
+                    winner = "PLAYER 2";
+                } else {
+                    winner = "DRAW";
+                }
+                timer.stop();
+                showGameOver();
+                return;
+            }
+        }
         
         if (p1Over && p2Over) {
             winner = "DRAW";
@@ -417,12 +465,53 @@ public class BattleGamePanel extends JPanel {
         Tetromino cur = board.getCurrent();
         if (cur == null || board.isGameOver()) return;
         
-        Color c = cur.getShape().getColor();
-        for (Position p : cur.getBlocks()) {
-            int px = cur.getX() + p.x;
-            int py = cur.getY() + p.y;
-            if (px >= 0 && px < Board.COLS && py >= 0 && py < Board.ROWS) {
-                fillCell(g, px, py, c);
+        // 현재 아이템 블록인지 확인
+        items.ItemBlock currentItem = board.getCurrentItemBlock();
+        
+        if (currentItem != null) {
+            Position[] blocks = cur.getBlocks();
+            
+            // 모든 아이템 블록은 흰색으로 표시
+            Color blockColor = Color.WHITE;
+            
+            for (int i = 0; i < blocks.length; i++) {
+                Position p = blocks[i];
+                int px = cur.getX() + p.x;
+                int py = cur.getY() + p.y;
+                if (px >= 0 && px < Board.COLS && py >= 0 && py < Board.ROWS) {
+                    // 흰색으로 셀 채우기
+                    fillCell(g, px, py, blockColor);
+                    
+                    // 아이템 심볼 표시 (검정색 글자)
+                    char symbol;
+                    if (currentItem instanceof items.SlowBlock slowBlock) {
+                        symbol = slowBlock.getBlockSymbol(i);
+                    } else if (currentItem instanceof items.LineBlock lineBlock) {
+                        symbol = lineBlock.getBlockSymbol(i);
+                    } else if (currentItem instanceof items.BombBlock bombBlock) {
+                        symbol = bombBlock.getBlockSymbol(i);
+                    } else if (currentItem instanceof items.WeightBlock weightBlock) {
+                        symbol = weightBlock.getBlockSymbol(i);
+                    } else {
+                        symbol = currentItem.getSymbol();
+                    }
+                    
+                    g.setColor(Color.BLACK);
+                    g.setFont(g.getFont().deriveFont(Font.BOLD, CELL * 0.8f));
+                    int symbolX = px * CELL + CELL / 4;
+                    int symbolY = py * CELL + CELL * 3 / 4;
+                    g.drawString(String.valueOf(symbol), symbolX, symbolY);
+                }
+            }
+        } else {
+            // 일반 블록으로 렌더링
+            Color c = cur.getShape().getColor();
+            for (Position p : cur.getBlocks()) {
+                int px = cur.getX() + p.x;
+                int py = cur.getY() + p.y;
+                if (px >= 0 && px < Board.COLS && py >= 0 && py < Board.ROWS) {
+                    fillCell(g, px, py, c);
+                }
             }
         }
     }
@@ -451,12 +540,41 @@ public class BattleGamePanel extends JPanel {
         g.drawString("NEXT", sx + 20, 60);
         drawNextPreview(g, sx + 20, 80, board);
         
+        // ITEM (아이템 모드일 때만 표시)
+        int yOffset = 0;
+        if (board.isItemMode()) {
+            items.ItemBlock nextItem = board.getNextItemBlock();
+            if (nextItem != null) {
+                g.setColor(Color.WHITE);
+                g.setFont(g.getFont().deriveFont(Font.BOLD, (float)(baseFontSize * 0.78)));
+                g.drawString("ITEM", sx + 20, 150);
+                drawItemPreview(g, sx + 20, 165, nextItem);
+                yOffset = 50;
+            }
+        }
+        
         // SCORE
         g.setColor(Color.WHITE);
         g.setFont(g.getFont().deriveFont(Font.BOLD, (float)baseFontSize));
-        g.drawString("SCORE", sx + 20, 190);
+        g.drawString("SCORE", sx + 20, 190 + yOffset);
         g.setFont(g.getFont().deriveFont(Font.PLAIN, (float)baseFontSize));
-        g.drawString(String.valueOf(board.getScore()), sx + 20, 218);
+        g.drawString(String.valueOf(board.getScore()), sx + 20, 218 + yOffset);
+        
+        // TIME (시간제한 모드일 때만 표시)
+        if (isTimeAttack) {
+            long elapsedTime = System.currentTimeMillis() - gameStartTime - pausedTime;
+            long remainingTime = Math.max(0, timeLimit - elapsedTime);
+            int seconds = (int)(remainingTime / 1000);
+            int minutes = seconds / 60;
+            seconds = seconds % 60;
+            
+            g.setColor(remainingTime < 30000 ? Color.RED : Color.YELLOW);
+            g.setFont(g.getFont().deriveFont(Font.BOLD, (float)baseFontSize));
+            g.drawString("TIME", sx + 20, 240 + yOffset);
+            g.setFont(g.getFont().deriveFont(Font.PLAIN, (float)baseFontSize));
+            g.drawString(String.format("%d:%02d", minutes, seconds), sx + 20, 268 + yOffset);
+            yOffset += 50;
+        }
         
         // 대기 중인 공격 줄 표시 (미니 보드 형태 - 항상 10줄 표시)
         List<ShapeType[]> pendingPatterns = board.getPendingAttackPattern();
@@ -465,7 +583,7 @@ public class BattleGamePanel extends JPanel {
         int miniCellSize = 8;
         int miniCols = 10;
         int startX = sx + 20;
-        int startY = 250;
+        int startY = 250 + yOffset;
         
         // 배경
         g.setColor(new Color(40, 40, 40));
@@ -535,6 +653,60 @@ public class BattleGamePanel extends JPanel {
                 g.setColor(next.getColor().darker());
                 g.drawRect(cxp, cyp, cell, cell);
             }
+        }
+    }
+    
+    private void drawItemPreview(Graphics2D g, int px, int py, items.ItemBlock item) {
+        // 아이템 블록의 기본 형태를 가져옴
+        ShapeType baseShape = item.getBaseShape();
+        Position[] offs = baseShape.getOffsets(0);
+        
+        int minx = 99, miny = 99, maxx = -99, maxy = -99;
+        for (Position p : offs) {
+            minx = Math.min(minx, p.x); maxx = Math.max(maxx, p.x);
+            miny = Math.min(miny, p.y); maxy = Math.max(maxy, p.y);
+        }
+        
+        int cell = CELL / 2;
+        int previewSize = 80;
+        int padding = 10;
+        int w = (maxx - minx + 1) * cell;
+        int h = (maxy - miny + 1) * cell;
+        int cx = px + (previewSize - w) / 2 - padding;
+        int cy = py + (previewSize - h) / 2 - padding;
+
+        // 배경
+        g.setColor(new Color(60, 60, 60));
+        g.fillRoundRect(px - padding, py - padding, previewSize, previewSize, 8, 8);
+
+        // 아이템 블록은 흰색 배경에 검은색 문자로 표시
+        for (int i = 0; i < offs.length; i++) {
+            Position p = offs[i];
+            int cxp = cx + (p.x - minx) * cell;
+            int cyp = cy + (p.y - miny) * cell;
+            
+            // 흰색 배경으로 표시
+            g.setColor(Color.WHITE);
+            g.fillRect(cxp, cyp, cell, cell);
+            g.setColor(Color.LIGHT_GRAY);
+            g.drawRect(cxp, cyp, cell, cell);
+            
+            // 아이템 블록 심볼 표시
+            char symbol;
+            if (item instanceof items.SlowBlock slowBlock) {
+                symbol = slowBlock.getBlockSymbol(i);
+            } else if (item instanceof items.LineBlock lineBlock) {
+                symbol = lineBlock.getBlockSymbol(i);
+            } else {
+                symbol = item.getSymbol();
+            }
+            
+            // 아이템 심볼 표시
+            g.setColor(Color.BLACK);
+            g.setFont(g.getFont().deriveFont(Font.BOLD, cell * 0.8f));
+            int symbolX = cxp + cell / 4;
+            int symbolY = cyp + cell * 3 / 4;
+            g.drawString(String.valueOf(symbol), symbolX, symbolY);
         }
     }
     

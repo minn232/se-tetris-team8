@@ -14,9 +14,7 @@ public class Board {
 
     private final ShapeType[][] grid = new ShapeType[ROWS][COLS];
     private final Random random = new Random();
-    // GRAY를 제외한 실제 스폰 가능한 블록들 (I, O, T, S, Z, J, L)
-    private static final ShapeType[] SPAWNABLE_SHAPES = {ShapeType.I, ShapeType.O, ShapeType.T, ShapeType.S, ShapeType.Z, ShapeType.J, ShapeType.L};
-    private final double[] weights = new double[SPAWNABLE_SHAPES.length];
+    private final double[] weights = new double[ShapeType.values().length];
 
     private final Difficulty difficulty;
 
@@ -69,9 +67,12 @@ public class Board {
 
     // ===== 난이도별 블록 가중치 =====
     private void setWeightsByDifficulty() {
-        // GRAY를 제외한 블록들만 가중치 설정
-        for (int i = 0; i < weights.length - 1; i++) weights[i] = 1.0;
-        weights[ShapeType.GRAY.ordinal()] = 0.0; // GRAY는 생성 안 됨
+        // 모든 블록을 1.0으로 초기화
+        for (int i = 0; i < weights.length; i++) {
+            weights[i] = 1.0;
+        }
+        // GRAY는 생성 안 됨
+        weights[ShapeType.GRAY.ordinal()] = 0.0;
         
         switch (difficulty) {
             case EASY   -> weights[ShapeType.I.ordinal()] = 1.2; // +20%
@@ -102,8 +103,8 @@ public class Board {
 
         while (true) {
             int i = random.nextInt(weights.length);
-            if (random.nextDouble() < (weights[i] / max))
-                return SPAWNABLE_SHAPES[i];
+            if (weights[i] > 0 && random.nextDouble() < (weights[i] / max))
+                return ShapeType.values()[i];
         }
     }
 
