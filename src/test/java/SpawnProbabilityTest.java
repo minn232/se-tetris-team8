@@ -35,6 +35,7 @@ class SpawnProbabilityTest {
         double expectedOthers = 1.0 / total;
 
         for (ShapeType st : ShapeType.values()) {
+            if (st == ShapeType.GRAY) continue; // GRAY는 weight 0이므로 테스트에서 제외
             double p = counts.get(st) / (double) SAMPLES;
             double exp = (st == ShapeType.I) ? expectedI : expectedOthers;
             assertWithinTol(p, exp, TOL, "EASY " + st.name());
@@ -49,8 +50,14 @@ class SpawnProbabilityTest {
         Map<ShapeType, Integer> counts = sampleCounts(board, SAMPLES);
         printDistribution("NORMAL", counts);
 
-        double expectedEach = 1.0 / ShapeType.values().length;
+        // GRAY를 제외한 7개 블록의 확률
+        int validBlocks = (int) java.util.Arrays.stream(ShapeType.values())
+            .filter(st -> st != ShapeType.GRAY)
+            .count();
+        double expectedEach = 1.0 / validBlocks;
+        
         for (ShapeType st : ShapeType.values()) {
+            if (st == ShapeType.GRAY) continue; // GRAY는 weight 0이므로 테스트에서 제외
             double p = counts.get(st) / (double) SAMPLES;
             assertWithinTol(p, expectedEach, TOL, "NORMAL " + st.name());
         }
@@ -69,6 +76,7 @@ class SpawnProbabilityTest {
         double expectedOthers = 1.0 / total;
 
         for (ShapeType st : ShapeType.values()) {
+            if (st == ShapeType.GRAY) continue; // GRAY는 weight 0이므로 테스트에서 제외
             double p = counts.get(st) / (double) SAMPLES;
             double exp = (st == ShapeType.I) ? expectedI : expectedOthers;
             assertWithinTol(p, exp, TOL, "HARD " + st.name());

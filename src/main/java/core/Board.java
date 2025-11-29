@@ -1,8 +1,10 @@
 package core;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Random;
+import java.util.Set;
 
 import items.ItemManager;
 
@@ -43,6 +45,11 @@ public class Board {
     
     // 줄 삭제 애니메이션 관련
     private int[] pendingClearRows = null;
+    
+    // 대전 모드 관련
+    private int pendingAttackLines = 0; // 받을 예정인 공격 줄 수
+    private List<ShapeType[]> pendingAttackPattern = new ArrayList<>(); // 공격 줄의 패턴
+    private List<Position> lastPlacedPositions = new ArrayList<>(); // 마지막으로 배치한 블록의 위치들
 
     public Board(Difficulty difficulty) {
         this(difficulty, false); // 기본값: 아이템 모드 비활성화
@@ -60,7 +67,10 @@ public class Board {
 
     // ===== 난이도별 블록 가중치 =====
     private void setWeightsByDifficulty() {
-        for (int i = 0; i < weights.length; i++) weights[i] = 1.0;
+        // GRAY를 제외한 블록들만 가중치 설정
+        for (int i = 0; i < weights.length - 1; i++) weights[i] = 1.0;
+        weights[ShapeType.GRAY.ordinal()] = 0.0; // GRAY는 생성 안 됨
+        
         switch (difficulty) {
             case EASY   -> weights[ShapeType.I.ordinal()] = 1.2; // +20%
             case NORMAL -> weights[ShapeType.I.ordinal()] = 1.0;
@@ -309,6 +319,17 @@ public class Board {
             System.out.println("아이템 블록 고정: " + currentItemBlock.getName());
         }
         
+        // 마지막 배치 위치 저장 (대전 모드용)
+        lastPlacedPositions.clear();
+        for (int i = 0; i < current.getBlocks().length; i++) {
+            Position p = current.getBlocks()[i];
+            int x = current.getX() + p.x;
+            int y = current.getY() + p.y;
+            if (x >= 0 && x < COLS && y >= 0 && y < ROWS) {
+                lastPlacedPositions.add(new Position(x, y));
+            }
+        }
+        
         // BombBlock이 아닌 경우에만 보드에 고정
         if (!isBombBlock) {
             for (int i = 0; i < current.getBlocks().length; i++) {
@@ -432,10 +453,35 @@ public class Board {
 
         boolean[] clear = new boolean[ROWS];
         int cleared = 0;
+        
+        // 삭제될 줄의 패턴을 저장 (마지막 블록 제외)
+        List<ShapeType[]> attackPatterns = new ArrayList<>();
         for (int r : rows) {
             if (r >= 0 && r < ROWS && !clear[r]) {
                 clear[r] = true;
                 cleared++;
+                
+                // 이 줄의 패턴을 복사 (마지막으로 채워진 블록 위치 찾아서 제외)
+                ShapeType[] rowPattern = new ShapeType[COLS];
+                int lastFilledIndex = -1;
+                
+                // 마지막으로 채워진 블록 찾기 (오른쪽에서부터)
+                for (int x = COLS - 1; x >= 0; x--) {
+                    if (grid[r][x] != null) {
+                        lastFilledIndex = x;
+                        break;
+                    }
+                }
+                
+                // 패턴 복사 (마지막 블록은 null로)
+                for (int x = 0; x < COLS; x++) {
+                    if (x == lastFilledIndex) {
+                        rowPattern[x] = null; // 마지막 블록 위치는 구멍으로
+                    } else {
+                        rowPattern[x] = grid[r][x];
+                    }
+                }
+                attackPatterns.add(rowPattern);
             }
         }
         if (cleared == 0) {
@@ -477,12 +523,47 @@ public class Board {
     }
     
     /**
-     * GamePanel이 1회용으로 읽는 삭제 예정 줄
+     * GamePanel이 1회용으로 읽는 삭제 예정 줄과 공격 패턴
      */
     public int[] pollClearingRows() {
         int[] out = pendingClearRows;
         pendingClearRows = null;
         return out;
+    }
+    
+    /**
+     * 삭제될 줄의 패턴을 가져옴 (공격용)
+     */
+    public List<ShapeType[]> getAttackPattern(int[] rows) {
+        if (rows == null || rows.length == 0) {
+            return new ArrayList<>();
+        }
+        
+        List<ShapeType[]> patterns = new ArrayList<>();
+        for (int r : rows) {
+            if (r >= 0 && r < ROWS) {
+                ShapeType[] rowPattern = new ShapeType[COLS];
+                
+                // 마지막 배치된 블록의 위치 중 이 행에 있는 것들 찾기
+                Set<Integer> lastPlacedCols = new HashSet<>();
+                for (Position pos : lastPlacedPositions) {
+                    if (pos.y == r) {
+                        lastPlacedCols.add(pos.x);
+                    }
+                }
+                
+                // 패턴 생성 (마지막 배치 위치는 구멍)
+                for (int x = 0; x < COLS; x++) {
+                    if (lastPlacedCols.contains(x)) {
+                        rowPattern[x] = null; // 마지막 배치 위치는 구멍
+                    } else {
+                        rowPattern[x] = grid[r][x]; // 다른 블록은 그대로
+                    }
+                }
+                patterns.add(rowPattern);
+            }
+        }
+        return patterns;
     }
     
     // ===== 아이템 효과 메서드 =====
@@ -590,6 +671,72 @@ public class Board {
     public ItemManager getItemManager()                          { return itemManager; }
     public items.ItemBlock getNextItemBlock()    { return nextItemBlock; }
     public items.ItemBlock getCurrentItemBlock() { return currentItemBlock; }
+    
+    // 대전 모드 관련 메서드
+    public void addPendingAttackLines(List<ShapeType[]> patterns) {
+        int incomingLines = patterns.size();
+        
+        // 이미 10줄이면 무시
+        if (this.pendingAttackLines >= 10) {
+            return;
+        }
+        
+        // 기존 + 새로운 줄이 10을 초과하면, 아래쪽(앞쪽)부터 제거
+        int totalLines = this.pendingAttackLines + incomingLines;
+        if (totalLines > 10) {
+            int toRemove = totalLines - 10;
+            // 앞쪽(아래쪽)부터 제거
+            for (int i = 0; i < toRemove && !this.pendingAttackPattern.isEmpty(); i++) {
+                this.pendingAttackPattern.remove(0);
+                this.pendingAttackLines--;
+            }
+        }
+        
+        // 새로운 공격을 리스트 앞에 추가하여 가장 아래쪽에 배치되도록 함
+        this.pendingAttackLines += incomingLines;
+        this.pendingAttackPattern.addAll(0, patterns);
+    }
+    
+    public int getPendingAttackLines() {
+        return pendingAttackLines;
+    }
+    
+    public List<ShapeType[]> getPendingAttackPattern() {
+        return pendingAttackPattern;
+    }
+    
+    public void applyPendingAttackLines() {
+        if (pendingAttackLines <= 0 || pendingAttackPattern.isEmpty()) return;
+        
+        // 위로 블록들을 밀어올림
+        for (int i = 0; i < ROWS - pendingAttackLines; i++) {
+            for (int j = 0; j < COLS; j++) {
+                grid[i][j] = grid[i + pendingAttackLines][j];
+            }
+        }
+        
+        // 아래쪽에 공격 줄 추가 (패턴은 그대로, 색상은 모두 회색으로)
+        for (int i = 0; i < pendingAttackLines && i < pendingAttackPattern.size(); i++) {
+            int row = ROWS - pendingAttackLines + i;
+            ShapeType[] pattern = pendingAttackPattern.get(i);
+            
+            for (int j = 0; j < COLS; j++) {
+                if (pattern[j] != null) {
+                    grid[row][j] = ShapeType.GRAY; // 회색 블록으로 변환
+                } else {
+                    grid[row][j] = null; // 구멍은 그대로
+                }
+            }
+        }
+        
+        pendingAttackLines = 0;
+        pendingAttackPattern.clear();
+        
+        // 공격 줄을 추가한 후 현재 블록이 겹치는지 확인
+        if (!canMove(current, 0, 0)) {
+            gameOver = true;
+        }
+    }
 
     // 리셋(재시작용)
     public void reset() {
@@ -599,6 +746,8 @@ public class Board {
         score = 0;
         totalLinesCleared = 0;
         gameOver = false;
+        pendingAttackLines = 0;
+        pendingAttackPattern.clear();
         nextShape = pickByRoulette();
         nextItemBlock = null; // 아이템 블록 초기화
         spawnNewTetromino();
