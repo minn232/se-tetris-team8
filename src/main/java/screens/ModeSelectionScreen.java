@@ -57,7 +57,7 @@ public class ModeSelectionScreen extends JFrame {
         timeAttackButton.addActionListener(e -> {
             System.out.println("[ModeSelection] Time Attack Mode selected");
             dispose();
-            new DifficultySelectionScreen(false, isBattleMode).setVisible(true);
+            new DifficultySelectionScreen(false, isBattleMode, true).setVisible(true);
         });
         
         JButton itemButton = addButton(mainPanel, "/images/ItemModeButton.png", 
