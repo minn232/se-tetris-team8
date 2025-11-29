@@ -158,43 +158,41 @@ public class BattleGamePanel extends JPanel {
         // 게임 종료 시 키 입력 무시
         if (winner != null || paused) return;
         
-        // TODO: 설정에서 키 변경 가능하도록 하기
-
-        // Player 1 조작 (WASD + Space)
+        // Player 1 조작 (Settings에서 가져온 키)
         if (!board1.isGameOver()) {
-            if (code == KeyEvent.VK_A) {
+            if (code == Settings.getKeyLeft(Settings.Player.P1)) {
                 board1.moveLeft();
                 checkFlashing(board1, 1);
-            } else if (code == KeyEvent.VK_D) {
+            } else if (code == Settings.getKeyRight(Settings.Player.P1)) {
                 board1.moveRight();
                 checkFlashing(board1, 1);
-            } else if (code == KeyEvent.VK_S) {
+            } else if (code == Settings.getKeyDown(Settings.Player.P1)) {
                 board1.moveDown();
                 checkFlashing(board1, 1);
-            } else if (code == KeyEvent.VK_W) {
+            } else if (code == Settings.getKeyRotate(Settings.Player.P1)) {
                 board1.rotate();
                 checkFlashing(board1, 1);
-            } else if (code == KeyEvent.VK_SPACE) {
+            } else if (code == Settings.getKeyHardDrop(Settings.Player.P1)) {
                 board1.hardDrop();
                 checkFlashing(board1, 1);
             }
         }
         
-        // Player 2 조작 (방향키 + Enter)
+        // Player 2 조작 (Settings에서 가져온 키)
         if (!board2.isGameOver()) {
-            if (code == KeyEvent.VK_LEFT) {
+            if (code == Settings.getKeyLeft(Settings.Player.P2)) {
                 board2.moveLeft();
                 checkFlashing(board2, 2);
-            } else if (code == KeyEvent.VK_RIGHT) {
+            } else if (code == Settings.getKeyRight(Settings.Player.P2)) {
                 board2.moveRight();
                 checkFlashing(board2, 2);
-            } else if (code == KeyEvent.VK_DOWN) {
+            } else if (code == Settings.getKeyDown(Settings.Player.P2)) {
                 board2.moveDown();
                 checkFlashing(board2, 2);
-            } else if (code == KeyEvent.VK_UP) {
+            } else if (code == Settings.getKeyRotate(Settings.Player.P2)) {
                 board2.rotate();
                 checkFlashing(board2, 2);
-            } else if (code == KeyEvent.VK_ENTER) {
+            } else if (code == Settings.getKeyHardDrop(Settings.Player.P2)) {
                 board2.hardDrop();
                 checkFlashing(board2, 2);
             }

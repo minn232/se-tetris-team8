@@ -13,32 +13,57 @@ import java.util.Map;
 public class Settings {
     private static final File SETTINGS_FILE = new File("src/main/data/settings.dat");
 
+    // Player enum
+    public enum Player {
+        P1, P2
+    }
+
     // Key binding enum for better organization
     public enum KeyBinding {
-        DOWN("keyDown", KeyEvent.VK_DOWN),
-        LEFT("keyLeft", KeyEvent.VK_LEFT),
-        RIGHT("keyRight", KeyEvent.VK_RIGHT),
-        ROTATE("keyRotate", KeyEvent.VK_UP),
-        HARD_DROP("keyHardDrop", KeyEvent.VK_SPACE);
+        DOWN("keyDown", KeyEvent.VK_S, KeyEvent.VK_DOWN),
+        LEFT("keyLeft", KeyEvent.VK_A, KeyEvent.VK_LEFT),
+        RIGHT("keyRight", KeyEvent.VK_D, KeyEvent.VK_RIGHT),
+        ROTATE("keyRotate", KeyEvent.VK_W, KeyEvent.VK_UP),
+        HARD_DROP("keyHardDrop", KeyEvent.VK_SPACE, KeyEvent.VK_ENTER);
 
         private final String configKey;
-        private final int defaultValue;
-        private int currentValue;
+        private final int defaultValueP1;
+        private final int defaultValueP2;
+        private int currentValueP1;
+        private int currentValueP2;
 
-        KeyBinding(String configKey, int defaultValue) {
+        KeyBinding(String configKey, int defaultP1, int defaultP2) {
             this.configKey = configKey;
-            this.defaultValue = defaultValue;
-            this.currentValue = defaultValue;
+            this.defaultValueP1 = defaultP1;
+            this.defaultValueP2 = defaultP2;
+            this.currentValueP1 = defaultP1;
+            this.currentValueP2 = defaultP2;
         }
 
         public String getConfigKey() { return configKey; }
-        public int getDefaultValue() { return defaultValue; }
-        public int getValue() { return currentValue; }
-        public void setValue(int value) { this.currentValue = value; }
-        public void reset() { this.currentValue = defaultValue; }
+        public String getConfigKeyP1() { return configKey + "P1"; }
+        public String getConfigKeyP2() { return configKey + "P2"; }
+        
+        public int getDefaultValue(Player player) { 
+            return player == Player.P1 ? defaultValueP1 : defaultValueP2; 
+        }
+        
+        public int getValue(Player player) { 
+            return player == Player.P1 ? currentValueP1 : currentValueP2; 
+        }
+        
+        public void setValue(Player player, int value) { 
+            if (player == Player.P1) currentValueP1 = value;
+            else currentValueP2 = value;
+        }
+        
+        public void reset() { 
+            this.currentValueP1 = defaultValueP1; 
+            this.currentValueP2 = defaultValueP2;
+        }
 
-        public int getKeyCode() {
-            return currentValue;
+        public int getKeyCode(Player player) {
+            return getValue(player);
         }
     }
 
@@ -61,8 +86,11 @@ public class Settings {
             
             // Load key bindings
             for (KeyBinding kb : KeyBinding.values()) {
-                if (settingsMap.containsKey(kb.getConfigKey())) {
-                    kb.setValue((Integer) settingsMap.get(kb.getConfigKey()));
+                if (settingsMap.containsKey(kb.getConfigKeyP1())) {
+                    kb.setValue(Player.P1, (Integer) settingsMap.get(kb.getConfigKeyP1()));
+                }
+                if (settingsMap.containsKey(kb.getConfigKeyP2())) {
+                    kb.setValue(Player.P2, (Integer) settingsMap.get(kb.getConfigKeyP2()));
                 }
             }
             
@@ -100,7 +128,8 @@ public class Settings {
             
             // Save all key bindings
             for (KeyBinding kb : KeyBinding.values()) {
-                settingsMap.put(kb.getConfigKey(), kb.getValue());
+                settingsMap.put(kb.getConfigKeyP1(), kb.getValue(Player.P1));
+                settingsMap.put(kb.getConfigKeyP2(), kb.getValue(Player.P2));
             }
             
             // Save other settings
@@ -119,21 +148,28 @@ public class Settings {
         }
     }
 
-    // Key binding getters/setters - delegate to enum
-    public static int getKeyDown() { return KeyBinding.DOWN.getValue(); }
-    public static void setKeyDown(int k) { KeyBinding.DOWN.setValue(k); }
+    // Key binding getters/setters - delegate to enum (P1 기본값 유지 for 하위 호환성)
+    public static int getKeyDown() { return KeyBinding.DOWN.getValue(Player.P1); }
+    public static void setKeyDown(int k) { KeyBinding.DOWN.setValue(Player.P1, k); }
 
-    public static int getKeyLeft() { return KeyBinding.LEFT.getValue(); }
-    public static void setKeyLeft(int k) { KeyBinding.LEFT.setValue(k); }
+    public static int getKeyLeft() { return KeyBinding.LEFT.getValue(Player.P1); }
+    public static void setKeyLeft(int k) { KeyBinding.LEFT.setValue(Player.P1, k); }
 
-    public static int getKeyRight() { return KeyBinding.RIGHT.getValue(); }
-    public static void setKeyRight(int k) { KeyBinding.RIGHT.setValue(k); }
+    public static int getKeyRight() { return KeyBinding.RIGHT.getValue(Player.P1); }
+    public static void setKeyRight(int k) { KeyBinding.RIGHT.setValue(Player.P1, k); }
 
-    public static int getKeyRotate() { return KeyBinding.ROTATE.getValue(); }
-    public static void setKeyRotate(int k) { KeyBinding.ROTATE.setValue(k); }
+    public static int getKeyRotate() { return KeyBinding.ROTATE.getValue(Player.P1); }
+    public static void setKeyRotate(int k) { KeyBinding.ROTATE.setValue(Player.P1, k); }
 
-    public static int getKeyHardDrop() { return KeyBinding.HARD_DROP.getValue(); }
-    public static void setKeyHardDrop(int k) { KeyBinding.HARD_DROP.setValue(k); }
+    public static int getKeyHardDrop() { return KeyBinding.HARD_DROP.getValue(Player.P1); }
+    public static void setKeyHardDrop(int k) { KeyBinding.HARD_DROP.setValue(Player.P1, k); }
+    
+    // Player-specific key getters
+    public static int getKeyDown(Player player) { return KeyBinding.DOWN.getValue(player); }
+    public static int getKeyLeft(Player player) { return KeyBinding.LEFT.getValue(player); }
+    public static int getKeyRight(Player player) { return KeyBinding.RIGHT.getValue(player); }
+    public static int getKeyRotate(Player player) { return KeyBinding.ROTATE.getValue(player); }
+    public static int getKeyHardDrop(Player player) { return KeyBinding.HARD_DROP.getValue(player); }
 
     // Other settings getters/setters
     public static boolean isColorBlind() { return colorBlind; }

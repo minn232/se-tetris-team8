@@ -1,114 +1,699 @@
 package screens;
 
-import java.awt.BorderLayout;
+import java.awt.Color;
 import java.awt.Dimension;
-import java.awt.GridLayout;
+import java.awt.Font;
+import java.awt.Graphics;
+import java.awt.Graphics2D;
+import java.awt.event.KeyAdapter;
+import java.awt.event.KeyEvent;
+import java.util.List;
 
-import javax.swing.JButton;
-import javax.swing.JFrame;
+import javax.swing.JOptionPane;
 import javax.swing.JPanel;
-import javax.swing.JScrollPane;
-import javax.swing.JTextArea;
-import javax.swing.JTextField;
+import javax.swing.SwingUtilities;
+import javax.swing.Timer;
 
 import core.Board;
 import core.Difficulty;
+import core.Position;
+import core.Settings;
+import core.ShapeType;
+import core.Tetromino;
 import network.NetworkManager;
 
+/**
+ * P2P 네트워크 대전 모드 게임 패널 - 두 개의 보드를 좌우로 배치
+ */
 public class P2PBattlePanel extends JPanel {
+    private final Board myBoard;      // 내 보드
+    private final Board enemyBoard;   // 상대 보드 (렌더링 전용)
+    
+    private final Timer timer;
+    private final int CELL;
+    private final int BOARD_W;
+    private final int BOARD_H;
+    private final int SIDE_W;
+    private final int GAP;  // 보드 사이 간격
+    
+    private boolean paused = false;
+    private final int baseDelay = 800;  // 대전모드 기본 속도
+    
+    // 시간제한 모드
+    private final boolean isTimeAttack;
+    private long timeLimit = 180000;  // 3분 (밀리초)
+    private long gameStartTime;
+    private long pausedTime = 0;
+    private long pauseStartTime = 0;
+    
+    // 각 보드별 플래시 애니메이션
+    private int[] flashingRowsMy = null;
+    private int[] flashingRowsEnemy = null;
+    private long flashUntilMy = 0;
+    private long flashUntilEnemy = 0;
+    private static final long FLASH_MS = 150;
+    
+    // 승자 표시
+    private String winner = null;
+    
+    // 블록 배치 감지용
+    private Tetromino lastCurrentMy = null;
+    
+    public P2PBattlePanel(Difficulty difficulty, boolean isItemMode, boolean isTimeAttack) {
+        this.isTimeAttack = isTimeAttack;
+        this.myBoard = new Board(difficulty, isItemMode);
+        this.enemyBoard = new Board(difficulty, isItemMode);  // 렌더링 전용
+        this.gameStartTime = System.currentTimeMillis();
 
-    private Board myBoard;
-    private Board enemyBoard;
-
-    private GamePanel myPanel;
-    private GamePanel enemyPanel;
-
-    private JTextArea chatLog;
-    private JTextField chatInput;
-
-    public P2PBattlePanel(JFrame frame) {
-
-        setLayout(new BorderLayout());
-
-        // ==========================
-        // 1) 내 보드 / 상대 보드
-        // ==========================
-        myBoard = new Board(Difficulty.NORMAL, false);
-        enemyBoard = new Board(Difficulty.NORMAL, false); // 렌더링 전용
-
-        myPanel = new GamePanel(myBoard, false);
-        enemyPanel = new GamePanel(enemyBoard, false);
-
-        // 상대가 포커스를 받지 못하게
-        enemyPanel.setFocusable(false);
-
-        JPanel boardArea = new JPanel(new GridLayout(1, 2, 15, 0));
-        boardArea.add(myPanel);
-        boardArea.add(enemyPanel);
-
-        add(boardArea, BorderLayout.CENTER);
-
-        // ==========================
-        // 채팅 UI
-        // ==========================
-        chatLog = new JTextArea();
-        chatLog.setEditable(false);
-        chatLog.setLineWrap(true);
-
-        JScrollPane scrollPane = new JScrollPane(chatLog);
-
-        chatInput = new JTextField();
-        JButton sendBtn = new JButton("전송");
-
-        JPanel chatBottom = new JPanel(new BorderLayout());
-        chatBottom.add(chatInput, BorderLayout.CENTER);
-        chatBottom.add(sendBtn, BorderLayout.EAST);
-
-        JPanel chatPanel = new JPanel(new BorderLayout());
-        chatPanel.add(scrollPane, BorderLayout.CENTER);
-        chatPanel.add(chatBottom, BorderLayout.SOUTH);
-        chatPanel.setPreferredSize(new Dimension(0, 150));
-
-        add(chatPanel, BorderLayout.SOUTH);
-
-        // ==========================
-        // 채팅 보내기
-        // ==========================
-        sendBtn.addActionListener(e -> sendChat());
-        chatInput.addActionListener(e -> sendChat());
-
-        // ==========================
+        // 메인 메뉴 음악 끄고 게임 음악 켜기
+        BackgroundMusicPlayer.getInstance().stop();
+        BackgroundMusicPlayer.getInstance().play("/music/InGameBGM.wav");
+        BackgroundMusicPlayer.getInstance().setVolume(Settings.getGameMusicVolume());
+        
+        // Settings에서 셀 크기 및 화면 크기 계산
+        this.CELL = Settings.getCellSize();
+        this.BOARD_W = Board.COLS * CELL;
+        this.BOARD_H = Board.ROWS * CELL;
+        this.SIDE_W = (int)(200 * Settings.getScaleFactor());
+        this.GAP = (int)(50 * Settings.getScaleFactor());
+        
+        // 전체 패널 크기: SIDE + BOARD + GAP + BOARD + SIDE
+        int totalWidth = SIDE_W + BOARD_W + GAP + BOARD_W + SIDE_W;
+        setPreferredSize(new Dimension(totalWidth, BOARD_H));
+        setBackground(Color.BLACK);
+        setFocusable(true);
+        
+        // 키 입력 처리
+        addKeyListener(new KeyAdapter() {
+            @Override
+            public void keyPressed(KeyEvent e) {
+                handleKeyPress(e);
+            }
+        });
+        
+        // 게임 타이머
+        timer = new Timer(baseDelay, e -> {
+            if (!paused && winner == null) {
+                // 내 보드 업데이트
+                if (!myBoard.isGameOver()) {
+                    checkBlockPlacement();
+                    //myBoard.moveDown();   // DEBUG: 자동 낙하 일시 중지
+                    checkFlashing(myBoard, true);
+                }
+                
+                // 승자 확인
+                checkWinner();
+                repaint();
+            }
+        });
+        timer.start();
+        
+        // 초기 현재 블록 저장
+        lastCurrentMy = myBoard.getCurrent();
+        
         // 네트워크 메시지 수신 핸들러
-        // ==========================
         NetworkManager.getInstance().setMessageListener(msg -> {
-
-            // 채팅
-            if (msg.startsWith("CHAT:")) {
-                addChat("[상대] " + msg.substring(5));
-            }
-
-            // 보드 업데이트 (추후 구현)
-            if (msg.startsWith("BOARD:")) {
-                String json = msg.substring(6);
-                // TODO: enemyBoard 반영
-                enemyPanel.repaint();
-            }
-
+            handleNetworkMessage(msg);
         });
     }
-
-    private void sendChat() {
-        String msg = chatInput.getText().trim();
-        if (msg.isEmpty()) return;
-
-        NetworkManager.getInstance().send("CHAT:" + msg);
-        addChat("[나] " + msg);
-
-        chatInput.setText("");
+    
+    private void checkBlockPlacement() {
+        Tetromino current = myBoard.getCurrent();
+        
+        // 새로운 블록이 생성되었을 때 (블록이 배치된 직후)
+        if (current != lastCurrentMy && lastCurrentMy != null) {
+            // 대기 중인 공격 줄을 적용
+            myBoard.applyPendingAttackLines();
+            
+            // 내 보드 상태를 네트워크로 전송
+            sendBoardState();
+        }
+        
+        // 현재 블록 저장
+        lastCurrentMy = current;
     }
+    
+    private void handleKeyPress(KeyEvent e) {
+        int code = e.getKeyCode();
+        
+        // 일시정지
+        if (code == KeyEvent.VK_P) {
+            togglePause();
+            return;
+        }
+        
+        // 게임 종료 시 키 입력 무시
+        if (winner != null || paused) return;
 
-    private void addChat(String msg) {
-        chatLog.append(msg + "\n");
-        chatLog.setCaretPosition(chatLog.getDocument().getLength());
+        // 내 보드 조작 (Settings에서 가져온 P1 키)
+        if (!myBoard.isGameOver()) {
+            if (code == Settings.getKeyLeft(Settings.Player.P1)) {
+                myBoard.moveLeft();
+                checkFlashing(myBoard, true);
+            } else if (code == Settings.getKeyRight(Settings.Player.P1)) {
+                myBoard.moveRight();
+                checkFlashing(myBoard, true);
+            } else if (code == Settings.getKeyDown(Settings.Player.P1)) {
+                myBoard.moveDown();
+                checkFlashing(myBoard, true);
+            } else if (code == Settings.getKeyRotate(Settings.Player.P1)) {
+                myBoard.rotate();
+                checkFlashing(myBoard, true);
+            } else if (code == Settings.getKeyHardDrop(Settings.Player.P1)) {
+                myBoard.hardDrop();
+                checkFlashing(myBoard, true);
+            }
+        }
+        
+        repaint();
+    }
+    
+    private void checkFlashing(Board board, boolean isMine) {
+        int[] rows = board.pollClearingRows();
+        if (rows != null && rows.length > 0) {
+            if (isMine) {
+                flashingRowsMy = rows;
+                flashUntilMy = System.currentTimeMillis() + FLASH_MS;
+                
+                // 2줄 이상 클리어 시 상대에게 공격 전송
+                if (rows.length >= 2) {
+                    List<ShapeType[]> attackPattern = myBoard.getAttackPattern(rows);
+                    sendAttackPattern(attackPattern);
+                }
+            } else {
+                flashingRowsEnemy = rows;
+                flashUntilEnemy = System.currentTimeMillis() + FLASH_MS;
+            }
+            
+            // 플래시 애니메이션 타이머
+            if (isMine && flashingRowsMy != null) {
+                Timer flashTimer = new Timer(20, null);
+                flashTimer.addActionListener(ev -> {
+                    if (System.currentTimeMillis() >= flashUntilMy) {
+                        myBoard.clearRows(flashingRowsMy);
+                        flashingRowsMy = null;
+                        ((Timer) ev.getSource()).stop();
+                    }
+                    repaint();
+                });
+                flashTimer.setRepeats(true);
+                flashTimer.start();
+            } else if (!isMine && flashingRowsEnemy != null) {
+                Timer flashTimer = new Timer(20, null);
+                flashTimer.addActionListener(ev -> {
+                    if (System.currentTimeMillis() >= flashUntilEnemy) {
+                        enemyBoard.clearRows(flashingRowsEnemy);
+                        flashingRowsEnemy = null;
+                        ((Timer) ev.getSource()).stop();
+                    }
+                    repaint();
+                });
+                flashTimer.setRepeats(true);
+                flashTimer.start();
+            }
+        }
+    }
+    
+    private void togglePause() {
+        paused = !paused;
+        if (paused) {
+            if (isTimeAttack) {
+                pauseStartTime = System.currentTimeMillis();
+            }
+            showPauseMenu();
+        } else {
+            if (isTimeAttack && pauseStartTime > 0) {
+                pausedTime += System.currentTimeMillis() - pauseStartTime;
+                pauseStartTime = 0;
+            }
+        }
+        repaint();
+    }
+    
+    private void showPauseMenu() {
+        String[] options = {"Resume", "Quit to Menu"};
+        int choice = JOptionPane.showOptionDialog(
+            this,
+            "Game Paused",
+            "Pause Menu",
+            JOptionPane.DEFAULT_OPTION,
+            JOptionPane.INFORMATION_MESSAGE,
+            null,
+            options,
+            options[0]
+        );
+        
+        if (choice == 0) {
+            // Resume
+            paused = false;
+            requestFocusInWindow();
+        } else if (choice == 1) {
+            // Quit to Menu
+            timer.stop();
+            returnToMenu();
+        } else {
+            // 창을 닫은 경우
+            paused = false;
+            requestFocusInWindow();
+        }
+    }
+    
+    private void checkWinner() {
+        boolean myOver = myBoard.isGameOver();
+        boolean enemyOver = enemyBoard.isGameOver();
+        
+        // 시간제한 모드: 시간이 다 되면 점수로 승부 판정
+        if (isTimeAttack && winner == null) {
+            long elapsedTime = System.currentTimeMillis() - gameStartTime - pausedTime;
+            if (elapsedTime >= timeLimit) {
+                int myScore = myBoard.getScore();
+                int enemyScore = enemyBoard.getScore();
+                
+                if (myScore > enemyScore) {
+                    winner = "YOU WIN";
+                } else if (enemyScore > myScore) {
+                    winner = "YOU LOSE";
+                } else {
+                    winner = "DRAW";
+                }
+                timer.stop();
+                showGameOver();
+                return;
+            }
+        }
+        
+        if (myOver && enemyOver) {
+            winner = "DRAW";
+            timer.stop();
+            showGameOver();
+        } else if (myOver) {
+            winner = "YOU LOSE";
+            timer.stop();
+            showGameOver();
+        } else if (enemyOver) {
+            winner = "YOU WIN";
+            timer.stop();
+            showGameOver();
+        }
+    }
+    
+    private void showGameOver() {
+        SwingUtilities.invokeLater(() -> {
+            String message = winner;
+            
+            String[] options = {"Return to Menu"};
+            JOptionPane.showOptionDialog(
+                this,
+                message,
+                "Game Over",
+                JOptionPane.DEFAULT_OPTION,
+                JOptionPane.INFORMATION_MESSAGE,
+                null,
+                options,
+                options[0]
+            );
+            
+            returnToMenu();
+        });
+    }
+    
+    private void returnToMenu() {
+        timer.stop();
+        // NetworkManager.getInstance().disconnect(); // TODO: implement disconnect
+        BackgroundMusicPlayer.getInstance().stop();
+        BackgroundMusicPlayer.getInstance().play("/music/MainBGM.wav");
+        BackgroundMusicPlayer.getInstance().setVolume(Settings.getGameMusicVolume());
+        
+        java.awt.Window w = SwingUtilities.getWindowAncestor(this);
+        if (w != null) w.dispose();
+        
+        SwingUtilities.invokeLater(() -> {
+            Mainmenu menu = new Mainmenu();
+            menu.setVisible(true);
+        });
+    }
+    
+    // ===== 네트워크 관련 메서드 =====
+    
+    private void sendBoardState() {
+        // TODO: 보드 상태를 JSON으로 직렬화하여 전송
+        // BOARD:{grid, current, score, ...}
+    }
+    
+    private void sendAttackPattern(List<ShapeType[]> pattern) {
+        // TODO: 공격 패턴을 JSON으로 직렬화하여 전송
+        // ATTACK:{pattern}
+    }
+    
+    private void handleNetworkMessage(String msg) {
+        if (msg.startsWith("BOARD:")) {
+            // TODO: 상대 보드 상태 업데이트
+            // String json = msg.substring(6);
+            // enemyBoard 업데이트
+            repaint();
+        } else if (msg.startsWith("ATTACK:")) {
+            // 상대로부터 공격 받음
+            // String json = msg.substring(7);
+            // TODO: JSON 파싱하여 공격 패턴 추가
+            // myBoard.addPendingAttackLines(pattern);
+        } else if (msg.startsWith("GAMEOVER")) {
+            // 상대가 게임 오버됨
+            if (winner == null) {
+                winner = "YOU WIN";
+                timer.stop();
+                showGameOver();
+            }
+        }
+    }
+    
+    @Override
+    protected void paintComponent(Graphics g) {
+        super.paintComponent(g);
+        Graphics2D g2 = (Graphics2D) g.create();
+        
+        int startX1 = SIDE_W;
+        int startX2 = SIDE_W + BOARD_W + GAP;
+        
+        // 내 보드 사이드바
+        drawSidebar(g2, myBoard, 0, "YOU");
+        
+        // 내 보드 영역
+        g2.translate(startX1, 0);
+        drawBoard(g2, myBoard, flashingRowsMy);
+        drawCurrent(g2, myBoard);
+        drawGrid(g2);
+        g2.translate(-startX1, 0);
+        
+        // 보드 사이 간격
+        g2.setColor(new Color(20, 20, 20));
+        g2.fillRect(SIDE_W + BOARD_W, 0, GAP, BOARD_H);
+        
+        // 상대 보드 영역
+        g2.translate(startX2, 0);
+        drawBoard(g2, enemyBoard, flashingRowsEnemy);
+        drawCurrent(g2, enemyBoard);
+        drawGrid(g2);
+        g2.translate(-startX2, 0);
+        
+        // 상대 보드 사이드바
+        drawSidebar(g2, enemyBoard, SIDE_W + BOARD_W + GAP + BOARD_W, "ENEMY");
+        
+        if (paused) drawPaused(g2);
+        if (winner != null) drawWinner(g2);
+        
+        g2.dispose();
+    }
+    
+    private void fillCell(Graphics2D g, int x, int y, Color c) {
+        int px = x * CELL;
+        int py = y * CELL;
+        g.setColor(c);
+        g.fillRect(px, py, CELL, CELL);
+        g.setColor(c.darker());
+        g.drawRect(px, py, CELL, CELL);
+    }
+    
+    private void drawBoard(Graphics2D g, Board board, int[] flashRows) {
+        ShapeType[][] grid = board.getGrid();
+        for (int y = 0; y < Board.ROWS; y++) {
+            boolean isFlashing = false;
+            if (flashRows != null) {
+                for (int fr : flashRows) {
+                    if (fr == y) {
+                        isFlashing = true;
+                        break;
+                    }
+                }
+            }
+            
+            for (int x = 0; x < Board.COLS; x++) {
+                ShapeType s = grid[y][x];
+                if (s != null) {
+                    Color color = isFlashing ? Color.WHITE : s.getColor();
+                    fillCell(g, x, y, color);
+                }
+            }
+        }
+    }
+    
+    private void drawCurrent(Graphics2D g, Board board) {
+        Tetromino cur = board.getCurrent();
+        if (cur == null || board.isGameOver()) return;
+        
+        // 현재 아이템 블록인지 확인
+        items.ItemBlock currentItem = board.getCurrentItemBlock();
+        
+        if (currentItem != null) {
+            Position[] blocks = cur.getBlocks();
+            Color blockColor = Color.WHITE;
+            
+            for (int i = 0; i < blocks.length; i++) {
+                Position p = blocks[i];
+                int px = cur.getX() + p.x;
+                int py = cur.getY() + p.y;
+                if (px >= 0 && px < Board.COLS && py >= 0 && py < Board.ROWS) {
+                    fillCell(g, px, py, blockColor);
+                    
+                    char symbol;
+                    if (currentItem instanceof items.SlowBlock slowBlock) {
+                        symbol = slowBlock.getBlockSymbol(i);
+                    } else if (currentItem instanceof items.LineBlock lineBlock) {
+                        symbol = lineBlock.getBlockSymbol(i);
+                    } else if (currentItem instanceof items.BombBlock bombBlock) {
+                        symbol = bombBlock.getBlockSymbol(i);
+                    } else if (currentItem instanceof items.WeightBlock weightBlock) {
+                        symbol = weightBlock.getBlockSymbol(i);
+                    } else {
+                        symbol = currentItem.getSymbol();
+                    }
+                    
+                    g.setColor(Color.BLACK);
+                    g.setFont(g.getFont().deriveFont(Font.BOLD, CELL * 0.8f));
+                    int symbolX = px * CELL + CELL / 4;
+                    int symbolY = py * CELL + CELL * 3 / 4;
+                    g.drawString(String.valueOf(symbol), symbolX, symbolY);
+                }
+            }
+        } else {
+            Color c = cur.getShape().getColor();
+            for (Position p : cur.getBlocks()) {
+                int px = cur.getX() + p.x;
+                int py = cur.getY() + p.y;
+                if (px >= 0 && px < Board.COLS && py >= 0 && py < Board.ROWS) {
+                    fillCell(g, px, py, c);
+                }
+            }
+        }
+    }
+    
+    private void drawGrid(Graphics2D g) {
+        g.setColor(new Color(20, 20, 20));
+        for (int x = 0; x <= Board.COLS; x++)
+            g.drawLine(x * CELL, 0, x * CELL, BOARD_H);
+        for (int y = 0; y <= Board.ROWS; y++)
+            g.drawLine(0, y * CELL, BOARD_W, y * CELL);
+    }
+    
+    private void drawSidebar(Graphics2D g, Board board, int sx, String playerName) {
+        g.setColor(new Color(20, 20, 20));
+        g.fillRect(sx, 0, SIDE_W, BOARD_H);
+        
+        g.setColor(Color.WHITE);
+        int baseFontSize = Settings.getBaseFontSize();
+        
+        // Player name
+        g.setFont(g.getFont().deriveFont(Font.BOLD, (float)(baseFontSize * 0.89)));
+        g.drawString(playerName, sx + 20, 25);
+        
+        // NEXT
+        g.setFont(g.getFont().deriveFont(Font.BOLD, (float)baseFontSize));
+        g.drawString("NEXT", sx + 20, 60);
+        drawNextPreview(g, sx + 20, 80, board);
+        
+        // ITEM (아이템 모드일 때만 표시)
+        int yOffset = 0;
+        if (board.isItemMode()) {
+            items.ItemBlock nextItem = board.getNextItemBlock();
+            if (nextItem != null) {
+                g.setColor(Color.WHITE);
+                g.setFont(g.getFont().deriveFont(Font.BOLD, (float)(baseFontSize * 0.78)));
+                g.drawString("ITEM", sx + 20, 150);
+                drawItemPreview(g, sx + 20, 165, nextItem);
+                yOffset = 50;
+            }
+        }
+        
+        // SCORE
+        g.setColor(Color.WHITE);
+        g.setFont(g.getFont().deriveFont(Font.BOLD, (float)baseFontSize));
+        g.drawString("SCORE", sx + 20, 190 + yOffset);
+        g.setFont(g.getFont().deriveFont(Font.PLAIN, (float)baseFontSize));
+        g.drawString(String.valueOf(board.getScore()), sx + 20, 218 + yOffset);
+        
+        // TIME (시간제한 모드일 때만 표시)
+        if (isTimeAttack) {
+            long elapsedTime = System.currentTimeMillis() - gameStartTime - pausedTime;
+            long remainingTime = Math.max(0, timeLimit - elapsedTime);
+            int seconds = (int)(remainingTime / 1000);
+            int minutes = seconds / 60;
+            seconds = seconds % 60;
+            
+            g.setColor(remainingTime < 30000 ? Color.RED : Color.YELLOW);
+            g.setFont(g.getFont().deriveFont(Font.BOLD, (float)baseFontSize));
+            g.drawString("TIME", sx + 20, 240 + yOffset);
+            g.setFont(g.getFont().deriveFont(Font.PLAIN, (float)baseFontSize));
+            g.drawString(String.format("%d:%02d", minutes, seconds), sx + 20, 268 + yOffset);
+            yOffset += 50;
+        }
+        
+        // 대기 중인 공격 줄 표시
+        List<ShapeType[]> pendingPatterns = board.getPendingAttackPattern();
+        int pendingLines = pendingPatterns.size();
+        int displayLines = 10;
+        int miniCellSize = 8;
+        int miniCols = 10;
+        int startX = sx + 20;
+        int startY = 250 + yOffset;
+        
+        g.setColor(new Color(40, 40, 40));
+        g.fillRect(startX - 2, startY - 2, miniCols * miniCellSize + 4, displayLines * miniCellSize + 4);
+        
+        for (int row = 0; row < displayLines; row++) {
+            for (int col = 0; col < miniCols; col++) {
+                int x = startX + col * miniCellSize;
+                int y = startY + row * miniCellSize;
+                
+                int reverseRow = displayLines - 1 - row;
+                if (reverseRow < pendingLines) {
+                    ShapeType[] pattern = pendingPatterns.get(reverseRow);
+                    if (pattern[col] != null) {
+                        g.setColor(new Color(128, 128, 128));
+                        g.fillRect(x, y, miniCellSize, miniCellSize);
+                        g.setColor(new Color(80, 80, 80));
+                        g.drawRect(x, y, miniCellSize, miniCellSize);
+                    } else {
+                        g.setColor(new Color(30, 30, 30));
+                        g.fillRect(x, y, miniCellSize, miniCellSize);
+                    }
+                } else {
+                    g.setColor(new Color(60, 60, 60));
+                    g.drawRect(x, y, miniCellSize, miniCellSize);
+                }
+            }
+        }
+        
+        if (pendingLines > 10) {
+            g.setColor(Color.RED);
+            g.setFont(g.getFont().deriveFont(Font.BOLD, (float)(baseFontSize * 0.75)));
+            g.drawString("+" + (pendingLines - 10), startX + miniCols * miniCellSize + 5, startY + displayLines * miniCellSize / 2);
+        }
+    }
+    
+    private void drawNextPreview(Graphics2D g, int px, int py, Board board) {
+        g.setColor(new Color(60, 60, 60));
+        g.fillRoundRect(px - 10, py - 10, 80, 80, 8, 8);
+        
+        ShapeType next = board.getNextShape();
+        if (next != null) {
+            Position[] offs = next.getOffsets(0);
+            int minx = 99, miny = 99, maxx = -99, maxy = -99;
+            for (Position p : offs) {
+                minx = Math.min(minx, p.x); 
+                maxx = Math.max(maxx, p.x);
+                miny = Math.min(miny, p.y); 
+                maxy = Math.max(maxy, p.y);
+            }
+            
+            int cell = CELL / 2;
+            int w = (maxx - minx + 1) * cell;
+            int h = (maxy - miny + 1) * cell;
+            int cx = px + (80 - w) / 2 - 10;
+            int cy = py + (80 - h) / 2 - 10;
+            
+            for (Position p : offs) {
+                int cxp = cx + (p.x - minx) * cell;
+                int cyp = cy + (p.y - miny) * cell;
+                g.setColor(next.getColor());
+                g.fillRect(cxp, cyp, cell, cell);
+                g.setColor(next.getColor().darker());
+                g.drawRect(cxp, cyp, cell, cell);
+            }
+        }
+    }
+    
+    private void drawItemPreview(Graphics2D g, int px, int py, items.ItemBlock item) {
+        ShapeType baseShape = item.getBaseShape();
+        Position[] offs = baseShape.getOffsets(0);
+        
+        int minx = 99, miny = 99, maxx = -99, maxy = -99;
+        for (Position p : offs) {
+            minx = Math.min(minx, p.x); maxx = Math.max(maxx, p.x);
+            miny = Math.min(miny, p.y); maxy = Math.max(maxy, p.y);
+        }
+        
+        int cell = CELL / 2;
+        int previewSize = 80;
+        int padding = 10;
+        int w = (maxx - minx + 1) * cell;
+        int h = (maxy - miny + 1) * cell;
+        int cx = px + (previewSize - w) / 2 - padding;
+        int cy = py + (previewSize - h) / 2 - padding;
+
+        g.setColor(new Color(60, 60, 60));
+        g.fillRoundRect(px - padding, py - padding, previewSize, previewSize, 8, 8);
+
+        for (int i = 0; i < offs.length; i++) {
+            Position p = offs[i];
+            int cxp = cx + (p.x - minx) * cell;
+            int cyp = cy + (p.y - miny) * cell;
+            
+            g.setColor(Color.WHITE);
+            g.fillRect(cxp, cyp, cell, cell);
+            g.setColor(Color.LIGHT_GRAY);
+            g.drawRect(cxp, cyp, cell, cell);
+            
+            char symbol;
+            if (item instanceof items.SlowBlock slowBlock) {
+                symbol = slowBlock.getBlockSymbol(i);
+            } else if (item instanceof items.LineBlock lineBlock) {
+                symbol = lineBlock.getBlockSymbol(i);
+            } else {
+                symbol = item.getSymbol();
+            }
+            
+            g.setColor(Color.BLACK);
+            g.setFont(g.getFont().deriveFont(Font.BOLD, cell * 0.8f));
+            int symbolX = cxp + cell / 4;
+            int symbolY = cyp + cell * 3 / 4;
+            g.drawString(String.valueOf(symbol), symbolX, symbolY);
+        }
+    }
+    
+    private void drawPaused(Graphics2D g) {
+        g.setColor(new Color(0, 0, 0, 140));
+        g.fillRect(0, 0, getWidth(), getHeight());
+        g.setColor(Color.WHITE);
+        g.setFont(g.getFont().deriveFont(Font.BOLD, 48f));
+        String pauseText = "PAUSED";
+        int textWidth = g.getFontMetrics().stringWidth(pauseText);
+        g.drawString(pauseText, (getWidth() - textWidth) / 2, getHeight() / 2);
+    }
+    
+    private void drawWinner(Graphics2D g) {
+        g.setColor(new Color(0, 0, 0, 200));
+        g.fillRect(0, 0, getWidth(), getHeight());
+        
+        if (winner.equals("YOU WIN")) {
+            g.setColor(Color.YELLOW);
+        } else if (winner.equals("YOU LOSE")) {
+            g.setColor(Color.RED);
+        } else {
+            g.setColor(Color.WHITE);
+        }
+        
+        g.setFont(g.getFont().deriveFont(Font.BOLD, 56f));
+        String winText = winner;
+        int textWidth = g.getFontMetrics().stringWidth(winText);
+        g.drawString(winText, (getWidth() - textWidth) / 2, getHeight() / 2);
     }
 }

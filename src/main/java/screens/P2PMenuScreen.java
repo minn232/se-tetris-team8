@@ -76,7 +76,9 @@ public class P2PMenuScreen extends JPanel {
     // =============================
     private void openBattle() {
         SwingUtilities.invokeLater(() -> {
-            frame.setContentPane(new P2PBattlePanel(frame));
+            // TODO: 난이도와 모드를 선택할 수 있도록 개선
+            // 현재는 기본값으로 NORMAL, 아이템 모드 false, 시간제한 모드 false
+            frame.setContentPane(new P2PBattlePanel(core.Difficulty.NORMAL, false, false));
             frame.revalidate();
             frame.repaint();
         });

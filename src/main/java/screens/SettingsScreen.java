@@ -30,8 +30,9 @@ public class SettingsScreen extends JFrame {
 
     private static final long serialVersionUID = 1L;
 
-    // Map to store key binding buttons
-    private Map<Settings.KeyBinding, JButton> keyButtons = new HashMap<>();
+    // Map to store key binding buttons for both players
+    private Map<Settings.KeyBinding, JButton> keyButtonsP1 = new HashMap<>();
+    private Map<Settings.KeyBinding, JButton> keyButtonsP2 = new HashMap<>();
     private JCheckBox chkColorBlind;
     private JButton btnClearScores;
 
@@ -120,11 +121,22 @@ public class SettingsScreen extends JFrame {
         resCombo.setSelectedItem(Settings.getResolution());
         resPanel.add(resCombo);
 
-        // 키 매핑 패널
-        JPanel keyPanel = new JPanel(new GridLayout(5, 2, 10, 10));
+        // 키 매핑 패널 (헤더 + 5개 키 = 6행, 3열: 라벨/1P/2P)
+        JPanel keyPanel = new JPanel(new GridLayout(6, 3, 10, 10));
         Font small = new Font(Font.MONOSPACED, Font.PLAIN, fontSize);
+        Font headerFont = new Font(Font.SANS_SERIF, Font.BOLD, fontSize);
 
-        // 각 키 바인딩에 대해 라벨과 버튼 생성
+        // 헤더 행
+        JLabel emptyHeader = new JLabel("");
+        JLabel p1Header = new JLabel("1P", SwingConstants.CENTER);
+        JLabel p2Header = new JLabel("2P", SwingConstants.CENTER);
+        p1Header.setFont(headerFont);
+        p2Header.setFont(headerFont);
+        keyPanel.add(emptyHeader);
+        keyPanel.add(p1Header);
+        keyPanel.add(p2Header);
+
+        // 각 키 바인딩에 대해 라벨과 1P, 2P 버튼 생성
         addKeyBindingRow(keyPanel, "Down:", Settings.KeyBinding.DOWN, small);
         addKeyBindingRow(keyPanel, "Left:", Settings.KeyBinding.LEFT, small);
         addKeyBindingRow(keyPanel, "Right:", Settings.KeyBinding.RIGHT, small);
@@ -232,14 +244,19 @@ public class SettingsScreen extends JFrame {
                     Settings.resetToDefaults();
                     
                     // UI 업데이트
-                    resCombo.setSelectedItem("360x450");
+                    resCombo.setSelectedItem("640x360");
                     chkColorBlind.setSelected(false);
                     
-                    // 키 바인딩 버튼 텍스트 업데이트
-                    for (Map.Entry<Settings.KeyBinding, JButton> entry : keyButtons.entrySet()) {
+                    // 키 바인딩 버튼 텍스트 업데이트 (P1, P2)
+                    for (Map.Entry<Settings.KeyBinding, JButton> entry : keyButtonsP1.entrySet()) {
                         Settings.KeyBinding binding = entry.getKey();
                         JButton button = entry.getValue();
-                        button.setText(KeyEvent.getKeyText(binding.getValue()));
+                        button.setText(KeyEvent.getKeyText(binding.getValue(Settings.Player.P1)));
+                    }
+                    for (Map.Entry<Settings.KeyBinding, JButton> entry : keyButtonsP2.entrySet()) {
+                        Settings.KeyBinding binding = entry.getKey();
+                        JButton button = entry.getValue();
+                        button.setText(KeyEvent.getKeyText(binding.getValue(Settings.Player.P2)));
                     }
                     
                     JOptionPane.showMessageDialog(SettingsScreen.this, 
@@ -279,7 +296,7 @@ public class SettingsScreen extends JFrame {
     }
 
     /**
-     * 키 바인딩 행을 추가하는 헬퍼 메서드
+     * 키 바인딩 행을 추가하는 헬퍼 메서드 (1P, 2P)
      */
     private void addKeyBindingRow(JPanel panel, String labelText, Settings.KeyBinding binding, Font font) {
         JLabel lbl = new JLabel(labelText);
@@ -287,30 +304,35 @@ public class SettingsScreen extends JFrame {
         lbl.setForeground(Color.BLACK);
         lbl.setBorder(BorderFactory.createEmptyBorder(0, 30, 0, 0));
         
-        JButton btn = new JButton(KeyEvent.getKeyText(binding.getValue()));
-        btn.setFont(font);
+        JButton btnP1 = new JButton(KeyEvent.getKeyText(binding.getValue(Settings.Player.P1)));
+        btnP1.setFont(font);
+        
+        JButton btnP2 = new JButton(KeyEvent.getKeyText(binding.getValue(Settings.Player.P2)));
+        btnP2.setFont(font);
         
         panel.add(lbl);
-        panel.add(btn);
+        panel.add(btnP1);
+        panel.add(btnP2);
         
-        keyButtons.put(binding, btn);
+        keyButtonsP1.put(binding, btnP1);
+        keyButtonsP2.put(binding, btnP2);
     }
 
     /**
-     * 모든 키 바인딩 버튼에 리스너 설정
+     * 모든 키 바인딩 버튼에 리스너 설정 (P1, P2)
      */
     private void setupKeyBindingListeners() {
-        for (Map.Entry<Settings.KeyBinding, JButton> entry : keyButtons.entrySet()) {
+        // P1 버튼 리스너
+        for (Map.Entry<Settings.KeyBinding, JButton> entry : keyButtonsP1.entrySet()) {
             Settings.KeyBinding binding = entry.getKey();
             JButton button = entry.getValue();
             
             button.addActionListener(e -> {
-                // Settings에서 해상도 정보 가져오기
                 int baseFontSize = Settings.getBaseFontSize();
                 double scaleFactor = Settings.getScaleFactor();
                 
-                JDialog dlg = new JDialog(SettingsScreen.this, "Press a key", true);
-                JLabel msg = new JLabel("Press the desired key now", SwingConstants.CENTER);
+                JDialog dlg = new JDialog(SettingsScreen.this, "Press a key (1P)", true);
+                JLabel msg = new JLabel("Press the desired key for Player 1", SwingConstants.CENTER);
                 msg.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, baseFontSize));
                 dlg.add(msg);
                 dlg.setSize((int)(300 * scaleFactor), (int)(100 * scaleFactor));
@@ -318,9 +340,38 @@ public class SettingsScreen extends JFrame {
                 dlg.addKeyListener(new KeyAdapter() {
                     @Override
                     public void keyPressed(KeyEvent ke) {
-                        int code = ke.getKeyCode();
-                        binding.setValue(code);
-                        button.setText(KeyEvent.getKeyText(code));
+                        int newKey = ke.getKeyCode();
+                        binding.setValue(Settings.Player.P1, newKey);
+                        button.setText(KeyEvent.getKeyText(newKey));
+                        dlg.dispose();
+                    }
+                });
+                dlg.setFocusable(true);
+                dlg.setVisible(true);
+            });
+        }
+        
+        // P2 버튼 리스너
+        for (Map.Entry<Settings.KeyBinding, JButton> entry : keyButtonsP2.entrySet()) {
+            Settings.KeyBinding binding = entry.getKey();
+            JButton button = entry.getValue();
+            
+            button.addActionListener(e -> {
+                int baseFontSize = Settings.getBaseFontSize();
+                double scaleFactor = Settings.getScaleFactor();
+                
+                JDialog dlg = new JDialog(SettingsScreen.this, "Press a key (2P)", true);
+                JLabel msg = new JLabel("Press the desired key for Player 2", SwingConstants.CENTER);
+                msg.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, baseFontSize));
+                dlg.add(msg);
+                dlg.setSize((int)(300 * scaleFactor), (int)(100 * scaleFactor));
+                dlg.setLocationRelativeTo(SettingsScreen.this);
+                dlg.addKeyListener(new KeyAdapter() {
+                    @Override
+                    public void keyPressed(KeyEvent ke) {
+                        int newKey = ke.getKeyCode();
+                        binding.setValue(Settings.Player.P2, newKey);
+                        button.setText(KeyEvent.getKeyText(newKey));
                         dlg.dispose();
                     }
                 });
