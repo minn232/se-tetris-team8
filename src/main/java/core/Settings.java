@@ -1,7 +1,12 @@
 package core;
 
 import java.awt.event.KeyEvent;
-import java.io.*;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -31,17 +36,23 @@ public class Settings {
         public int getValue() { return currentValue; }
         public void setValue(int value) { this.currentValue = value; }
         public void reset() { this.currentValue = defaultValue; }
+
+        public int getKeyCode() {
+            return currentValue;
+        }
     }
 
     // Other settings
     private static boolean colorBlind = false;
     private static String scoreboardFile = "scoreboard.csv";
-    private static String resolution = "360x450";
-
+    private static String resolution = "640x360";
+    private static float mainMusicVolume = 1.0f;
+    private static float gameMusicVolume = 1.0f;
+    
     static {
         load();
     }
-
+    
     public static void load() {
         if (!SETTINGS_FILE.exists()) return;
         try (ObjectInputStream ois = new ObjectInputStream(new FileInputStream(SETTINGS_FILE))) {
@@ -64,6 +75,12 @@ public class Settings {
             }
             if (settingsMap.containsKey("resolution")) {
                 resolution = (String) settingsMap.get("resolution");
+            }
+            if (settingsMap.containsKey("mainMusicVolume")) {
+                mainMusicVolume = (Float) settingsMap.get("mainMusicVolume");
+            }
+            if (settingsMap.containsKey("gameMusicVolume")) {
+                gameMusicVolume = (Float) settingsMap.get("gameMusicVolume");
             }
         } catch (IOException | ClassNotFoundException e) {
             // ignore and keep defaults
@@ -90,6 +107,8 @@ public class Settings {
             settingsMap.put("colorBlind", colorBlind);
             settingsMap.put("scoreboardFile", scoreboardFile);
             settingsMap.put("resolution", resolution);
+            settingsMap.put("mainMusicVolume", mainMusicVolume);
+            settingsMap.put("gameMusicVolume", gameMusicVolume);
             
             // 직렬화하여 저장
             try (ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream(SETTINGS_FILE))) {
@@ -126,50 +145,56 @@ public class Settings {
     public static String getResolution() { return resolution; }
     public static void setResolution(String r) { resolution = r; }
 
-    // 해상도에 따른 scale factor (360x450 기준)
+    public static float getMainMusicVolume() { return mainMusicVolume; }
+    public static void setMainMusicVolume(float v) { mainMusicVolume = Math.max(0f, Math.min(1f, v)); }
+
+    public static float getGameMusicVolume() { return gameMusicVolume; }
+    public static void setGameMusicVolume(float v) { gameMusicVolume = Math.max(0f, Math.min(1f, v)); }
+
+    // 해상도에 따른 scale factor (기본 기준: 640x360 -> 1.0)
     public static double getScaleFactor() {
-        return switch (resolution) {
-            case "480x600" -> 1.33;
-            case "600x750" -> 1.67;
-            default -> 1.0;
-        };
+        try {
+            String[] p = resolution.split("x");
+            int w = Integer.parseInt(p[0].trim());
+            return (double) w / 640.0;
+        } catch (Exception e) {
+            return 1.0;
+        }
     }
 
-    // 해상도에 따른 창 크기
+    // 해상도에 따른 창 크기 (문자열을 직접 파싱)
     public static int getWindowWidth() {
-        return switch (resolution) {
-            case "480x600" -> 480;
-            case "600x750" -> 600;
-            default -> 360;
-        };
+        try {
+            String[] p = resolution.split("x");
+            return Integer.parseInt(p[0].trim());
+        } catch (Exception e) {
+            return 640;
+        }
     }
 
     public static int getWindowHeight() {
-        return switch (resolution) {
-            case "480x600" -> 600;
-            case "600x750" -> 750;
-            default -> 450;
-        };
+        try {
+            String[] p = resolution.split("x");
+            return Integer.parseInt(p[1].trim());
+        } catch (Exception e) {
+            return 360;
+        }
     }
 
-    // 해상도에 따른 기본 폰트 크기
+    // 해상도에 따른 기본 폰트 크기 (height 기준)
     public static int getBaseFontSize() {
-        return switch (resolution) {
-            case "480x600" -> 18;
-            case "600x750" -> 22;
-            default -> 14;
-        };
+        int h = getWindowHeight();
+        if (h >= 1080) return 36;
+        if (h >= 720)  return 22;
+        return 14;
     }
 
-    // 게임 셀 크기
+    // 게임 셀 크기 (기본 24 @ 640x360, 비례 확장)
     public static int getCellSize() {
-        return switch (resolution) {
-            case "480x600" -> 30;
-            case "600x750" -> 37;
-            default -> 22;
-        };
+        double scale = getScaleFactor();
+        return (int) Math.max(8, Math.round(24 * scale));
     }
-
+     
     /**
      * 모든 설정을 기본값으로 재설정합니다.
      */
@@ -178,10 +203,12 @@ public class Settings {
         for (KeyBinding kb : KeyBinding.values()) {
             kb.reset();
         }
-        
+
         // 기타 설정 초기화
         colorBlind = false;
         scoreboardFile = "scoreboard.csv";
-        resolution = "360x450";
+        resolution = "640x360";
+        mainMusicVolume = 1.0f;
+        gameMusicVolume = 1.0f;
     }
 }

@@ -12,9 +12,10 @@ import java.awt.event.KeyEvent;
 import java.util.HashMap;
 import java.util.Map;
 
-
+import javax.swing.BorderFactory;
 import javax.swing.JButton;
 import javax.swing.JCheckBox;
+import javax.swing.JComboBox;
 import javax.swing.JDialog;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
@@ -23,9 +24,6 @@ import javax.swing.JPanel;
 import javax.swing.SwingConstants;
 
 import core.Settings;
-
-import javax.swing.JComboBox;
-
 import ranking.RankingManager;
 
 public class SettingsScreen extends JFrame {
@@ -46,17 +44,77 @@ public class SettingsScreen extends JFrame {
 
         // 해상도에 따라 폰트 크기와 창 크기를 동적으로 적용
         String res = Settings.getResolution();
-        int fontSize = 14, width = 360, height = 450;
-        if ("480x600".equals(res)) { fontSize = 18; width = 480; height = 600; }
-        else if ("600x750".equals(res)) { fontSize = 22; width = 600; height = 750; }
+        // 허용 해상도 목록
+        String[] resolutions = {"640x360", "1280x720", "1920x1080"};
+
+        // 기본값 파싱 (Settings에 저장된 값이 형식에 맞지 않으면 첫 항목 사용)
+        int width = 640, height = 360;
+        try {
+            String[] parts = (res != null ? res : resolutions[0]).split("x");
+            if (parts.length == 2) {
+                width = Integer.parseInt(parts[0].trim());
+                height = Integer.parseInt(parts[1].trim());
+            }
+        } catch (Exception ex) {
+            width = 640; height = 360;
+        }
+
+        // 높이에 따라 폰트 크기 결정 (간단한 기준)
+        int fontSize;
+        if (height >= 1080) fontSize = 28;
+        else if (height >= 720) fontSize = 22;
+        else fontSize = 14;
+
         setSize(width, height);
+
+        // 음량 패널 (맨 위에 추가)
+        JPanel volumePanel = new JPanel(new GridLayout(2, 2, 10, 10));
+        volumePanel.setBorder(BorderFactory.createEmptyBorder(10, 30, 10, 30));
+        
+        JLabel mainMusicLabel = new JLabel("Main Music Volume:");
+        mainMusicLabel.setFont(new Font(Font.SANS_SERIF, Font.BOLD, fontSize));
+        
+        JLabel gameMusicLabel = new JLabel("Game Music Volume:");
+        gameMusicLabel.setFont(new Font(Font.SANS_SERIF, Font.BOLD, fontSize));
+        
+        javax.swing.JSlider mainVolumeSlider = new javax.swing.JSlider(0, 100, 
+            (int)(Settings.getMainMusicVolume() * 100));
+        mainVolumeSlider.setFont(new Font(Font.MONOSPACED, Font.PLAIN, fontSize));
+        mainVolumeSlider.setMajorTickSpacing(25);
+        mainVolumeSlider.setMinorTickSpacing(5);
+        mainVolumeSlider.setPaintTicks(true);
+        mainVolumeSlider.setPaintLabels(true);
+        
+        javax.swing.JSlider gameVolumeSlider = new javax.swing.JSlider(0, 100, 
+            (int)(Settings.getGameMusicVolume() * 100));
+        gameVolumeSlider.setFont(new Font(Font.MONOSPACED, Font.PLAIN, fontSize));
+        gameVolumeSlider.setMajorTickSpacing(25);
+        gameVolumeSlider.setMinorTickSpacing(5);
+        gameVolumeSlider.setPaintTicks(true);
+        gameVolumeSlider.setPaintLabels(true);
+        
+        // 실시간 볼륨 조절
+        mainVolumeSlider.addChangeListener(e -> {
+            float volume = mainVolumeSlider.getValue() / 100f;
+            Settings.setMainMusicVolume(volume);
+            BackgroundMusicPlayer.getInstance().setVolume(volume);
+        });
+        
+        gameVolumeSlider.addChangeListener(e -> {
+            float volume = gameVolumeSlider.getValue() / 100f;
+            Settings.setGameMusicVolume(volume);
+        });
+        
+        volumePanel.add(mainMusicLabel);
+        volumePanel.add(mainVolumeSlider);
+        volumePanel.add(gameMusicLabel);
+        volumePanel.add(gameVolumeSlider);
 
         // 해상도 패널
         JPanel resPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
         JLabel resLabel = new JLabel("Window size:");
         resLabel.setFont(new Font(Font.SANS_SERIF, Font.BOLD, fontSize));
         resPanel.add(resLabel);
-        String[] resolutions = {"360x450", "480x600", "600x750"};
         JComboBox<String> resCombo = new JComboBox<>(resolutions);
         resCombo.setFont(new Font(Font.MONOSPACED, Font.BOLD, fontSize));
         resCombo.setSelectedItem(Settings.getResolution());
@@ -106,9 +164,14 @@ public class SettingsScreen extends JFrame {
         mainSouthPanel.add(bottom, BorderLayout.CENTER);
         mainSouthPanel.add(south, BorderLayout.SOUTH);
 
-        add(resPanel, BorderLayout.NORTH);
+        // 상단 패널 (음량 + 해상도)
+        JPanel topPanel = new JPanel(new BorderLayout());
+        topPanel.add(volumePanel, BorderLayout.CENTER);
+        topPanel.add(resPanel, BorderLayout.SOUTH);
+
+        add(topPanel, BorderLayout.NORTH);
         add(keyPanel, BorderLayout.CENTER);
-        add(mainSouthPanel, BorderLayout.SOUTH); // 수정된 부분
+        add(mainSouthPanel, BorderLayout.SOUTH);
 
         pack();
         setLocationRelativeTo(null);
@@ -189,7 +252,6 @@ public class SettingsScreen extends JFrame {
             @Override
             public void actionPerformed(ActionEvent e) {
                 Settings.setColorBlind(chkColorBlind.isSelected());
-                // TODO: Board 색상 즉시 반영 로직 필요시 구현
             }
         });
 
@@ -223,6 +285,7 @@ public class SettingsScreen extends JFrame {
         JLabel lbl = new JLabel(labelText);
         lbl.setFont(font);
         lbl.setForeground(Color.BLACK);
+        lbl.setBorder(BorderFactory.createEmptyBorder(0, 30, 0, 0));
         
         JButton btn = new JButton(KeyEvent.getKeyText(binding.getValue()));
         btn.setFont(font);
