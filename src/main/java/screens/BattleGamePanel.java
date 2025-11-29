@@ -105,14 +105,14 @@ public class BattleGamePanel extends JPanel {
                 // Player 1 업데이트
                 if (!board1.isGameOver()) {
                     checkBlockPlacement(board1, board2, 1);
-                    //board1.moveDown();   // DEBUG: 자동 낙하 일시 중지
+                    board1.moveDown();   // DEBUG: 자동 낙하 일시 중지
                     checkFlashing(board1, 1);
                 }
                 
                 // Player 2 업데이트
                 if (!board2.isGameOver()) {
                     checkBlockPlacement(board2, board1, 2);
-                    //board2.moveDown();   // DEBUG: 자동 낙하 일시 중지
+                    board2.moveDown();   // DEBUG: 자동 낙하 일시 중지
                     checkFlashing(board2, 2);
                 }
                 
