@@ -41,7 +41,7 @@ public class HostJoinScreen extends JFrame {
         hostButton.addActionListener(e -> {
             System.out.println("[HostJoin] Host selected");
             dispose();
-            new ModeSelectionScreen().setVisible(true);
+            new ModeSelectionScreen(true).setVisible(true); // 배틀 모드로 전달
         });
         
         JButton joinButton = addButton(mainPanel, "/images/HostingButton.png", 

@@ -15,8 +15,15 @@ public class ModeSelectionScreen extends JFrame {
     
     private JButton[] buttons;
     private int selectedIndex = 0;
+    private final boolean isBattleMode;
 
     public ModeSelectionScreen() {
+        this(false); // 기본은 싱글플레이
+    }
+    
+    public ModeSelectionScreen(boolean isBattleMode) {
+        this.isBattleMode = isBattleMode;
+        
         int width = Settings.getWindowWidth();
         int height = Settings.getWindowHeight();
         double scale = Settings.getScaleFactor();
@@ -41,7 +48,7 @@ public class ModeSelectionScreen extends JFrame {
         softButton.addActionListener(e -> {
             System.out.println("[ModeSelection] Soft Mode selected");
             dispose();
-            new DifficultySelectionScreen(false).setVisible(true);
+            new DifficultySelectionScreen(false, isBattleMode).setVisible(true);
         });
         
         JButton timeAttackButton = addButton(mainPanel, "/images/TimeattackModeButton.png", 
@@ -50,7 +57,7 @@ public class ModeSelectionScreen extends JFrame {
         timeAttackButton.addActionListener(e -> {
             System.out.println("[ModeSelection] Time Attack Mode selected");
             dispose();
-            new DifficultySelectionScreen(false).setVisible(true);
+            new DifficultySelectionScreen(false, isBattleMode).setVisible(true);
         });
         
         JButton itemButton = addButton(mainPanel, "/images/ItemModeButton.png", 
@@ -59,7 +66,7 @@ public class ModeSelectionScreen extends JFrame {
         itemButton.addActionListener(e -> {
             System.out.println("[ModeSelection] Item Mode selected");
             dispose();
-            new DifficultySelectionScreen(true).setVisible(true);
+            new DifficultySelectionScreen(true, isBattleMode).setVisible(true);
         });
         
         BackgroundPanel bg = new BackgroundPanel("/images/MainScreen.png");

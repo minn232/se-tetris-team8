@@ -16,11 +16,17 @@ import core.Settings;
 public class DifficultySelectionScreen extends JFrame {
     
     private final boolean isItemMode;
+    private final boolean isBattleMode;
     private JButton[] buttons;
     private int selectedIndex = 0;
 
     public DifficultySelectionScreen(boolean isItemMode) {
+        this(isItemMode, false);
+    }
+
+    public DifficultySelectionScreen(boolean isItemMode, boolean isBattleMode) {
         this.isItemMode = isItemMode;
+        this.isBattleMode = isBattleMode;
         
         int width = Settings.getWindowWidth();
         int height = Settings.getWindowHeight();
@@ -125,6 +131,29 @@ public class DifficultySelectionScreen extends JFrame {
     
     private void startGame(Difficulty difficulty) {
         dispose();
+        
+        if (isBattleMode) {
+            // 배틀 모드 시작
+            JFrame gameFrame = new JFrame("Tetris Battle - " + difficulty.name());
+            BattleGamePanel battlePanel = new BattleGamePanel(difficulty, isItemMode);
+            gameFrame.add(battlePanel);
+            gameFrame.pack();
+            gameFrame.setResizable(false);
+            gameFrame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
+            gameFrame.setLocationRelativeTo(null);
+            gameFrame.setVisible(true);
+            
+            // 게임 종료 시 음악 정지
+            gameFrame.addWindowListener(new java.awt.event.WindowAdapter() {
+                @Override
+                public void windowClosed(java.awt.event.WindowEvent e) {
+                    BackgroundMusicPlayer.getInstance().stop();
+                }
+            });
+            
+            battlePanel.requestFocusInWindow();
+            return;
+        }
         
         Board board = new Board(difficulty, isItemMode);
         GamePanel gamePanel = new GamePanel(board, isItemMode);

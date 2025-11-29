@@ -41,7 +41,7 @@ public class MultiplaySelectionScreen extends JFrame {
         p2pButton.addActionListener(e -> {
             System.out.println("[MultiplaySelection] P2P Battle selected");
             dispose();
-            new ModeSelectionScreen().setVisible(true);
+            new ModeSelectionScreen(true).setVisible(true); // 배틀 모드로 전달
         });
         
         JButton networkButton = addButton(mainPanel, "/images/NetworkBattleButton.png", 
