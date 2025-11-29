@@ -26,7 +26,7 @@ public class HowToPlayScreen extends JDialog {
         int baseFontSize = Settings.getBaseFontSize();
         
         setTitle("How to Play");
-        setSize((int)(width * 0.9), (int)(height * 0.95)); // 크기 증가: 0.7 -> 0.9, 0.8 -> 0.95
+        setSize((int)(width * 0.9), (int)(height * 0.95));
         setResizable(true); // 크기 조절 가능하도록 변경
         setDefaultCloseOperation(JDialog.DISPOSE_ON_CLOSE);
         setLocationRelativeTo(null);
