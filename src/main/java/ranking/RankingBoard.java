@@ -4,6 +4,8 @@ import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Component;
 import java.awt.Font;
+import java.awt.event.KeyAdapter;
+import java.awt.event.KeyEvent;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 
@@ -11,7 +13,7 @@ import javax.swing.BorderFactory;
 import javax.swing.Box;
 import javax.swing.BoxLayout;
 import javax.swing.JButton;
-import javax.swing.JFrame;
+import javax.swing.JDialog;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
@@ -23,7 +25,7 @@ import core.Settings;
  * 랭킹 보드 UI
  * 일반 모드와 아이템 모드 랭킹을 탭으로 분리하여 표시
  */
-public class RankingBoard extends JFrame {
+public class RankingBoard extends JDialog {
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
     private static final String NORMAL_RANKING_FILE = "normal_rankings.dat";
     private static final String ITEM_RANKING_FILE = "item_rankings.dat";
@@ -33,8 +35,26 @@ public class RankingBoard extends JFrame {
     private final boolean showReturnButton;
     private final boolean isItemMode;
     
+    private JButton[] buttons;
+    private int selectedIndex = 0;
+    
     public RankingBoard() {
-        this(null, -1, false, false);
+        super((java.awt.Frame) null, "Ranking Board", true); // 모달 다이얼로그로 생성
+        int width = Settings.getWindowWidth();
+        int height = Settings.getWindowHeight();
+        int baseFontSize = Settings.getBaseFontSize();
+        
+        setTitle("Ranking Board");
+        setSize((int)(width * 0.8), (int)(height * 0.9));
+        setResizable(false);
+        setDefaultCloseOperation(JDialog.DISPOSE_ON_CLOSE);
+        setLocationRelativeTo(null);
+        
+        this.highlightPlayerName = null;
+        this.highlightScore = -1;
+        this.showReturnButton = false;
+        this.isItemMode = false;
+        initializeUI();
     }
     
     public RankingBoard(String highlightPlayerName, int highlightScore, boolean showReturnButton) {
@@ -42,6 +62,17 @@ public class RankingBoard extends JFrame {
     }
     
     public RankingBoard(String highlightPlayerName, int highlightScore, boolean showReturnButton, boolean isItemMode) {
+        super((java.awt.Frame) null, "Ranking Board", true); // 모달 다이얼로그로 생성
+        int width = Settings.getWindowWidth();
+        int height = Settings.getWindowHeight();
+        int baseFontSize = Settings.getBaseFontSize();
+        
+        setTitle("Ranking Board");
+        setSize((int)(width * 0.8), (int)(height * 0.9));
+        setResizable(false);
+        setDefaultCloseOperation(JDialog.DISPOSE_ON_CLOSE);
+        setLocationRelativeTo(null);
+        
         this.highlightPlayerName = highlightPlayerName;
         this.highlightScore = highlightScore;
         this.showReturnButton = showReturnButton;
@@ -50,13 +81,13 @@ public class RankingBoard extends JFrame {
     }
 
     private void initializeUI() {
-        int width = (int)(Settings.getWindowWidth() * 1.39);
-        int height = (int)(Settings.getWindowHeight() * 1.33);
+        int width = (int)(Settings.getWindowWidth() * 0.5);
+        int height = (int)(Settings.getWindowHeight());
         
         setTitle("Ranking Board");
         setSize(width, height);
         setLocationRelativeTo(null);
-        setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
+        setDefaultCloseOperation(JDialog.DISPOSE_ON_CLOSE);
 
         JPanel mainContainer = new JPanel(new BorderLayout());
         
@@ -88,9 +119,72 @@ public class RankingBoard extends JFrame {
         if (showReturnButton) {
             JPanel buttonPanel = createButtonPanel();
             mainContainer.add(buttonPanel, BorderLayout.SOUTH);
+            
+            // 키보드 네비게이션 설정
+            setupKeyboardNavigation();
         }
 
         add(mainContainer);
+    }
+    
+    private void setupKeyboardNavigation() {
+        // 키보드 포커스를 받을 수 있도록 설정
+        setFocusable(true);
+        
+        // 버튼들의 포커스 비활성화
+        for (JButton btn : buttons) {
+            btn.setFocusable(false);
+        }
+        
+        // 초기 하이라이트 설정
+        updateButtonHighlight();
+        
+        // 키보드 이벤트 리스너 추가
+        addKeyListener(new KeyAdapter() {
+            @Override
+            public void keyPressed(KeyEvent e) {
+                handleKeyPress(e);
+            }
+        });
+    }
+    
+    private void handleKeyPress(KeyEvent e) {
+        switch (e.getKeyCode()) {
+            case KeyEvent.VK_LEFT:
+                if (selectedIndex > 0) {
+                    selectedIndex--;
+                    updateButtonHighlight();
+                }
+                break;
+            case KeyEvent.VK_RIGHT:
+                if (selectedIndex < buttons.length - 1) {
+                    selectedIndex++;
+                    updateButtonHighlight();
+                }
+                break;
+            case KeyEvent.VK_ENTER:
+            case KeyEvent.VK_SPACE:
+                buttons[selectedIndex].doClick();
+                break;
+            case KeyEvent.VK_ESCAPE:
+                dispose();
+                break;
+        }
+    }
+    
+    private void updateButtonHighlight() {
+        for (int i = 0; i < buttons.length; i++) {
+            if (i == selectedIndex) {
+                buttons[i].setBackground(new Color(100, 150, 255));
+                buttons[i].setForeground(Color.BLACK);
+                buttons[i].setOpaque(true);
+            } else {
+                buttons[i].setBackground(null);
+                buttons[i].setForeground(Color.BLACK);
+                buttons[i].setOpaque(false);
+            }
+        }
+        repaint();
     }
 
     private JPanel createRankingPanel(List<RankingEntry> rankings, String title, boolean isItemMode) {
@@ -136,6 +230,9 @@ public class RankingBoard extends JFrame {
         exitButton.addActionListener(e -> {
             System.exit(0);
         });
+        
+        // 버튼 배열 초기화
+        buttons = new JButton[]{mainMenuButton, exitButton};
         
         buttonPanel.add(Box.createHorizontalGlue());
         buttonPanel.add(mainMenuButton);

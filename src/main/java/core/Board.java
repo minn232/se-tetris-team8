@@ -14,7 +14,9 @@ public class Board {
 
     private final ShapeType[][] grid = new ShapeType[ROWS][COLS];
     private final Random random = new Random();
-    private final double[] weights = new double[ShapeType.values().length];
+    // GRAY를 제외한 실제 스폰 가능한 블록들 (I, O, T, S, Z, J, L)
+    private static final ShapeType[] SPAWNABLE_SHAPES = {ShapeType.I, ShapeType.O, ShapeType.T, ShapeType.S, ShapeType.Z, ShapeType.J, ShapeType.L};
+    private final double[] weights = new double[SPAWNABLE_SHAPES.length];
 
     private final Difficulty difficulty;
 
@@ -101,7 +103,7 @@ public class Board {
         while (true) {
             int i = random.nextInt(weights.length);
             if (random.nextDouble() < (weights[i] / max))
-                return ShapeType.values()[i];
+                return SPAWNABLE_SHAPES[i];
         }
     }
 

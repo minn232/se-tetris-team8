@@ -13,11 +13,12 @@ import core.ShapeType;
 public class TransformBlock implements ItemBlock {
 
     private static final Random random = new Random();
+    // GRAY를 제외한 실제 스폰 가능한 블록들
+    private static final ShapeType[] SPAWNABLE_SHAPES = {ShapeType.I, ShapeType.O, ShapeType.T, ShapeType.S, ShapeType.Z, ShapeType.J, ShapeType.L};
     private final ShapeType baseShape;
 
     public TransformBlock() {
-        ShapeType[] values = ShapeType.values();
-        this.baseShape = values[random.nextInt(values.length)];
+        this.baseShape = SPAWNABLE_SHAPES[random.nextInt(SPAWNABLE_SHAPES.length)];
     }
 
     @Override

@@ -13,13 +13,14 @@ import core.ShapeType;
 public class BombBlock implements ItemBlock {
     
     private static final Random random = new Random();
+    // GRAY를 제외한 실제 스폰 가능한 블록들
+    private static final ShapeType[] SPAWNABLE_SHAPES = {ShapeType.I, ShapeType.O, ShapeType.T, ShapeType.S, ShapeType.Z, ShapeType.J, ShapeType.L};
     private final ShapeType baseShape;
     private final int bombIndexInRotation0;
     private int rotation;
     
     public BombBlock() {
-        ShapeType[] shapes = ShapeType.values();
-        this.baseShape = shapes[random.nextInt(shapes.length)];
+        this.baseShape = SPAWNABLE_SHAPES[random.nextInt(SPAWNABLE_SHAPES.length)];
         this.rotation = 0;
         this.bombIndexInRotation0 = random.nextInt(baseShape.getOffsets(0).length);
     }

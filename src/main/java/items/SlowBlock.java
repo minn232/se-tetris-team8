@@ -13,11 +13,12 @@ import core.ShapeType;
 public class SlowBlock implements ItemBlock {
     
     private static final Random random = new Random();
+    // GRAY를 제외한 실제 스폰 가능한 블록들
+    private static final ShapeType[] SPAWNABLE_SHAPES = {ShapeType.I, ShapeType.O, ShapeType.T, ShapeType.S, ShapeType.Z, ShapeType.J, ShapeType.L};
     private final ShapeType baseShape;
     
     public SlowBlock() {
-        ShapeType[] allShapes = ShapeType.values();
-        this.baseShape = allShapes[random.nextInt(allShapes.length)];
+        this.baseShape = SPAWNABLE_SHAPES[random.nextInt(SPAWNABLE_SHAPES.length)];
     }
     
     @Override
