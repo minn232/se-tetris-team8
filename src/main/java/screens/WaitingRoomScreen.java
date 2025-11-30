@@ -8,7 +8,6 @@ import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.SwingUtilities;
 
-import core.Difficulty;
 import network.NetworkManager;
 
 /**
@@ -65,7 +64,7 @@ public class WaitingRoomScreen extends JFrame {
         readyButton.addActionListener(e -> toggleReady());
         panel.add(readyButton);
 
-        // START 버튼 (Host만 보이고 활성화)
+        // START 버튼 (Host만)
         startButton = new JButton("START");
         startButton.setBounds(200, 160, 120, 40);
         startButton.setEnabled(false);
@@ -103,20 +102,24 @@ public class WaitingRoomScreen extends JFrame {
     // 네트워크 메시지 처리
     private void initNetworkListener() {
         NetworkManager.getInstance().setMessageListener(msg -> {
+
             if (msg.equals("READY")) {
                 enemyReady = true;
                 enemyStatusLabel.setText("Enemy: READY");
                 updateStartButtonState();
             }
+
             else if (msg.equals("UNREADY")) {
                 enemyReady = false;
                 enemyStatusLabel.setText("Enemy: Not Ready");
                 updateStartButtonState();
             }
+
+            // ===== Host가 STARTGAME 보낸 경우 =====
             else if (msg.equals("STARTGAME")) {
                 SwingUtilities.invokeLater(() -> {
                     dispose();
-                    launchBattlePanel();
+                    launchModeSelectionScreen();  // ← 여기로 이동!!!
                 });
             }
         });
@@ -128,23 +131,16 @@ public class WaitingRoomScreen extends JFrame {
 
         if (myReady && enemyReady) {
             NetworkManager.getInstance().send("STARTGAME");
+
             dispose();
-            launchBattlePanel();
+            launchModeSelectionScreen(); // ← 여기로 이동!!!
         }
     }
 
-    // 게임 실행
-    private void launchBattlePanel() {
-        JFrame frame = new JFrame("P2P Battle");
-        frame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
-
-        // 난이도/모드 임시 → 필요하면 외부에서 파라미터 전달 가능
-        P2PBattlePanel battlePanel = new P2PBattlePanel(Difficulty.NORMAL, false, false);
-
-        frame.setContentPane(battlePanel);
-        frame.pack();
-        frame.setLocationRelativeTo(null);
-        frame.setVisible(true);
-        battlePanel.requestFocusInWindow();
+    // ============================
+    // 다음 화면: 모드 선택 화면으로 이동
+    // ============================
+    private void launchModeSelectionScreen() {
+        new NetworkModeSelectionScreen(true).setVisible(true);
     }
 }
