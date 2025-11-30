@@ -287,6 +287,9 @@ public class P2PBattlePanel extends JPanel {
             timer.stop();
             showGameOver();
         } else if (myOver) {
+            // 내가 먼저 죽었다 → 상대에게 GAMEOVER 알림 보내기
+            NetworkManager.getInstance().send("GAMEOVER");
+            
             winner = "YOU LOSE";
             timer.stop();
             showGameOver();
@@ -335,35 +338,161 @@ public class P2PBattlePanel extends JPanel {
     
     // ===== 네트워크 관련 메서드 =====
     
+    // 내 보드 상태 전송
     private void sendBoardState() {
-        // TODO: 보드 상태를 JSON으로 직렬화하여 전송
-        // BOARD:{grid, current, score, ...}
+        ShapeType[][] grid = myBoard.getGrid();
+        Tetromino cur = myBoard.getCurrent();
+
+        StringBuilder sb = new StringBuilder();
+        sb.append("BOARD:{");
+
+        // GRID
+        sb.append("\"grid\":[");
+        for (int y = 0; y < Board.ROWS; y++) {
+            sb.append("[");
+            for (int x = 0; x < Board.COLS; x++) {
+                ShapeType s = grid[y][x];
+                sb.append(s == null ? "\"0\"" : "\"" + s.name() + "\"");
+                if (x < Board.COLS - 1) sb.append(",");
+            }
+            sb.append("]");
+            if (y < Board.ROWS - 1) sb.append(",");
+        }
+        sb.append("],");
+
+        // CURRENT BLOCK
+        if (cur != null) {
+            sb.append("\"cur\":{");
+            sb.append("\"shape\":\"").append(cur.getShape().name()).append("\",");
+            sb.append("\"x\":").append(cur.getX()).append(",");
+            sb.append("\"y\":").append(cur.getY());
+            sb.append("},");
+        } else {
+            sb.append("\"cur\":null,");
+        }
+
+        // SCORE
+        sb.append("\"score\":").append(myBoard.getScore());
+
+        sb.append("}");
+
+        NetworkManager.getInstance().send(sb.toString());
     }
-    
+
+    // 공격 패턴 전송
     private void sendAttackPattern(List<ShapeType[]> pattern) {
-        // TODO: 공격 패턴을 JSON으로 직렬화하여 전송
-        // ATTACK:{pattern}
+        StringBuilder sb = new StringBuilder();
+        sb.append("ATTACK:{\"rows\":[");
+
+        for (int i = 0; i < pattern.size(); i++) {
+            ShapeType[] row = pattern.get(i);
+            sb.append("[");
+            for (int j = 0; j < row.length; j++) {
+                ShapeType s = row[j];
+                sb.append(s == null ? "\"0\"" : "\"" + s.name() + "\"");
+                if (j < row.length - 1) sb.append(",");
+            }
+            sb.append("]");
+            if (i < pattern.size() - 1) sb.append(",");
+        }
+
+        sb.append("]}");
+        NetworkManager.getInstance().send(sb.toString());
     }
-    
+
+    // 네트워크 메시지 수신
     private void handleNetworkMessage(String msg) {
+
+        // 상대 보드 상태 갱신
         if (msg.startsWith("BOARD:")) {
-            // TODO: 상대 보드 상태 업데이트
-            // String json = msg.substring(6);
-            // enemyBoard 업데이트
+            String json = msg.substring(6);
+            try {
+                updateEnemyBoard(json);
+            } catch (Exception ex) {
+                ex.printStackTrace();
+            }
             repaint();
-        } else if (msg.startsWith("ATTACK:")) {
-            // 상대로부터 공격 받음
-            // String json = msg.substring(7);
-            // TODO: JSON 파싱하여 공격 패턴 추가
-            // myBoard.addPendingAttackLines(pattern);
-        } else if (msg.startsWith("GAMEOVER")) {
-            // 상대가 게임 오버됨
+            return;
+        }
+
+        // 공격 패턴 수신
+        if (msg.startsWith("ATTACK:")) {
+            String json = msg.substring(7);
+            try {
+                List<ShapeType[]> pattern = parseAttackPattern(json);
+                myBoard.addPendingAttackLines(pattern);
+            } catch (Exception ex) {
+                ex.printStackTrace();
+            }
+            return;
+        }
+
+        // 상대 게임 오버
+        if (msg.equals("GAMEOVER")) {
             if (winner == null) {
                 winner = "YOU WIN";
                 timer.stop();
                 showGameOver();
             }
         }
+    }
+
+    // 상대 보드(grid) 상태 갱신
+    private void updateEnemyBoard(String json) {
+        try {
+            int gridStart = json.indexOf("\"grid\":") + 7;
+            int gridEnd = json.indexOf("],\"cur\"");
+            if (gridStart < 7 || gridEnd < 0) return;
+
+            String gridJson = json.substring(gridStart, gridEnd + 1);
+            String[] rowStrs = gridJson.substring(1, gridJson.length() - 1).split("\\],\\[");
+
+            ShapeType[][] newGrid = new ShapeType[Board.ROWS][Board.COLS];
+
+            for (int y = 0; y < rowStrs.length && y < Board.ROWS; y++) {
+                String row = rowStrs[y].replace("[", "").replace("]", "");
+                String[] cols = row.split(",");
+
+                for (int x = 0; x < cols.length && x < Board.COLS; x++) {
+                    String v = cols[x].replace("\"", "");
+                    newGrid[y][x] = v.equals("0") ? null : ShapeType.valueOf(v);
+                }
+            }
+
+            enemyBoard.setGrid(newGrid);
+
+        } catch (Exception ex) {
+            ex.printStackTrace();
+        }
+    }
+
+    // ATTACK 패턴 JSON 문자열 -> List<ShapeType[]> 변환
+    private List<ShapeType[]> parseAttackPattern(String json) {
+        List<ShapeType[]> list = new java.util.ArrayList<>();
+
+        int start = json.indexOf("[[") + 2;
+        int end = json.lastIndexOf("]]");
+        if (start < 2 || end < 0 || start >= end) {
+            return list;
+        }
+
+        String content = json.substring(start, end);
+        String[] rowStrs = content.split("\\],\\[");
+
+        for (String row : rowStrs) {
+            String cleaned = row.replace("[", "").replace("]", "");
+            String[] cols = cleaned.split(",");
+            ShapeType[] line = new ShapeType[cols.length];
+
+            for (int i = 0; i < cols.length; i++) {
+                String v = cols[i].replace("\"", "");
+                line[i] = v.equals("0") ? null : ShapeType.valueOf(v);
+            }
+
+            list.add(line);
+        }
+
+        return list;
     }
     
     @Override

@@ -755,4 +755,22 @@ public class Board {
         nextItemBlock = null; // 아이템 블록 초기화
         spawnNewTetromino();
     }
+    /**
+     * 상대 보드(grid)를 업데이트하기 위한 메서드.
+     *
+     * ⚠ Board.grid 가 final 이라 newGrid 를 통째로 대입할 수 없기 때문에
+     *    내부 값만 하나씩 복사해서 덮어쓴다.
+     *
+     * @param newGrid 네트워크로 받은 상대 보드의 20x10 ShapeType 배열
+     */
+    public void setGrid(ShapeType[][] newGrid) {
+        if (newGrid == null) return;
+
+        // final grid 배열 내부 값만 복사해서 반영
+        for (int y = 0; y < ROWS; y++) {
+            for (int x = 0; x < COLS; x++) {
+                this.grid[y][x] = newGrid[y][x];
+            }
+        }
+    }
 }
