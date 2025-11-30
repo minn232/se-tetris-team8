@@ -58,7 +58,12 @@ public class P2PBattlePanel extends JPanel {
     
     // 블록 배치 감지용
     private Tetromino lastCurrentMy = null;
-    
+
+    // ===== CHAT UI =====
+    private javax.swing.JTextArea chatArea;
+    private javax.swing.JTextField chatInput;
+    private javax.swing.JButton chatSendBtn;
+
     public P2PBattlePanel(Difficulty difficulty, boolean isItemMode, boolean isTimeAttack) {
         this.isTimeAttack = isTimeAttack;
         this.myBoard = new Board(difficulty, isItemMode);
@@ -115,6 +120,31 @@ public class P2PBattlePanel extends JPanel {
         NetworkManager.getInstance().setMessageListener(msg -> {
             handleNetworkMessage(msg);
         });
+
+        // ===== CHAT UI INIT =====
+        setLayout(null); // ★ chat UI 위치 지정 필요
+
+        chatArea = new javax.swing.JTextArea();
+        chatArea.setEditable(false);
+        chatArea.setLineWrap(true);
+        chatArea.setWrapStyleWord(true);
+
+        javax.swing.JScrollPane scroll = new javax.swing.JScrollPane(chatArea);
+        scroll.setBounds(10, BOARD_H + 10, 400, 90);  // 원하는 위치로 조절 가능
+
+        chatInput = new javax.swing.JTextField();
+        chatInput.setBounds(10, BOARD_H + 110, 300, 30);
+
+        chatSendBtn = new javax.swing.JButton("Send");
+        chatSendBtn.setBounds(320, BOARD_H + 110, 90, 30);
+
+        chatSendBtn.addActionListener(e -> sendChat());
+        chatInput.addActionListener(e -> sendChat());
+
+        add(scroll);
+        add(chatInput);
+        add(chatSendBtn);
+
     }
     
     private void checkBlockPlacement() {
@@ -402,6 +432,13 @@ public class P2PBattlePanel extends JPanel {
 
     // 네트워크 메시지 수신
     private void handleNetworkMessage(String msg) {
+        
+            // ===== CHAT =====
+        if (msg.startsWith("CHAT:")) {
+            String text = msg.substring(5);
+            chatArea.append("ENEMY: " + text + "\n");
+            return;
+        }
 
         // 상대 보드 상태 갱신
         if (msg.startsWith("BOARD:")) {
@@ -465,6 +502,15 @@ public class P2PBattlePanel extends JPanel {
             ex.printStackTrace();
         }
     }
+
+    private void sendChat() {
+    String msg = chatInput.getText().trim();
+    if (msg.isEmpty()) return;
+
+    NetworkManager.getInstance().send("CHAT:" + msg);
+    chatArea.append("ME: " + msg + "\n");
+    chatInput.setText("");
+}
 
     // ATTACK 패턴 JSON 문자열 -> List<ShapeType[]> 변환
     private List<ShapeType[]> parseAttackPattern(String json) {
