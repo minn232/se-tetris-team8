@@ -1,6 +1,10 @@
 package screens;
 
 import java.awt.BorderLayout;
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileReader;
+import java.io.FileWriter;
 import java.net.InetAddress;
 import java.net.ServerSocket;
 
@@ -81,6 +85,29 @@ public class HostJoinScreen extends JFrame {
         requestFocusInWindow();
     }
 
+    // =========================
+    // 최근 접속 IP 저장 / 로드
+    // =========================
+    private String loadLastIP() {
+        try {
+            File file = new File("last_ip.txt");
+            if (!file.exists()) return "";
+            BufferedReader br = new BufferedReader(new FileReader(file));
+            String ip = br.readLine();
+            br.close();
+            return ip == null ? "" : ip.trim();
+        } catch (Exception e) {
+            return "";
+        }
+    }
+
+    private void saveLastIP(String ip) {
+        try {
+            FileWriter fw = new FileWriter("last_ip.txt");
+            fw.write(ip);
+            fw.close();
+        } catch (Exception ignored) {}
+    }
 
     // =========================
     // HOST START
@@ -89,13 +116,11 @@ public class HostJoinScreen extends JFrame {
         dispose();
 
         try {
-            // 자동 포트
             ServerSocket tempSocket = new ServerSocket(0);
             int port = tempSocket.getLocalPort();
             tempSocket.close();
 
             String hostIP = InetAddress.getLocalHost().getHostAddress();
-
             NetworkManager.getInstance().startServer(port);
 
             final boolean[] cancelled = {false};
@@ -127,7 +152,7 @@ public class HostJoinScreen extends JFrame {
 
             waitingDialog.setVisible(true);
 
-            // Client 접속 대기
+            // Client 접속 대기 스레드
             new Thread(() -> {
                 while (!NetworkManager.getInstance().isConnected() && !cancelled[0]) {
                     try { Thread.sleep(100); } catch (Exception ignored) {}
@@ -150,14 +175,13 @@ public class HostJoinScreen extends JFrame {
         }
     }
 
-
     // =========================
     // CLIENT START
     // =========================
     private void startAsClient() {
         dispose();
 
-        JTextField ipField = new JTextField("localhost");
+        JTextField ipField = new JTextField(loadLastIP().isEmpty() ? "localhost" : loadLastIP());
         JTextField portField = new JTextField("12345");
 
         Object[] message = {
@@ -185,6 +209,8 @@ public class HostJoinScreen extends JFrame {
 
         int port = Integer.parseInt(portStr);
 
+        JOptionPane.showMessageDialog(null, "Connecting to server...\n" + ip + ":" + port);
+
         NetworkManager.getInstance().startClient(ip, port);
 
         new Thread(() -> {
@@ -196,6 +222,8 @@ public class HostJoinScreen extends JFrame {
             }
 
             if (NetworkManager.getInstance().isConnected()) {
+                saveLastIP(ip); // 최근 IP 저장
+
                 javax.swing.SwingUtilities.invokeLater(() -> {
                     JOptionPane.showMessageDialog(null, "Connected to server!");
                     new WaitingRoomScreen(false).setVisible(true);
@@ -209,7 +237,6 @@ public class HostJoinScreen extends JFrame {
         }).start();
     }
 
-
     private boolean isValidIP(String ip) {
         if ("localhost".equalsIgnoreCase(ip)) return true;
 
@@ -219,7 +246,6 @@ public class HostJoinScreen extends JFrame {
 
         return ip.matches(ipv4Pattern);
     }
-
 
     private void handleKeyPress(int keyCode) {
         switch (keyCode) {
