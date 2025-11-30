@@ -663,6 +663,9 @@ public class Board {
     // ===== 게임 상태/게터 =====
     public boolean isGameOver()          { return gameOver; }
     public int getScore()                { return score; }
+    public void setScore(int s) {
+    this.score = s;
+}
     public int getTotalLinesCleared()    { return totalLinesCleared; }
     public Difficulty getDifficulty()    { return difficulty; }
     public ShapeType[][] getGrid()       { return grid; }
