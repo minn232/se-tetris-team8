@@ -1,6 +1,6 @@
 package screens;
 
-import java.awt.Color;
+import java.awt.Font;
 
 import javax.swing.JButton;
 import javax.swing.JFrame;
@@ -8,18 +8,17 @@ import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.SwingUtilities;
 
+import core.Difficulty;
 import network.NetworkManager;
 
 /**
- * P2P 대전모드 - 대기방 화면
- * Host/Client 모두 Ready 가능
- * Host만 Start 가능
- * Start 누르면 -> NetworkModeSelectionScreen으로 이동
+ * 네트워크 대전 대기방
+ * Host / Client 모두 같은 화면이지만 Host만 Start 가능
  */
 public class WaitingRoomScreen extends JFrame {
 
-    private boolean isHost;
-    private boolean meReady = false;
+    private final boolean isHost;
+    private boolean myReady = false;
     private boolean enemyReady = false;
 
     private JLabel myStatusLabel;
@@ -30,124 +29,122 @@ public class WaitingRoomScreen extends JFrame {
     public WaitingRoomScreen(boolean isHost) {
         this.isHost = isHost;
 
-        setTitle("Waiting Room");
+        setTitle("P2P Waiting Room");
         setSize(400, 300);
         setResizable(false);
-        setLocationRelativeTo(null);
         setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
-        setLayout(null);
+        setLocationRelativeTo(null);
 
-        // ====== 상태 라벨 ======
-        myStatusLabel = new JLabel("ME: Not Ready");
-        myStatusLabel.setBounds(50, 30, 300, 30);
-        myStatusLabel.setForeground(Color.WHITE);
+        initUI();
+        initNetworkListener();
+    }
 
-        enemyStatusLabel = new JLabel("ENEMY: Not Ready");
-        enemyStatusLabel.setBounds(50, 70, 300, 30);
-        enemyStatusLabel.setForeground(Color.WHITE);
+    private void initUI() {
+        JPanel panel = new JPanel();
+        panel.setLayout(null);
+        setContentPane(panel);
 
-        // ====== Ready 버튼 ======
-        readyButton = new JButton("Ready");
-        readyButton.setBounds(50, 150, 120, 40);
+        JLabel title = new JLabel(isHost ? "HOST Waiting Room" : "CLIENT Waiting Room");
+        title.setBounds(90, 20, 250, 30);
+        title.setFont(new Font("Arial", Font.BOLD, 20));
+        panel.add(title);
+
+        // 나의 Ready 상태
+        myStatusLabel = new JLabel("Me: Not Ready");
+        myStatusLabel.setBounds(50, 70, 300, 30);
+        panel.add(myStatusLabel);
+
+        // 상대 Ready 상태
+        enemyStatusLabel = new JLabel("Enemy: Not Ready");
+        enemyStatusLabel.setBounds(50, 110, 300, 30);
+        panel.add(enemyStatusLabel);
+
+        // READY 버튼
+        readyButton = new JButton("READY");
+        readyButton.setBounds(50, 160, 120, 40);
         readyButton.addActionListener(e -> toggleReady());
+        panel.add(readyButton);
 
-        // ====== Start 버튼 (Host만 활성화) ======
-        startButton = new JButton("Start");
-        startButton.setBounds(200, 150, 120, 40);
-        startButton.setEnabled(false);   // 둘 다 Ready 해야 활성화됨
+        // START 버튼 (Host만 보이고 활성화)
+        startButton = new JButton("START");
+        startButton.setBounds(200, 160, 120, 40);
+        startButton.setEnabled(false);
+        panel.add(startButton);
 
-        if (!isHost) startButton.setEnabled(false);
+        if (!isHost) {
+            startButton.setVisible(false); // Client는 Start 버튼 숨김
+        }
 
-        startButton.addActionListener(e -> hostStartGame());
-
-        // ====== 컴포넌트 추가 ======
-        add(myStatusLabel);
-        add(enemyStatusLabel);
-        add(readyButton);
-        add(startButton);
-
-        // ====== 배경 패널 ======
-        JPanel bg = new JPanel();
-        bg.setBackground(Color.BLACK);
-        bg.setBounds(0, 0, 400, 300);
-        add(bg);
-
-        // 네트워크 메시지 수신 핸들러
-        NetworkManager.getInstance().setMessageListener(this::onNetworkMessage);
-
-        setVisible(true);
+        startButton.addActionListener(e -> startGame());
     }
 
-    // ================================
-    // Ready / Cancel Ready 전송
-    // ================================
+    // Ready ON/OFF
     private void toggleReady() {
-        meReady = !meReady;
+        myReady = !myReady;
 
-        if (meReady) {
-            myStatusLabel.setText("ME: Ready");
-            readyButton.setText("Cancel Ready");
-            NetworkManager.getInstance().send("READY:ME");
+        if (myReady) {
+            myStatusLabel.setText("Me: READY");
+            NetworkManager.getInstance().send("READY");
         } else {
-            myStatusLabel.setText("ME: Not Ready");
-            readyButton.setText("Ready");
-            NetworkManager.getInstance().send("READY_CANCEL:ME");
+            myStatusLabel.setText("Me: Not Ready");
+            NetworkManager.getInstance().send("UNREADY");
         }
 
-        updateStartButton();
+        updateStartButtonState();
     }
 
-    // ================================
-    // Host가 Start 누르는 경우
-    // ================================
-    private void hostStartGame() {
-        if (!isHost) return;
-        if (!(meReady && enemyReady)) return;
-
-        NetworkManager.getInstance().send("GOTO_MODE_SELECT");
-
-        openModeSelection();
-    }
-
-    // ================================
-    // 네트워크 메시지 처리
-    // ================================
-    private void onNetworkMessage(String msg) {
-
-        // 상대 Ready
-        if (msg.equals("READY:ME") || msg.equals("READY:HOST")) {
-            enemyReady = true;
-            enemyStatusLabel.setText("ENEMY: Ready");
-        }
-        // 상대 Ready 취소
-        else if (msg.equals("READY_CANCEL:ME") || msg.equals("READY_CANCEL:HOST")) {
-            enemyReady = false;
-            enemyStatusLabel.setText("ENEMY: Not Ready");
-        }
-        // Host가 모드 선택 화면으로 이동하라는 신호
-        else if (msg.equals("GOTO_MODE_SELECT")) {
-            openModeSelection();
-        }
-
-        updateStartButton();
-    }
-
-    // ================================
-    // Start 버튼 활성화 여부 결정 (Host)
-    // ================================
-    private void updateStartButton() {
+    // Host만 Start 버튼 활성화
+    private void updateStartButtonState() {
         if (isHost) {
-            startButton.setEnabled(meReady && enemyReady);
+            startButton.setEnabled(myReady && enemyReady);
         }
     }
 
-    // ================================
-    // 모드 선택 화면 열기
-    // ================================
-    private void openModeSelection() {
-        SwingUtilities.invokeLater(() -> {
-            dispose();
-            new NetworkModeSelectionScreen(isHost).setVisible(true);
+    // 네트워크 메시지 처리
+    private void initNetworkListener() {
+        NetworkManager.getInstance().setMessageListener(msg -> {
+            if (msg.equals("READY")) {
+                enemyReady = true;
+                enemyStatusLabel.setText("Enemy: READY");
+                updateStartButtonState();
+            }
+            else if (msg.equals("UNREADY")) {
+                enemyReady = false;
+                enemyStatusLabel.setText("Enemy: Not Ready");
+                updateStartButtonState();
+            }
+            else if (msg.equals("STARTGAME")) {
+                SwingUtilities.invokeLater(() -> {
+                    dispose();
+                    launchBattlePanel();
+                });
+            }
         });
+    }
+
+    // Host가 게임 시작 버튼 클릭 시 실행
+    private void startGame() {
+        if (!isHost) return;
+
+        if (myReady && enemyReady) {
+            NetworkManager.getInstance().send("STARTGAME");
+            dispose();
+            launchBattlePanel();
+        }
+    }
+
+    // 게임 실행
+    private void launchBattlePanel() {
+        JFrame frame = new JFrame("P2P Battle");
+        frame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
+
+        // 난이도/모드 임시 → 필요하면 외부에서 파라미터 전달 가능
+        P2PBattlePanel battlePanel = new P2PBattlePanel(Difficulty.NORMAL, false, false);
+
+        frame.setContentPane(battlePanel);
+        frame.pack();
+        frame.setLocationRelativeTo(null);
+        frame.setVisible(true);
+        battlePanel.requestFocusInWindow();
     }
 }

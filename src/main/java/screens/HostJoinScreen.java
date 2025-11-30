@@ -32,7 +32,6 @@ public class HostJoinScreen extends JFrame {
         setResizable(false);
         setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
         setLocationRelativeTo(null);
-        setFocusable(true);
 
         JPanel mainPanel = new JPanel();
         mainPanel.setOpaque(false);
@@ -41,9 +40,7 @@ public class HostJoinScreen extends JFrame {
         int btnWidth = (int)(120 * scale);
         int btnHeight = (int)(120 * scale);
 
-        // ===============================
-        //  HOST 버튼 (자동 포트)
-        // ===============================
+        // HOST
         JButton hostButton = addButton(
             mainPanel,
             "/images/HostButton.png",
@@ -53,9 +50,7 @@ public class HostJoinScreen extends JFrame {
         );
         hostButton.addActionListener(e -> startAsHost());
 
-        // ===============================
-        //  JOIN 버튼 (IP + PORT 입력)
-        // ===============================
+        // JOIN
         JButton joinButton = addButton(
             mainPanel,
             "/images/HostingButton.png",
@@ -71,7 +66,6 @@ public class HostJoinScreen extends JFrame {
         setContentPane(bg);
 
         buttons = new JButton[]{hostButton, joinButton};
-
         for (JButton btn : buttons) btn.setFocusable(false);
 
         updateButtonFocus();
@@ -88,11 +82,10 @@ public class HostJoinScreen extends JFrame {
     }
 
 
-    // ===============================
-    //         HOST 로 접속
-    // ===============================
+    // =========================
+    // HOST START
+    // =========================
     private void startAsHost() {
-        System.out.println("[HostJoin] Host selected");
         dispose();
 
         try {
@@ -107,7 +100,7 @@ public class HostJoinScreen extends JFrame {
 
             final boolean[] cancelled = {false};
 
-            // 대기 팝업
+            // HOST 대기 팝업
             JDialog waitingDialog = new JDialog();
             waitingDialog.setTitle("Server Waiting");
             waitingDialog.setModal(false);
@@ -121,7 +114,6 @@ public class HostJoinScreen extends JFrame {
                 null,
                 new Object[]{"Close"}
             );
-
             waitingDialog.setContentPane(pane);
 
             pane.addPropertyChangeListener(evt -> {
@@ -135,7 +127,7 @@ public class HostJoinScreen extends JFrame {
 
             waitingDialog.setVisible(true);
 
-            // 클라이언트 접속 대기
+            // Client 접속 대기
             new Thread(() -> {
                 while (!NetworkManager.getInstance().isConnected() && !cancelled[0]) {
                     try { Thread.sleep(100); } catch (Exception ignored) {}
@@ -146,9 +138,6 @@ public class HostJoinScreen extends JFrame {
                         waitingDialog.dispose();
                         JOptionPane.showMessageDialog(null, "Client connected!");
 
-                        // -----------------------------
-                        // **Host → WaitingRoomScreen(true)**
-                        // -----------------------------
                         new WaitingRoomScreen(true).setVisible(true);
                     });
                 }
@@ -162,11 +151,10 @@ public class HostJoinScreen extends JFrame {
     }
 
 
-    // ===============================
-    //         CLIENT 로 접속
-    // ===============================
+    // =========================
+    // CLIENT START
+    // =========================
     private void startAsClient() {
-        System.out.println("[HostJoin] Join selected");
         dispose();
 
         JTextField ipField = new JTextField("localhost");
@@ -189,12 +177,6 @@ public class HostJoinScreen extends JFrame {
         String ip = ipField.getText().trim();
         String portStr = portField.getText().trim();
 
-        if (ip.isEmpty() || portStr.isEmpty()) {
-            JOptionPane.showMessageDialog(null, "Both IP and Port must be entered.");
-            new Mainmenu().setVisible(true);
-            return;
-        }
-
         if (!isValidIP(ip)) {
             JOptionPane.showMessageDialog(null, "Invalid IP format.");
             new Mainmenu().setVisible(true);
@@ -205,9 +187,9 @@ public class HostJoinScreen extends JFrame {
 
         NetworkManager.getInstance().startClient(ip, port);
 
-        // 연결 대기
         new Thread(() -> {
             int attempts = 0;
+
             while (!NetworkManager.getInstance().isConnected() && attempts < 50) {
                 try { Thread.sleep(100); } catch (Exception ignored) {}
                 attempts++;
@@ -216,15 +198,11 @@ public class HostJoinScreen extends JFrame {
             if (NetworkManager.getInstance().isConnected()) {
                 javax.swing.SwingUtilities.invokeLater(() -> {
                     JOptionPane.showMessageDialog(null, "Connected to server!");
-
-                    // -----------------------------
-                    // **Client → WaitingRoomScreen(false)**
-                    // -----------------------------
                     new WaitingRoomScreen(false).setVisible(true);
                 });
             } else {
                 javax.swing.SwingUtilities.invokeLater(() -> {
-                    JOptionPane.showMessageDialog(null, "Failed to connect to server.");
+                    JOptionPane.showMessageDialog(null, "Failed to connect.");
                     new Mainmenu().setVisible(true);
                 });
             }
@@ -232,15 +210,13 @@ public class HostJoinScreen extends JFrame {
     }
 
 
-    /**
-     * IP 주소 유효성 검사
-     */
     private boolean isValidIP(String ip) {
         if ("localhost".equalsIgnoreCase(ip)) return true;
 
         String ipv4Pattern =
             "^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}" +
             "(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$";
+
         return ip.matches(ipv4Pattern);
     }
 
@@ -266,11 +242,10 @@ public class HostJoinScreen extends JFrame {
 
     private void updateButtonFocus() {
         for (int i = 0; i < buttons.length; i++) {
-            if (i == selectedIndex) {
+            if (i == selectedIndex)
                 buttons[i].putClientProperty("opacity", 0.75f);
-            } else {
+            else
                 buttons[i].putClientProperty("opacity", 1.0f);
-            }
             buttons[i].repaint();
         }
     }
