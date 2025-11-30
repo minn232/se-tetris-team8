@@ -762,7 +762,6 @@ protected void paintComponent(Graphics g) {
             drawWinner(g2);
         }
 
-        g2.dispose();
         // 네트워크 지연 표시
         g2.setFont(new Font("맑은 고딕", Font.BOLD, 16));
         g2.setColor(isLagging ? Color.RED : Color.GREEN);
@@ -770,6 +769,7 @@ protected void paintComponent(Graphics g) {
         g2.drawString(lagText, 20, 40);
 
         g2.dispose();
+
     }
 
     private void fillCell(Graphics2D g, int x, int y, Color c) {
