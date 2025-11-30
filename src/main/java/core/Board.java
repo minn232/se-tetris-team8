@@ -773,4 +773,8 @@ public class Board {
             }
         }
     }
+    public void overrideCurrent(Tetromino t) {
+        this.current = t;
+    }
+
 }
