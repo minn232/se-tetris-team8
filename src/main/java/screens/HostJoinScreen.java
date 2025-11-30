@@ -5,6 +5,7 @@ import java.net.InetAddress;
 import java.net.ServerSocket;
 
 import javax.swing.JButton;
+import javax.swing.JDialog;
 import javax.swing.JFrame;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
@@ -41,7 +42,7 @@ public class HostJoinScreen extends JFrame {
         int btnHeight = (int)(120 * scale);
 
         // ===============================
-        //  HOST 버튼 (자동 포트 할당)
+        //  HOST 버튼 (자동 포트)
         // ===============================
         JButton hostButton = addButton(
             mainPanel,
@@ -60,51 +61,65 @@ public class HostJoinScreen extends JFrame {
                 int port = tempSocket.getLocalPort();
                 tempSocket.close();
 
-                // === IP 가져오기 ===
+                // IP 가져오기
                 String hostIP = InetAddress.getLocalHost().getHostAddress();
-
-                System.out.println("HOST IP: " + hostIP);
-                System.out.println("HOST PORT: " + port);
 
                 NetworkManager.getInstance().startServer(port);
 
                 final boolean[] cancelled = {false};
 
-                // === 클라이언트 접속 대기 스레드 ===
+                // ===============================
+                //  모달이 아닌 WAITING JDialog 만들기
+                // ===============================
+                JDialog waitingDialog = new JDialog();
+                waitingDialog.setTitle("Server Waiting");
+                waitingDialog.setModal(false);
+                waitingDialog.setSize(300, 200);
+                waitingDialog.setLocationRelativeTo(null);
+
+                JPanel dialogPanel = new JPanel();
+                dialogPanel.setLayout(new BorderLayout());
+
+                JOptionPane pane = new JOptionPane(
+                    "Waiting for client...\n\nIP: " + hostIP + "\nPort: " + port,
+                    JOptionPane.INFORMATION_MESSAGE,
+                    JOptionPane.DEFAULT_OPTION,
+                    null,
+                    new Object[]{"Close"}
+                );
+
+                waitingDialog.setContentPane(pane);
+
+                // Close 버튼 눌렀을 때
+                pane.addPropertyChangeListener(evt -> {
+                    if (JOptionPane.VALUE_PROPERTY.equals(evt.getPropertyName())) {
+                        cancelled[0] = true;
+                        waitingDialog.dispose();
+                        NetworkManager.getInstance().close();
+                        new Mainmenu().setVisible(true);
+                    }
+                });
+
+                waitingDialog.setVisible(true);
+
+                // ===============================
+                //  클라이언트 접속 대기 스레드
+                // ===============================
                 Thread waitThread = new Thread(() -> {
                     while (!NetworkManager.getInstance().isConnected() && !cancelled[0]) {
                         try { Thread.sleep(100); } catch (Exception ignored) {}
                     }
+
                     if (!cancelled[0] && NetworkManager.getInstance().isConnected()) {
                         javax.swing.SwingUtilities.invokeLater(() -> {
+                            waitingDialog.dispose(); // ⭐ 자동 닫힘
                             JOptionPane.showMessageDialog(null, "Client connected!");
                             new ModeSelectionScreen(true).setVisible(true);
                         });
                     }
                 });
+
                 waitThread.start();
-
-                // === 서버 대기창 출력 ===
-                String[] options = {"Close"};
-                int result = JOptionPane.showOptionDialog(
-                    null,
-                    "Waiting for client...\n\n" +
-                    "IP: " + hostIP + "\n" +
-                    "Port: " + port,
-                    "Server Waiting",
-                    JOptionPane.DEFAULT_OPTION,
-                    JOptionPane.INFORMATION_MESSAGE,
-                    null,
-                    options,
-                    options[0]
-                );
-
-                // 창 닫을 때
-                if (result == 0 || result == JOptionPane.CLOSED_OPTION) {
-                    cancelled[0] = true;
-                    NetworkManager.getInstance().close();
-                    javax.swing.SwingUtilities.invokeLater(() -> new Mainmenu().setVisible(true));
-                }
 
             } catch (Exception ex) {
                 JOptionPane.showMessageDialog(null,
@@ -114,7 +129,7 @@ public class HostJoinScreen extends JFrame {
         });
 
         // ===============================
-        //  JOIN 버튼 (IP + PORT 동시에 입력)
+        //  JOIN 버튼 (IP + PORT 입력)
         // ===============================
         JButton joinButton = addButton(
             mainPanel,
@@ -127,7 +142,6 @@ public class HostJoinScreen extends JFrame {
             System.out.println("[HostJoin] Join selected");
             dispose();
 
-            // ===== IP & PORT 입력창 =====
             JTextField ipField = new JTextField("localhost");
             JTextField portField = new JTextField("12345");
 
@@ -167,7 +181,6 @@ public class HostJoinScreen extends JFrame {
 
             int port = Integer.parseInt(portStr);
 
-            // ===== 클라이언트 연결 시도 =====
             NetworkManager.getInstance().startClient(ip, port);
 
             new Thread(() -> {
