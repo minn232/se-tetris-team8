@@ -26,6 +26,9 @@ import network.NetworkManager;
  * P2P 네트워크 대전 모드 게임 패널 - 두 개의 보드를 좌우로 배치
  */
 public class P2PBattlePanel extends JPanel {
+    
+    private long lastRTT = 0;
+    private boolean isLagging = false;
 
     private final Board myBoard;      // 내 보드
     private final Board enemyBoard;   // 상대 보드 (렌더링 전용)
@@ -64,6 +67,11 @@ public class P2PBattlePanel extends JPanel {
     private javax.swing.JTextArea chatArea;
     private javax.swing.JTextField chatInput;
     private javax.swing.JButton chatSendBtn;
+
+    // ===== 네트워크 상태 체크용 =====
+    private long lastAliveTime = System.currentTimeMillis();  
+    private boolean connectionLost = false;
+
 
     public P2PBattlePanel(Difficulty difficulty, boolean isItemMode, boolean isTimeAttack) {
         this.isTimeAttack = isTimeAttack;
@@ -119,6 +127,9 @@ public class P2PBattlePanel extends JPanel {
             }
         });
         timer.start();
+        
+        // 네트워크 상태 체크 타이머 추가
+        new Timer(100, ev -> checkNetworkStatus()).start();
 
         // 초기 현재 블록 저장
         lastCurrentMy = myBoard.getCurrent();
@@ -174,6 +185,38 @@ public class P2PBattlePanel extends JPanel {
         add(chatInput);
         add(chatSendBtn);
 
+    }
+
+    // 네트워크 지연/끊김 상태 체크
+    private void checkNetworkStatus() {
+
+        long now = System.currentTimeMillis();
+
+        // RTT 업데이트
+        lastRTT = NetworkManager.getInstance().getRTT();
+
+        // 상대방 최신 PONG 시각 가져오기
+        long pongTime = NetworkManager.getInstance().getLastPingTime();
+        if (pongTime > 0) {
+            lastAliveTime = pongTime;
+        }
+
+        // 1) RTT 기반 랙 여부 판단
+        isLagging = lastRTT > 200;
+
+        // 2) 5초 이상 응답 없음 = 연결 끊김
+        if (now - lastAliveTime > 5000) {
+            timer.stop();
+            JOptionPane.showMessageDialog(
+                    this,
+                    "네트워크 연결이 끊어졌습니다.",
+                    "Connection Lost",
+                    JOptionPane.ERROR_MESSAGE
+            );
+            returnToMenu();
+        }
+
+        repaint();
     }
 
     private void checkBlockPlacement() {
@@ -472,6 +515,9 @@ public class P2PBattlePanel extends JPanel {
     // 네트워크 메시지 수신
     private void handleNetworkMessage(String msg) {
 
+        // 🔥 상대 alive 처리: 반드시 제일 위에 넣어야 함
+        lastAliveTime = System.currentTimeMillis();
+
         // ===== CHAT =====
         if (msg.startsWith("CHAT:")) {
             String text = msg.substring(5);
@@ -694,6 +740,12 @@ public class P2PBattlePanel extends JPanel {
         }
 
         g2.dispose();
+        // 네트워크 지연 표시
+        g2.setFont(new Font("맑은 고딕", Font.BOLD, 16));
+        g2.setColor(isLagging ? Color.RED : Color.GREEN);
+        String lagText = "RTT: " + lastRTT + "ms";
+        g2.drawString(lagText, 20, 40);
+
     }
 
     private void fillCell(Graphics2D g, int x, int y, Color c) {
