@@ -26,7 +26,7 @@ import network.NetworkManager;
  * P2P 네트워크 대전 모드 게임 패널 - 두 개의 보드를 좌우로 배치
  */
 public class P2PBattlePanel extends JPanel {
-    
+
     private long lastRTT = 0;
     private boolean isLagging = false;
 
@@ -69,9 +69,8 @@ public class P2PBattlePanel extends JPanel {
     private javax.swing.JButton chatSendBtn;
 
     // ===== 네트워크 상태 체크용 =====
-    private long lastAliveTime = System.currentTimeMillis();  
+    private long lastAliveTime = System.currentTimeMillis();
     private boolean connectionLost = false;
-
 
     public P2PBattlePanel(Difficulty difficulty, boolean isItemMode, boolean isTimeAttack) {
         this.isTimeAttack = isTimeAttack;
@@ -127,7 +126,7 @@ public class P2PBattlePanel extends JPanel {
             }
         });
         timer.start();
-        
+
         // 네트워크 상태 체크 타이머 추가
         new Timer(100, ev -> checkNetworkStatus()).start();
 
@@ -654,10 +653,34 @@ public class P2PBattlePanel extends JPanel {
             } else {
                 enemyBoard.overrideCurrent(null);
             }
+            if (type != null) {
+                Tetromino enemyCur = new Tetromino(type, cx, cy);
+                for (int i = 0; i < rot; i++) {
+                    enemyCur.rotate();
+                }
+                enemyBoard.overrideCurrent(enemyCur);
+            } else {
+                enemyBoard.overrideCurrent(null);
+            }
+
+            // ===== SCORE 파싱 =====
+            int scoreIndex = json.indexOf("\"score\":");
+            if (scoreIndex != -1) {
+                int end = json.indexOf("}", scoreIndex);
+                if (end == -1) {
+                    end = json.length();
+                }
+                String val = json.substring(scoreIndex + 8, end).trim();
+                try {
+                    int enemyScore = Integer.parseInt(val);
+                    enemyBoard.setScore(enemyScore);   // ★ 상대 점수 갱신
+                } catch (Exception ignored) {
+                }
+            }
 
         } catch (Exception ex) {
             ex.printStackTrace();
-        }
+         }
     }
 
     private void sendChat() {
@@ -701,7 +724,7 @@ public class P2PBattlePanel extends JPanel {
     }
 
     @Override
-    protected void paintComponent(Graphics g) {
+protected void paintComponent(Graphics g) {
         super.paintComponent(g);
         Graphics2D g2 = (Graphics2D) g.create();
 
@@ -746,6 +769,7 @@ public class P2PBattlePanel extends JPanel {
         String lagText = "RTT: " + lastRTT + "ms";
         g2.drawString(lagText, 20, 40);
 
+        g2.dispose();
     }
 
     private void fillCell(Graphics2D g, int x, int y, Color c) {
