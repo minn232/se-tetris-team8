@@ -127,23 +127,45 @@ public class P2PBattlePanel extends JPanel {
         NetworkManager.getInstance().setMessageListener(msg -> {
             handleNetworkMessage(msg);
         });
+// ===== CHAT UI INIT =====
+        setLayout(null);
 
-        // ===== CHAT UI INIT =====
-        setLayout(null); // ★ chat UI 위치 지정 필요
-
+// 채팅 화면
         chatArea = new javax.swing.JTextArea();
         chatArea.setEditable(false);
         chatArea.setLineWrap(true);
         chatArea.setWrapStyleWord(true);
 
-        javax.swing.JScrollPane scroll = new javax.swing.JScrollPane(chatArea);
-        scroll.setBounds(10, BOARD_H + 10, 400, 90);  // 원하는 위치로 조절 가능
+// ★ 배경 검정, 글씨 흰색
+        chatArea.setBackground(Color.BLACK);
+        chatArea.setForeground(Color.WHITE);
+        chatArea.setFont(new Font("맑은 고딕", Font.PLAIN, 14));
 
+        javax.swing.JScrollPane scroll = new javax.swing.JScrollPane(chatArea);
+        scroll.setBounds(10, BOARD_H + 10, 400, 90);
+
+// 스크롤도 검정 테마
+        scroll.getViewport().setBackground(Color.BLACK);
+        scroll.setBorder(javax.swing.BorderFactory.createLineBorder(Color.WHITE));
+
+// 입력창
         chatInput = new javax.swing.JTextField();
         chatInput.setBounds(10, BOARD_H + 110, 300, 30);
 
+// ★ 입력창도 배경 검정 + 흰 글씨
+        chatInput.setBackground(Color.BLACK);
+        chatInput.setForeground(Color.WHITE);
+        chatInput.setCaretColor(Color.WHITE);
+        chatInput.setBorder(javax.swing.BorderFactory.createLineBorder(Color.WHITE));
+
+// Send 버튼
         chatSendBtn = new javax.swing.JButton("Send");
         chatSendBtn.setBounds(320, BOARD_H + 110, 90, 30);
+
+// ★ 버튼도 검정 스타일
+        chatSendBtn.setBackground(new Color(30, 30, 30));
+        chatSendBtn.setForeground(Color.WHITE);
+        chatSendBtn.setBorder(javax.swing.BorderFactory.createLineBorder(Color.WHITE));
 
         chatSendBtn.addActionListener(e -> sendChat());
         chatInput.addActionListener(e -> sendChat());
@@ -378,46 +400,49 @@ public class P2PBattlePanel extends JPanel {
     }
 
     // ===== 네트워크 관련 메서드 =====
-
     // 내 보드 상태 전송 (grid + current + score)
-private void sendBoardState() {
-    ShapeType[][] grid = myBoard.getGrid();
-    Tetromino cur = myBoard.getCurrent();
+    private void sendBoardState() {
+        ShapeType[][] grid = myBoard.getGrid();
+        Tetromino cur = myBoard.getCurrent();
 
-    StringBuilder sb = new StringBuilder();
-    sb.append("BOARD:{");
+        StringBuilder sb = new StringBuilder();
+        sb.append("BOARD:{");
 
-    // ===== GRID =====
-    sb.append("\"grid\":[");
-    for (int y = 0; y < Board.ROWS; y++) {
-        sb.append("[");
-        for (int x = 0; x < Board.COLS; x++) {
-            ShapeType s = grid[y][x];
-            sb.append(s == null ? "\"0\"" : "\"" + s.name() + "\"");
-            if (x < Board.COLS - 1) sb.append(",");
+        // ===== GRID =====
+        sb.append("\"grid\":[");
+        for (int y = 0; y < Board.ROWS; y++) {
+            sb.append("[");
+            for (int x = 0; x < Board.COLS; x++) {
+                ShapeType s = grid[y][x];
+                sb.append(s == null ? "\"0\"" : "\"" + s.name() + "\"");
+                if (x < Board.COLS - 1) {
+                    sb.append(",");
+                }
+            }
+            sb.append("]");
+            if (y < Board.ROWS - 1) {
+                sb.append(",");
+            }
         }
-        sb.append("]");
-        if (y < Board.ROWS - 1) sb.append(",");
+        sb.append("],");
+
+        // ===== CURRENT BLOCK =====
+        if (cur != null) {
+            sb.append("\"cur\":{");
+            sb.append("\"shape\":\"").append(cur.getShape().name()).append("\",");
+            sb.append("\"x\":").append(cur.getX()).append(",");
+            sb.append("\"y\":").append(cur.getY()).append(",");
+            sb.append("\"rot\":").append(cur.getRotation());
+            sb.append("},");
+        } else {
+            sb.append("\"cur\":null,");
+        }
+
+        sb.append("\"score\":").append(myBoard.getScore());
+        sb.append("}");
+
+        NetworkManager.getInstance().send(sb.toString());
     }
-    sb.append("],");
-
-    // ===== CURRENT BLOCK =====
-    if (cur != null) {
-        sb.append("\"cur\":{");
-        sb.append("\"shape\":\"").append(cur.getShape().name()).append("\",");
-        sb.append("\"x\":").append(cur.getX()).append(",");
-        sb.append("\"y\":").append(cur.getY()).append(",");
-        sb.append("\"rot\":").append(cur.getRotation());
-        sb.append("},");
-    } else {
-        sb.append("\"cur\":null,");
-    }
-
-    sb.append("\"score\":").append(myBoard.getScore());
-    sb.append("}");
-
-    NetworkManager.getInstance().send(sb.toString());
-}
 
     // 공격 패턴 전송
     private void sendAttackPattern(List<ShapeType[]> pattern) {
