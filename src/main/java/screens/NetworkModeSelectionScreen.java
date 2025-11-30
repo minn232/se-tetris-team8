@@ -8,25 +8,21 @@ import javax.swing.JFrame;
 import javax.swing.JPanel;
 import javax.swing.SwingUtilities;
 
+import core.Difficulty;
 import core.Settings;
 import network.NetworkManager;
 
 /**
- * P2P 네트워크용 모드 선택 화면
- * Host만 모드 변경 가능, Client는 선택 비활성화
- * Host/Client Ready → Host가 Start → 게임 시작
+ * 네트워크 대전 모드 선택 화면 (Host 전용)
+ * Host는 모드 선택 → 바로 MODE 메시지 전송 → 즉시 P2PBattlePanel로 이동
+ * Client는 이 화면을 절대 보지 않음
  */
 public class NetworkModeSelectionScreen extends JFrame {
 
     private JButton[] modeButtons;
-    private JButton readyButton;
-    private JButton startButton;
-
     private int selectedIndex = 0;
 
     private boolean isHost;
-    private boolean meReady = false;
-    private boolean enemyReady = false;
 
     private String selectedMode = "SOFT"; // 기본 모드
 
@@ -70,30 +66,15 @@ public class NetworkModeSelectionScreen extends JFrame {
 
         modeButtons = new JButton[]{softButton, timeAttackButton, itemButton};
 
-        // Host만 모드 선택 가능 / Client는 비활성화
+        // Host만 버튼 활성화
         if (!isHost) {
             for (JButton b : modeButtons) b.setEnabled(false);
         }
 
-        // 버튼 이벤트 → Host만 모드 전송
+        // Host 모드 선택 이벤트
         softButton.addActionListener(e -> selectMode("SOFT"));
         timeAttackButton.addActionListener(e -> selectMode("TIME"));
         itemButton.addActionListener(e -> selectMode("ITEM"));
-
-        // ===== READY 버튼 =====
-        readyButton = new JButton("Ready");
-        readyButton.setBounds(50, height - 150, 150, 40);
-        readyButton.addActionListener(e -> toggleReady());
-        mainPanel.add(readyButton);
-
-        // ====== START 버튼(Host만 활성화) ======
-        startButton = new JButton("Start Game");
-        startButton.setBounds(width - 250, height - 150, 150, 40);
-        startButton.setEnabled(false); // 둘 다 ready일 때만 활성화
-        mainPanel.add(startButton);
-
-        // Start 버튼 → Host만 클릭 가능
-        startButton.addActionListener(e -> startGame());
 
         // Background UI
         BackgroundPanel bg = new BackgroundPanel("/images/MainScreen.png");
@@ -112,79 +93,43 @@ public class NetworkModeSelectionScreen extends JFrame {
             }
         });
 
-        // ===== Network Handler =====
-        NetworkManager.getInstance().setMessageListener(this::onNetworkMessage);
-
         setVisible(true);
     }
 
-    // ===== 모드 선택 (Host만 호출) =====
     private void selectMode(String mode) {
         selectedMode = mode;
+
+        // Host → Client 모드 전송
         NetworkManager.getInstance().send("MODE:" + mode);
-        System.out.println("[HOST] Mode Selected → " + mode);
+        System.out.println("[HOST] Selected Mode → " + mode);
+
+        // Host는 바로 전투 화면으로 이동
+        openBattlePanel();
     }
 
-    // ===== Ready 토글 =====
-    private void toggleReady() {
-        meReady = !meReady;
-
-        String msg = meReady ? "READY:ME" : "READY_CANCEL:ME";
-        NetworkManager.getInstance().send(msg);
-
-        readyButton.setText(meReady ? "Ready ✔" : "Ready");
-
-        checkStartAvailability();
-    }
-
-    // ===== Start 버튼 클릭 (Host) =====
-    private void startGame() {
-        if (!isHost) return;
-        if (!(meReady && enemyReady)) return;
-
-        NetworkManager.getInstance().send("START_GAME");
-        openGamePanel();
-    }
-
-    // ===== Network Handler =====
-    private void onNetworkMessage(String msg) {
-        if (msg.startsWith("MODE:")) {
-            selectedMode = msg.substring(5);
-            System.out.println("[CLIENT] Mode Sync → " + selectedMode);
-        }
-        else if (msg.equals("READY:ME") || msg.equals("READY:HOST")) {
-            enemyReady = true;
-        }
-        else if (msg.equals("READY_CANCEL:ME") || msg.equals("READY_CANCEL:HOST")) {
-            enemyReady = false;
-        }
-        else if (msg.equals("START_GAME")) {
-            openGamePanel();
-        }
-
-        checkStartAvailability();
-    }
-
-    // ===== Ready 상태에 따라 Host Start 버튼 활성화 =====
-    private void checkStartAvailability() {
-        if (isHost) {
-            startButton.setEnabled(meReady && enemyReady);
-        }
-    }
-
-    // ===== 게임 시작 =====
-    private void openGamePanel() {
+    private void openBattlePanel() {
         SwingUtilities.invokeLater(() -> {
             dispose();
 
             boolean isItemMode = selectedMode.equals("ITEM");
             boolean isTimeAttack = selectedMode.equals("TIME");
 
-            new DifficultySelectionScreen(isItemMode, true, isTimeAttack).setVisible(true);
+            JFrame frame = new JFrame("P2P Battle");
+            frame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
+
+            P2PBattlePanel panel =
+                new P2PBattlePanel(Difficulty.NORMAL, isItemMode, isTimeAttack);
+
+            frame.setContentPane(panel);
+            frame.pack();
+            frame.setLocationRelativeTo(null);
+            frame.setVisible(true);
+
+            panel.requestFocusInWindow();
         });
     }
 
-    // ===== UI 버튼 =====
+
     private JButton addButton(JPanel panel, String imagePath, int w, int h, int x, int y) {
         JButton btn = ImageButtonUtils.createImageButton(imagePath, w, h);
         btn.setBounds(x, y, w, h);

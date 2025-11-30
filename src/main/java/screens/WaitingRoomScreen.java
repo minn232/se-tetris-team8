@@ -8,12 +8,9 @@ import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.SwingUtilities;
 
+import core.Difficulty;
 import network.NetworkManager;
 
-/**
- * 네트워크 대전 대기방
- * Host / Client 모두 같은 화면이지만 Host만 Start 가능
- */
 public class WaitingRoomScreen extends JFrame {
 
     private final boolean isHost;
@@ -48,36 +45,34 @@ public class WaitingRoomScreen extends JFrame {
         title.setFont(new Font("Arial", Font.BOLD, 20));
         panel.add(title);
 
-        // 나의 Ready 상태
         myStatusLabel = new JLabel("Me: Not Ready");
         myStatusLabel.setBounds(50, 70, 300, 30);
         panel.add(myStatusLabel);
 
-        // 상대 Ready 상태
         enemyStatusLabel = new JLabel("Enemy: Not Ready");
         enemyStatusLabel.setBounds(50, 110, 300, 30);
         panel.add(enemyStatusLabel);
 
-        // READY 버튼
         readyButton = new JButton("READY");
         readyButton.setBounds(50, 160, 120, 40);
         readyButton.addActionListener(e -> toggleReady());
         panel.add(readyButton);
 
-        // START 버튼 (Host만)
         startButton = new JButton("START");
         startButton.setBounds(200, 160, 120, 40);
         startButton.setEnabled(false);
         panel.add(startButton);
 
+        // Client는 START 버튼 숨김
         if (!isHost) {
-            startButton.setVisible(false); // Client는 Start 버튼 숨김
+            startButton.setVisible(false);
         }
 
-        startButton.addActionListener(e -> startGame());
+        // Host only
+        startButton.addActionListener(e -> startGameAsHost());
     }
 
-    // Ready ON/OFF
+    // Ready toggle
     private void toggleReady() {
         myReady = !myReady;
 
@@ -92,55 +87,66 @@ public class WaitingRoomScreen extends JFrame {
         updateStartButtonState();
     }
 
-    // Host만 Start 버튼 활성화
     private void updateStartButtonState() {
         if (isHost) {
             startButton.setEnabled(myReady && enemyReady);
         }
     }
 
-    // 네트워크 메시지 처리
     private void initNetworkListener() {
+
         NetworkManager.getInstance().setMessageListener(msg -> {
 
+            // 상대 READY / UNREADY
             if (msg.equals("READY")) {
                 enemyReady = true;
                 enemyStatusLabel.setText("Enemy: READY");
                 updateStartButtonState();
             }
-
             else if (msg.equals("UNREADY")) {
                 enemyReady = false;
                 enemyStatusLabel.setText("Enemy: Not Ready");
                 updateStartButtonState();
             }
 
-            // ===== Host가 STARTGAME 보낸 경우 =====
-            else if (msg.equals("STARTGAME")) {
+            // ========= Host가 모드 선택 후 클라이언트에게 보내는 MODE 전달 =========
+            else if (msg.startsWith("MODE:")) {
+                String mode = msg.substring(5);
+
                 SwingUtilities.invokeLater(() -> {
                     dispose();
-                    launchModeSelectionScreen();  // ← 여기로 이동!!!
+                    launchBattle(mode);
                 });
             }
         });
     }
 
-    // Host가 게임 시작 버튼 클릭 시 실행
-    private void startGame() {
+    // Host START 버튼 → Host만 모드 선택 화면으로 이동
+    private void startGameAsHost() {
         if (!isHost) return;
+        if (!myReady || !enemyReady) return;
 
-        if (myReady && enemyReady) {
-            NetworkManager.getInstance().send("STARTGAME");
-
-            dispose();
-            launchModeSelectionScreen(); // ← 여기로 이동!!!
-        }
+        // Host만 모드 선택 화면으로 이동
+        dispose();
+        new NetworkModeSelectionScreen(true).setVisible(true);
     }
 
-    // ============================
-    // 다음 화면: 모드 선택 화면으로 이동
-    // ============================
-    private void launchModeSelectionScreen() {
-        new NetworkModeSelectionScreen(true).setVisible(true);
+    // 클라이언트도 Host의 모드 결정 받으면 바로 BattlePanel로 이동
+    private void launchBattle(String mode) {
+        JFrame frame = new JFrame("P2P Battle");
+        frame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
+
+        boolean isItem = mode.equals("ITEM");
+        boolean isTime = mode.equals("TIME");
+
+        P2PBattlePanel panel =
+                new P2PBattlePanel(Difficulty.NORMAL, isItem, isTime);
+
+        frame.setContentPane(panel);
+        frame.pack();
+        frame.setLocationRelativeTo(null);
+        frame.setVisible(true);
+
+        panel.requestFocusInWindow();
     }
 }
