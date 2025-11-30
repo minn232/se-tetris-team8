@@ -142,8 +142,19 @@ public class WaitingRoomScreen extends JFrame {
         P2PBattlePanel panel =
                 new P2PBattlePanel(Difficulty.NORMAL, isItem, isTime);
 
+        // ★ pack() 쓰면 채팅창 잘려서 화면이 작아짐
+        // frame.setContentPane(panel);
+        // frame.pack();
+
         frame.setContentPane(panel);
-        frame.pack();
+
+        // ====== ★ 채팅창 포함 전체 영역 보이도록 강제 사이즈 지정 ======
+        // 기본 보드는 높이가 약 600, 채팅 UI 포함시 최소 760 줘야 함
+        frame.setSize(
+                panel.getPreferredSize().width + 20,
+                panel.getPreferredSize().height + 180   // ← 채팅창 공간 확보
+        );
+
         frame.setLocationRelativeTo(null);
         frame.setVisible(true);
 
