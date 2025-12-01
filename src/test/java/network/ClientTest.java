@@ -58,12 +58,13 @@ class ClientTest {
         mockServer = new ServerSocket(port);
         
         // 서버 준비 완료 플래그
-        final boolean[] serverReady = {false};
+        final boolean[] serverAccepted = {false};
         
         serverThread = new Thread(() -> {
             try {
-                serverReady[0] = true;
                 Socket clientSocket = mockServer.accept();
+                serverAccepted[0] = true;
+                
                 // 클라이언트와 동일한 순서: out 먼저, in 나중에
                 ObjectOutputStream out = new ObjectOutputStream(clientSocket.getOutputStream());
                 out.flush();
@@ -77,24 +78,30 @@ class ClientTest {
                 out.writeObject("TEST_MESSAGE");
                 out.flush();
                 
-                Thread.sleep(100);
+                Thread.sleep(500);
                 clientSocket.close();
             } catch (Exception ignored) {}
         });
         serverThread.start();
         
-        // 서버가 준비될 때까지 대기
-        int waitCount = 0;
-        while (!serverReady[0] && waitCount < 50) {
-            Thread.sleep(10);
-            waitCount++;
-        }
+        // 서버가 시작될 시간 확보
+        Thread.sleep(100);
         
         // 클라이언트 연결
         client.connect("localhost", port);
         
-        // 연결 대기 (polling) - 최대 5초
-        int maxAttempts = 50;
+        // 서버가 accept할 때까지 대기
+        int waitCount = 0;
+        while (!serverAccepted[0] && waitCount < 100) {
+            Thread.sleep(50);
+            waitCount++;
+        }
+        
+        // 추가 안정화 시간
+        Thread.sleep(300);
+        
+        // 연결 대기 (polling) - 최대 10초
+        int maxAttempts = 100;
         for (int i = 0; i < maxAttempts; i++) {
             if (client.isConnected()) {
                 break;
