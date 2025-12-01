@@ -5,6 +5,7 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
 import java.io.FileWriter;
+import java.io.IOException;
 import java.net.InetAddress;
 import java.net.ServerSocket;
 
@@ -23,10 +24,13 @@ import network.NetworkManager;
  */
 public class HostJoinScreen extends JFrame {
 
-    private JButton[] buttons;
+    private final JButton[] buttons;
     private int selectedIndex = 0;
 
     public HostJoinScreen() {
+        // 네비게이션 히스토리에 추가
+        ScreenNavigator.getInstance().push("HostJoin");
+        
         int width = Settings.getWindowWidth();
         int height = Settings.getWindowHeight();
         double scale = Settings.getScaleFactor();
@@ -43,26 +47,47 @@ public class HostJoinScreen extends JFrame {
 
         int btnWidth = (int)(120 * scale);
         int btnHeight = (int)(120 * scale);
+        
+        // 버튼 간격 (scale에 비례)
+        int buttonGap = (int)(20 * scale);
+        int centerX = width / 2;
+        int centerY = (int)(height / 2.0 - 30 * scale);
+        int offsetX = (int)(90 * scale); // 오른쪽으로 이동할 거리
 
         // HOST
+        int hostBtnWidth = (int)(70 * scale); // btnWidth - 50 대신 scale 비례
         JButton hostButton = addButton(
             mainPanel,
             "/images/HostButton.png",
-            btnWidth - 50, btnHeight,
-            (int)(width / 2.0 - btnWidth / 2.0 + 80 * scale),
-            (int)(height / 2.0 - 30 * scale)
+            hostBtnWidth, btnHeight,
+            centerX - hostBtnWidth - buttonGap / 2 + offsetX,
+            centerY
         );
         hostButton.addActionListener(e -> startAsHost());
 
         // JOIN
+        int joinBtnWidth = (int)(150 * scale); // btnWidth + 30 대신 scale 비례
         JButton joinButton = addButton(
             mainPanel,
             "/images/HostingButton.png",
-            btnWidth + 30, btnHeight,
-            (int)(width / 2.0 - btnWidth / 2.0 + 170 * scale),
-            (int)(height / 2.0 - 30 * scale)
+            joinBtnWidth, btnHeight,
+            centerX + buttonGap / 2 + offsetX,
+            centerY
         );
         joinButton.addActionListener(e -> startAsClient());
+        
+        // 뒤로가기 버튼 추가
+        int backBtnSize = (int)(40 * scale);
+        int backBtnX = width - backBtnSize - (int)(10 * scale);
+        int backBtnY = height - backBtnSize - (int)(40 * scale);
+        
+        JButton backButton = addButton(mainPanel, "/images/BackButton.png", 
+            backBtnSize, backBtnSize, backBtnX, backBtnY);
+        backButton.addActionListener(e -> {
+            System.out.println("[HostJoin] Back button clicked");
+            ScreenNavigator.getInstance().goBack(this);
+        });
+        backButton.setFocusable(false);
 
         BackgroundPanel bg = new BackgroundPanel("/images/MainScreen.png");
         bg.setLayout(new BorderLayout());
@@ -96,7 +121,7 @@ public class HostJoinScreen extends JFrame {
             String ip = br.readLine();
             br.close();
             return ip == null ? "" : ip.trim();
-        } catch (Exception e) {
+        } catch (IOException e) {
             return "";
         }
     }
@@ -106,7 +131,7 @@ public class HostJoinScreen extends JFrame {
             FileWriter fw = new FileWriter("last_ip.txt");
             fw.write(ip);
             fw.close();
-        } catch (Exception ignored) {}
+        } catch (IOException ignored) {}
     }
 
     // =========================
@@ -155,7 +180,7 @@ public class HostJoinScreen extends JFrame {
             // Client 접속 대기 스레드
             new Thread(() -> {
                 while (!NetworkManager.getInstance().isConnected() && !cancelled[0]) {
-                    try { Thread.sleep(100); } catch (Exception ignored) {}
+                    try { Thread.sleep(100); } catch (InterruptedException ignored) {}
                 }
 
                 if (!cancelled[0] && NetworkManager.getInstance().isConnected()) {
@@ -168,7 +193,7 @@ public class HostJoinScreen extends JFrame {
                 }
             }).start();
 
-        } catch (Exception ex) {
+        } catch (IOException ex) {
             JOptionPane.showMessageDialog(null,
                 "Failed to start server: " + ex.getMessage());
             new Mainmenu().setVisible(true);
@@ -217,7 +242,7 @@ public class HostJoinScreen extends JFrame {
             int attempts = 0;
 
             while (!NetworkManager.getInstance().isConnected() && attempts < 50) {
-                try { Thread.sleep(100); } catch (Exception ignored) {}
+                try { Thread.sleep(100); } catch (InterruptedException ignored) {}
                 attempts++;
             }
 
@@ -263,6 +288,8 @@ public class HostJoinScreen extends JFrame {
             }
             case java.awt.event.KeyEvent.VK_SPACE, java.awt.event.KeyEvent.VK_ENTER ->
                 buttons[selectedIndex].doClick();
+            case java.awt.event.KeyEvent.VK_ESCAPE -> 
+                ScreenNavigator.getInstance().goBack(this);
         }
     }
 

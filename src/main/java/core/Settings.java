@@ -193,7 +193,7 @@ public class Settings {
             String[] p = resolution.split("x");
             int w = Integer.parseInt(p[0].trim());
             return (double) w / 640.0;
-        } catch (Exception e) {
+        } catch (NumberFormatException e) {
             return 1.0;
         }
     }
@@ -203,7 +203,7 @@ public class Settings {
         try {
             String[] p = resolution.split("x");
             return Integer.parseInt(p[0].trim());
-        } catch (Exception e) {
+        } catch (NumberFormatException e) {
             return 640;
         }
     }
@@ -212,7 +212,7 @@ public class Settings {
         try {
             String[] p = resolution.split("x");
             return Integer.parseInt(p[1].trim());
-        } catch (Exception e) {
+        } catch (NumberFormatException e) {
             return 360;
         }
     }

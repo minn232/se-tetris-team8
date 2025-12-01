@@ -40,7 +40,7 @@ public class Server {
                     System.out.println("[SERVER RECEIVED] " + msg);
                 }
 
-            } catch (Exception e) {
+            } catch (IOException | ClassNotFoundException e) {
                 System.out.println("[SERVER] ERROR");
                 e.printStackTrace();
                 connected = false;

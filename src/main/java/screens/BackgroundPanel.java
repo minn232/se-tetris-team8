@@ -3,6 +3,7 @@ package screens;
 import java.awt.Color;
 import java.awt.Graphics;
 import java.awt.image.BufferedImage;
+import java.io.IOException;
 
 import javax.swing.JPanel;
 
@@ -21,7 +22,7 @@ public class BackgroundPanel extends JPanel {
             } else {
                 System.err.println("[BackgroundPanel] Not found: " + resourcePath);
             }
-        } catch (Exception e) {
+        } catch (IOException e) {
             background = null;
             System.err.println("[BackgroundPanel] Failed to load: " + resourcePath + " -> " + e);
         }

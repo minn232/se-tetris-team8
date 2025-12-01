@@ -61,7 +61,7 @@ public class ImageButtonUtils {
                     } else {
                         System.err.println("[ImageButton] Not found: " + resourcePath);
                     }
-                } catch (Exception e) {
+                } catch (IOException e) {
                     buttonImage = null;
                     System.err.println("[ImageButton] Failed to load: " + resourcePath + " -> " + e);
                 }
@@ -152,8 +152,8 @@ public class ImageButtonUtils {
                     // clientProperty로 설정된 opacity 값이 있으면 우선 사용
                     float finalOpacity = opacity;
                     Object clientOpacity = getClientProperty("opacity");
-                    if (clientOpacity instanceof Float) {
-                        finalOpacity = (Float) clientOpacity;
+                    if (clientOpacity instanceof Float aFloat) {
+                        finalOpacity = aFloat;
                     }
                     
                     g2d.setComposite(java.awt.AlphaComposite.getInstance(

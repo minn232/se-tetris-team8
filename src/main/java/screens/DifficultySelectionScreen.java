@@ -34,6 +34,9 @@ public class DifficultySelectionScreen extends JFrame {
         this.isBattleMode = isBattleMode;
         this.isTimeAttack = isTimeAttack;
         
+        // 네비게이션 히스토리에 추가
+        ScreenNavigator.getInstance().push("DifficultySelection", isItemMode, isBattleMode, isTimeAttack);
+        
         int width = Settings.getWindowWidth();
         int height = Settings.getWindowHeight();
         double scale = Settings.getScaleFactor();
@@ -75,6 +78,19 @@ public class DifficultySelectionScreen extends JFrame {
             System.out.println("[DifficultySelection] Hard Mode selected, ItemMode: " + isItemMode);
             startGame(Difficulty.HARD);
         });
+        
+        // 뒤로가기 버튼 추가
+        int backBtnSize = (int)(40 * scale);
+        int backBtnX = width - backBtnSize - (int)(10 * scale);
+        int backBtnY = height - backBtnSize - (int)(40 * scale);
+        
+        JButton backButton = addButton(mainPanel, "/images/BackButton.png", 
+            backBtnSize, backBtnSize, backBtnX, backBtnY);
+        backButton.addActionListener(e -> {
+            System.out.println("[DifficultySelection] Back button clicked");
+            ScreenNavigator.getInstance().goBack(this);
+        });
+        backButton.setFocusable(false);
         
         BackgroundPanel bg = new BackgroundPanel("/images/MainScreen.png");
         bg.setLayout(new BorderLayout());
@@ -120,6 +136,8 @@ public class DifficultySelectionScreen extends JFrame {
             }
             case java.awt.event.KeyEvent.VK_SPACE, java.awt.event.KeyEvent.VK_ENTER -> 
                 buttons[selectedIndex].doClick();
+            case java.awt.event.KeyEvent.VK_ESCAPE -> 
+                ScreenNavigator.getInstance().goBack(this);
         }
     }
     

@@ -425,7 +425,6 @@ public class P2PBattlePanel extends JPanel {
 
     private void returnToMenu() {
         timer.stop();
-        // NetworkManager.getInstance().disconnect(); // TODO: implement disconnect
         BackgroundMusicPlayer.getInstance().stop();
         BackgroundMusicPlayer.getInstance().play("/music/MainBGM.wav");
         BackgroundMusicPlayer.getInstance().setVolume(Settings.getGameMusicVolume());

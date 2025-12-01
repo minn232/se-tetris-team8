@@ -1,6 +1,7 @@
 package network;
 
 import java.io.BufferedReader;
+import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.ServerSocket;
@@ -45,12 +46,13 @@ public class NetworkManager {
 
                 connected = true;
 
-                startPing();   // ★ 연결 직후 PING 시작
-                listenLoop();  // ★ 메시지 수신 시작
+                startPing();
+                listenLoop();
 
                 server.close();
-            } catch (Exception e) {
-                e.printStackTrace();
+            } catch (IOException e) {
+                System.err.println("서버 시작 실패: " + e.getMessage());
+                connected = false;
             }
         }).start();
     }
@@ -69,11 +71,12 @@ public class NetworkManager {
 
                 connected = true;
 
-                startPing();   // ★ 연결 직후 PING 시작
-                listenLoop();  // ★ 메시지 수신 시작
+                startPing();
+                listenLoop();
 
-            } catch (Exception e) {
-                e.printStackTrace();
+            } catch (IOException e) {
+                System.err.println("서버 접속 실패 (" + ip + ":" + port + "): " + e.getMessage());
+                connected = false;
             }
         }).start();
     }
@@ -109,7 +112,7 @@ public class NetworkManager {
                         messageListener.accept(msg);
                     }
                 }
-            } catch (Exception ignored) {}
+            } catch (IOException | NumberFormatException ignored) {}
         }).start();
     }
 
@@ -137,8 +140,8 @@ public class NetworkManager {
 
             messageListener = null;
 
-        } catch (Exception e) {
-            e.printStackTrace();
+        } catch (IOException e) {
+            System.err.println("연결 종료 중 오류: " + e.getMessage());
         }
     }
 
@@ -164,7 +167,7 @@ public class NetworkManager {
 
                     Thread.sleep(1000); // 1초마다 PING
                 }
-            } catch (Exception ignored) {}
+            } catch (InterruptedException ignored) {}
         }).start();
     }
 

@@ -13,7 +13,7 @@ import ranking.RankingBoard;
 
 public class Mainmenu extends JFrame {
     
-    private JButton[] buttons;
+    private final JButton[] buttons;
     private int selectedIndex = 0;
 
     public Mainmenu() {

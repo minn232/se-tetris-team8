@@ -48,8 +48,8 @@ public class Board {
     
     // 대전 모드 관련
     private int pendingAttackLines = 0; // 받을 예정인 공격 줄 수
-    private List<ShapeType[]> pendingAttackPattern = new ArrayList<>(); // 공격 줄의 패턴
-    private List<Position> lastPlacedPositions = new ArrayList<>(); // 마지막으로 배치한 블록의 위치들
+    private final List<ShapeType[]> pendingAttackPattern = new ArrayList<>(); // 공격 줄의 패턴
+    private final List<Position> lastPlacedPositions = new ArrayList<>(); // 마지막으로 배치한 블록의 위치들
 
     public Board(Difficulty difficulty) {
         this(difficulty, false); // 기본값: 아이템 모드 비활성화
@@ -280,11 +280,15 @@ public class Board {
             current.rotate();
             
             // LineBlock이나 BombBlock인 경우 회전 상태 업데이트
-            if (currentItemBlock instanceof items.LineBlock lineBlock) {
-                lineBlock.setRotation(current.getRotation());
-            } else if (currentItemBlock instanceof items.BombBlock bombBlock) {
-                bombBlock.setRotation(current.getRotation());
-            }
+            updateItemBlockRotation();
+        }
+    }
+    
+    private void updateItemBlockRotation() {
+        if (currentItemBlock instanceof items.LineBlock lineBlock) {
+            lineBlock.setRotation(current.getRotation());
+        } else if (currentItemBlock instanceof items.BombBlock bombBlock) {
+            bombBlock.setRotation(current.getRotation());
         }
     }
 
@@ -324,8 +328,7 @@ public class Board {
         
         // 마지막 배치 위치 저장 (대전 모드용)
         lastPlacedPositions.clear();
-        for (int i = 0; i < current.getBlocks().length; i++) {
-            Position p = current.getBlocks()[i];
+        for (Position p : current.getBlocks()) {
             int x = current.getX() + p.x;
             int y = current.getY() + p.y;
             if (x >= 0 && x < COLS && y >= 0 && y < ROWS) {
@@ -335,8 +338,7 @@ public class Board {
         
         // BombBlock이 아닌 경우에만 보드에 고정
         if (!isBombBlock) {
-            for (int i = 0; i < current.getBlocks().length; i++) {
-                Position p = current.getBlocks()[i];
+            for (Position p : current.getBlocks()) {
                 int x = current.getX() + p.x;
                 int y = current.getY() + p.y;
                 if (x >= 0 && x < COLS && y >= 0 && y < ROWS) {
@@ -393,6 +395,8 @@ public class Board {
         }
     }
 
+    /*
+    ===== 줄 삭제 =====
     private int clearFullLines() {
         int cleared = 0;
         for (int y = ROWS - 1; y >= 0; y--) {
@@ -416,6 +420,7 @@ public class Board {
         
         return cleared;
     }
+    */
 
     private void removeLine(int line) {
         for (int y = line; y > 0; y--) {
@@ -716,9 +721,7 @@ public class Board {
         
         // 위로 블록들을 밀어올림
         for (int i = 0; i < ROWS - pendingAttackLines; i++) {
-            for (int j = 0; j < COLS; j++) {
-                grid[i][j] = grid[i + pendingAttackLines][j];
-            }
+            System.arraycopy(grid[i + pendingAttackLines], 0, grid[i], 0, COLS);
         }
         
         // 아래쪽에 공격 줄 추가 (패턴은 그대로, 색상은 모두 회색으로)
@@ -771,9 +774,7 @@ public class Board {
 
         // final grid 배열 내부 값만 복사해서 반영
         for (int y = 0; y < ROWS; y++) {
-            for (int x = 0; x < COLS; x++) {
-                this.grid[y][x] = newGrid[y][x];
-            }
+            System.arraycopy(newGrid[y], 0, this.grid[y], 0, COLS);
         }
     }
     public void overrideCurrent(Tetromino t) {

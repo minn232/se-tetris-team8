@@ -281,18 +281,22 @@ public class BattleGamePanel extends JPanel {
             options[0]
         );
         
-        if (choice == 0) {
-            // Resume
-            paused = false;
-            requestFocusInWindow();
-        } else if (choice == 1) {
-            // Quit to Menu
-            timer.stop();
-            returnToMenu();
-        } else {
-            // 창을 닫은 경우
-            paused = false;
-            requestFocusInWindow();
+        switch (choice) {
+            case 0 -> {
+                // Resume
+                paused = false;
+                requestFocusInWindow();
+            }
+            case 1 -> {
+                // Quit to Menu
+                timer.stop();
+                returnToMenu();
+            }
+            default -> {
+                // 창을 닫은 경우
+                paused = false;
+                requestFocusInWindow();
+            }
         }
     }
     

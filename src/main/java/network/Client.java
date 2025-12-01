@@ -36,7 +36,7 @@ public class Client {
                     System.out.println("[CLIENT RECEIVED] " + msg);
                 }
 
-            } catch (Exception e) {
+            } catch (IOException | ClassNotFoundException e) {
                 System.out.println("[CLIENT] ERROR");
                 e.printStackTrace();
                 connected = false;

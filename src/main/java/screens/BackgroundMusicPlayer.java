@@ -1,6 +1,7 @@
 package screens;
 
 import java.io.BufferedInputStream;
+import java.io.IOException;
 import java.io.InputStream;
 
 import javax.sound.sampled.AudioInputStream;
@@ -8,6 +9,8 @@ import javax.sound.sampled.AudioSystem;
 import javax.sound.sampled.Clip;
 import javax.sound.sampled.FloatControl;
 import javax.sound.sampled.LineEvent;
+import javax.sound.sampled.LineUnavailableException;
+import javax.sound.sampled.UnsupportedAudioFileException;
 
 /**
  * 배경음악 재생 관리 클래스
@@ -99,30 +102,47 @@ public class BackgroundMusicPlayer {
                 
                 // Clip 생성 및 로드
                 clip = AudioSystem.getClip();
-                clip.open(audioStream);
+                System.out.println("✓ Clip created");
                 
+                clip.open(audioStream);
                 System.out.println("✓ Clip opened");
+                
+                // Clip 이벤트 리스너 추가 (디버깅용)
+                clip.addLineListener(event -> {
+                    if (event.getType() == LineEvent.Type.STOP) {
+                        System.out.println("⚠️ Clip stopped! isRunning=" + clip.isRunning());
+                        if (!clip.isRunning()) {
+                            isPlaying = false;
+                        }
+                    }
+                    if (event.getType() == LineEvent.Type.CLOSE) {
+                        System.out.println("⚠️ Clip closed!");
+                        isPlaying = false;
+                    }
+                    if (event.getType() == LineEvent.Type.START) {
+                        System.out.println("✓ Clip started playing");
+                    }
+                });
                 
                 // 볼륨 조절 (선택사항: 0.0 ~ 1.0)
                 setVolume(0.7f);
+                System.out.println("✓ Volume set");
                 
                 // 무한 반복 설정
                 clip.loop(Clip.LOOP_CONTINUOUSLY);
+                System.out.println("✓ Clip looping started");
                 
                 // 재생 시작
                 clip.start();
                 isPlaying = true;
                 
                 System.out.println("✓ Music playback started successfully!");
+                System.out.println("✓ Clip is running: " + clip.isRunning());
+                System.out.println("✓ Clip is active: " + clip.isActive());
+                System.out.println("✓ Clip frame length: " + clip.getFrameLength());
+                System.out.println("✓ Clip microsecond length: " + clip.getMicrosecondLength() / 1000000.0 + " seconds");
                 
-                // 클립이 종료되면 상태 업데이트 (정지 시)
-                clip.addLineListener(event -> {
-                    if (event.getType() == LineEvent.Type.STOP && !clip.isRunning()) {
-                        isPlaying = false;
-                    }
-                });
-                
-            } catch (Exception e) {
+            } catch (IOException | LineUnavailableException | UnsupportedAudioFileException e) {
                 System.err.println("❌ Failed to play background music: " + e.getMessage());
                 e.printStackTrace();
             }
@@ -133,9 +153,11 @@ public class BackgroundMusicPlayer {
      */
     public void stop() {
         if (clip != null && clip.isRunning()) {
+            System.out.println("Stopping music...");
             clip.stop();
             clip.close();
             isPlaying = false;
+            System.out.println("Music stopped");
         }
     }
     

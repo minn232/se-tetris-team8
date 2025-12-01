@@ -5,6 +5,7 @@ import java.awt.Color;
 import java.awt.FlowLayout;
 import java.awt.Font;
 import java.awt.GridLayout;
+import java.awt.HeadlessException;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.KeyAdapter;
@@ -34,9 +35,9 @@ public class SettingsScreen extends JFrame {
     private Map<Settings.KeyBinding, JButton> keyButtonsP1 = new HashMap<>();
     private Map<Settings.KeyBinding, JButton> keyButtonsP2 = new HashMap<>();
     private JCheckBox chkColorBlind;
-    private JButton btnClearScores;
+    private final JButton btnClearScores;
 
-    private JButton[] buttons;
+    private final JButton[] buttons;
     private int selectedIndex = 0;
 
     public SettingsScreen() {
@@ -56,7 +57,7 @@ public class SettingsScreen extends JFrame {
                 width = Integer.parseInt(parts[0].trim());
                 height = Integer.parseInt(parts[1].trim());
             }
-        } catch (Exception ex) {
+        } catch (NumberFormatException ex) {
             width = 640; height = 360;
         }
 
@@ -191,85 +192,70 @@ public class SettingsScreen extends JFrame {
         // 키 변경 핸들러 - 리팩토링된 버전
         setupKeyBindingListeners();
 
-        btnClearScores.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                int ok = JOptionPane.showConfirmDialog(SettingsScreen.this,
-                        "Are you sure you want to clear the scoreboard? This cannot be undone.", "Clear Scoreboard",
-                        JOptionPane.YES_NO_OPTION);
-                if (ok == JOptionPane.YES_OPTION) {
-                    try {
-                        // normal_rankings.dat 초기화
-                        RankingManager normalRankings = RankingManager.getInstance("normal_rankings.dat");
-                        normalRankings.clearRankings();
-                        
-                        // item_rankings.dat 초기화
-                        RankingManager itemRankings = RankingManager.getInstance("item_rankings.dat");
-                        itemRankings.clearRankings();
-                        
-                        JOptionPane.showMessageDialog(SettingsScreen.this, "Scoreboard cleared.");
-                    } catch (Exception ex) {
-                        JOptionPane.showMessageDialog(SettingsScreen.this, "Failed to clear scoreboard: " + ex.getMessage(),
-                                "Error", JOptionPane.ERROR_MESSAGE);
-                    }
+        btnClearScores.addActionListener((ActionEvent e) -> {
+            int ok = JOptionPane.showConfirmDialog(SettingsScreen.this,
+                    "Are you sure you want to clear the scoreboard? This cannot be undone.", "Clear Scoreboard",
+                    JOptionPane.YES_NO_OPTION);
+            if (ok == JOptionPane.YES_OPTION) {
+                try {
+                    // normal_rankings.dat 초기화
+                    RankingManager normalRankings = RankingManager.getInstance("normal_rankings.dat");
+                    normalRankings.clearRankings();
+                    
+                    // item_rankings.dat 초기화
+                    RankingManager itemRankings = RankingManager.getInstance("item_rankings.dat");
+                    itemRankings.clearRankings();
+                    
+                    JOptionPane.showMessageDialog(SettingsScreen.this, "Scoreboard cleared.");
+                } catch (HeadlessException ex) {
+                    JOptionPane.showMessageDialog(SettingsScreen.this, "Failed to clear scoreboard: " + ex.getMessage(),
+                            "Error", JOptionPane.ERROR_MESSAGE);
                 }
             }
         });
 
-        btnSave.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                Settings.setResolution((String)resCombo.getSelectedItem());
-                Settings.setColorBlind(chkColorBlind.isSelected());
-                Settings.save();
-                JOptionPane.showMessageDialog(SettingsScreen.this, "Settings saved.");
-                dispose();
-            }
+        btnSave.addActionListener((ActionEvent e) -> {
+            Settings.setResolution((String)resCombo.getSelectedItem());
+            Settings.setColorBlind(chkColorBlind.isSelected());
+            Settings.save();
+            JOptionPane.showMessageDialog(SettingsScreen.this, "Settings saved.");
+            dispose();
         });
 
-        btnCancel.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                dispose();
-            }
+        btnCancel.addActionListener((ActionEvent e) -> {
+            dispose();
         });
 
-        btnResetDefaults.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                int confirm = JOptionPane.showConfirmDialog(SettingsScreen.this,
-                        "Reset all settings to default values?", "Reset to Default",
-                        JOptionPane.YES_NO_OPTION);
-                if (confirm == JOptionPane.YES_OPTION) {
-                    Settings.resetToDefaults();
-                    
-                    // UI 업데이트
-                    resCombo.setSelectedItem("640x360");
-                    chkColorBlind.setSelected(false);
-                    
-                    // 키 바인딩 버튼 텍스트 업데이트 (P1, P2)
-                    for (Map.Entry<Settings.KeyBinding, JButton> entry : keyButtonsP1.entrySet()) {
-                        Settings.KeyBinding binding = entry.getKey();
-                        JButton button = entry.getValue();
-                        button.setText(KeyEvent.getKeyText(binding.getValue(Settings.Player.P1)));
-                    }
-                    for (Map.Entry<Settings.KeyBinding, JButton> entry : keyButtonsP2.entrySet()) {
-                        Settings.KeyBinding binding = entry.getKey();
-                        JButton button = entry.getValue();
-                        button.setText(KeyEvent.getKeyText(binding.getValue(Settings.Player.P2)));
-                    }
-                    
-                    JOptionPane.showMessageDialog(SettingsScreen.this, 
-                            "All settings have been reset to default values.\nClick 'Save' to apply the changes.");
+        btnResetDefaults.addActionListener((ActionEvent e) -> {
+            int confirm = JOptionPane.showConfirmDialog(SettingsScreen.this,
+                    "Reset all settings to default values?", "Reset to Default",
+                    JOptionPane.YES_NO_OPTION);
+            if (confirm == JOptionPane.YES_OPTION) {
+                Settings.resetToDefaults();
+                
+                // UI 업데이트
+                resCombo.setSelectedItem("640x360");
+                chkColorBlind.setSelected(false);
+                
+                // 키 바인딩 버튼 텍스트 업데이트 (P1, P2)
+                for (Map.Entry<Settings.KeyBinding, JButton> entry : keyButtonsP1.entrySet()) {
+                    Settings.KeyBinding binding = entry.getKey();
+                    JButton button = entry.getValue();
+                    button.setText(KeyEvent.getKeyText(binding.getValue(Settings.Player.P1)));
                 }
+                for (Map.Entry<Settings.KeyBinding, JButton> entry : keyButtonsP2.entrySet()) {
+                    Settings.KeyBinding binding = entry.getKey();
+                    JButton button = entry.getValue();
+                    button.setText(KeyEvent.getKeyText(binding.getValue(Settings.Player.P2)));
+                }
+                
+                JOptionPane.showMessageDialog(SettingsScreen.this,
+                        "All settings have been reset to default values.\nClick 'Save' to apply the changes.");
             }
         });
 
-        chkColorBlind.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                Settings.setColorBlind(chkColorBlind.isSelected());
-            }
+        chkColorBlind.addActionListener((ActionEvent e) -> {
+            Settings.setColorBlind(chkColorBlind.isSelected());
         });
 
         // 키보드 포커스를 받을 수 있도록 설정

@@ -19,15 +19,18 @@ import network.NetworkManager;
  */
 public class NetworkModeSelectionScreen extends JFrame {
 
-    private JButton[] modeButtons;
+    private final JButton[] modeButtons;
     private int selectedIndex = 0;
 
-    private boolean isHost;
+    private final boolean isHost;
 
     private String selectedMode = "SOFT"; // 기본 모드
 
     public NetworkModeSelectionScreen(boolean isHost) {
         this.isHost = isHost;
+        
+        // 네비게이션 히스토리에 추가
+        ScreenNavigator.getInstance().push("NetworkModeSelection", isHost);
 
         int width = Settings.getWindowWidth();
         int height = Settings.getWindowHeight();
@@ -75,6 +78,19 @@ public class NetworkModeSelectionScreen extends JFrame {
         softButton.addActionListener(e -> selectMode("SOFT"));
         timeAttackButton.addActionListener(e -> selectMode("TIME"));
         itemButton.addActionListener(e -> selectMode("ITEM"));
+        
+        // 뒤로가기 버튼 추가
+        int backBtnSize = (int)(40 * scale);
+        int backBtnX = width - backBtnSize - (int)(10 * scale);
+        int backBtnY = height - backBtnSize - (int)(40 * scale);
+        
+        JButton backButton = addButton(mainPanel, "/images/BackButton.png", 
+            backBtnSize, backBtnSize, backBtnX, backBtnY);
+        backButton.addActionListener(e -> {
+            System.out.println("[NetworkModeSelection] Back button clicked");
+            ScreenNavigator.getInstance().goBack(this);
+        });
+        backButton.setFocusable(false);
 
         // Background UI
         BackgroundPanel bg = new BackgroundPanel("/images/MainScreen.png");
@@ -156,6 +172,8 @@ public class NetworkModeSelectionScreen extends JFrame {
             case KeyEvent.VK_SPACE, KeyEvent.VK_ENTER -> {
                 modeButtons[selectedIndex].doClick();
             }
+            case KeyEvent.VK_ESCAPE -> 
+                ScreenNavigator.getInstance().goBack(this);
         }
     }
 

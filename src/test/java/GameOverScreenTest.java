@@ -18,8 +18,9 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import core.Difficulty;
+import core.Settings;
 import screens.GameOverScreen;
-import core.*;
 
 /**
  * GameOverScreen 클래스에 대한 간단한 테스트

@@ -39,8 +39,8 @@ public class TransformBlock implements ItemBlock {
 
     @Override
     public void activateEffect(Object board, int x, int y) {
-        if (board instanceof Board) {
-            ((Board) board).activateTransformEffect();
+        if (board instanceof Board board1) {
+            board1.activateTransformEffect();
         }
     }
 

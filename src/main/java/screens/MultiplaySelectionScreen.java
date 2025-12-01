@@ -13,10 +13,13 @@ import core.Settings;
  */
 public class MultiplaySelectionScreen extends JFrame {
     
-    private JButton[] buttons;
+    private final JButton[] buttons;
     private int selectedIndex = 0;
 
     public MultiplaySelectionScreen() {
+        // 네비게이션 히스토리에 추가
+        ScreenNavigator.getInstance().push("MultiplaySelection");
+        
         int width = Settings.getWindowWidth();
         int height = Settings.getWindowHeight();
         double scale = Settings.getScaleFactor();
@@ -52,6 +55,19 @@ public class MultiplaySelectionScreen extends JFrame {
             dispose();
             new HostJoinScreen().setVisible(true);
         });
+        
+        // 뒤로가기 버튼 추가
+        int backBtnSize = (int)(40 * scale);
+        int backBtnX = width - backBtnSize - (int)(10 * scale);
+        int backBtnY = height - backBtnSize - (int)(40 * scale);
+        
+        JButton backButton = addButton(mainPanel, "/images/BackButton.png", 
+            backBtnSize, backBtnSize, backBtnX, backBtnY);
+        backButton.addActionListener(e -> {
+            System.out.println("[MultiplaySelection] Back button clicked");
+            ScreenNavigator.getInstance().goBack(this);
+        });
+        backButton.setFocusable(false);
         
         BackgroundPanel bg = new BackgroundPanel("/images/MainScreen.png");
         bg.setLayout(new BorderLayout());
@@ -97,6 +113,8 @@ public class MultiplaySelectionScreen extends JFrame {
             }
             case java.awt.event.KeyEvent.VK_SPACE, java.awt.event.KeyEvent.VK_ENTER -> 
                 buttons[selectedIndex].doClick();
+            case java.awt.event.KeyEvent.VK_ESCAPE -> 
+                ScreenNavigator.getInstance().goBack(this);
         }
     }
     
