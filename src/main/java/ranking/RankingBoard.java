@@ -122,6 +122,21 @@ public class RankingBoard extends JDialog {
             
             // 키보드 네비게이션 설정
             setupKeyboardNavigation();
+        } else {
+            // 일반 랭킹 보기의 경우 Close 버튼 추가
+            JPanel closeButtonPanel = createCloseButtonPanel();
+            mainContainer.add(closeButtonPanel, BorderLayout.SOUTH);
+            
+            // ESC 키 처리를 위해 키보드 리스너 추가
+            setFocusable(true);
+            addKeyListener(new KeyAdapter() {
+                @Override
+                public void keyPressed(KeyEvent e) {
+                    if (e.getKeyCode() == KeyEvent.VK_ESCAPE) {
+                        dispose();
+                    }
+                }
+            });
         }
 
         add(mainContainer);
@@ -168,6 +183,10 @@ public class RankingBoard extends JDialog {
                 break;
             case KeyEvent.VK_ESCAPE:
                 dispose();
+                // showReturnButton이 true이면 메인 메뉴로 복귀
+                if (showReturnButton) {
+                    new screens.Mainmenu().setVisible(true);
+                }
                 break;
         }
     }
@@ -238,6 +257,26 @@ public class RankingBoard extends JDialog {
         buttonPanel.add(mainMenuButton);
         buttonPanel.add(Box.createHorizontalStrut(20));
         buttonPanel.add(exitButton);
+        buttonPanel.add(Box.createHorizontalGlue());
+        
+        return buttonPanel;
+    }
+    
+    private JPanel createCloseButtonPanel() {
+        int baseFontSize = Settings.getBaseFontSize();
+        double scaleFactor = Settings.getScaleFactor();
+        
+        JPanel buttonPanel = new JPanel();
+        buttonPanel.setBorder(BorderFactory.createEmptyBorder(10, 20, 10, 20));
+        buttonPanel.setLayout(new BoxLayout(buttonPanel, BoxLayout.X_AXIS));
+        
+        JButton closeButton = new JButton("Close");
+        closeButton.setFont(new Font("Arial", Font.PLAIN, baseFontSize));
+        closeButton.setPreferredSize(new java.awt.Dimension((int)(100 * scaleFactor), (int)(40 * scaleFactor)));
+        closeButton.addActionListener(e -> dispose());
+        
+        buttonPanel.add(Box.createHorizontalGlue());
+        buttonPanel.add(closeButton);
         buttonPanel.add(Box.createHorizontalGlue());
         
         return buttonPanel;
