@@ -41,7 +41,7 @@ public class HowToPlayScreen extends JDialog {
         try {
             ImageIcon originalIcon = new ImageIcon(getClass().getResource("/images/HowToPlay.png"));
             // 이미지를 화면 크기에 맞게 스케일링 (버튼 공간 제외)
-            int imageHeight = (int)(height - 50 * scale); // 버튼 영역 제외 (scale 비례)
+            int imageHeight = (int)(height - 70*scale); // 버튼 영역 제외 (scale 비례)
             Image scaledImage = originalIcon.getImage().getScaledInstance(
                 width, 
                 imageHeight,

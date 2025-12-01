@@ -86,16 +86,16 @@ public class GamePanel extends JPanel {
 
                 if (board.isGameOver() || paused) return;
 
-                // 기본 조작키 - Settings에서 가져옴
-                if (code == Settings.getKeyLeft()) {
+                // 기본 조작키 - Settings에서 가져옴 (WASD + 방향키 지원)
+                if (code == Settings.getKeyLeft() || code == Settings.getKeyLeft(Settings.Player.P2)) {
                     board.moveLeft();
-                } else if (code == Settings.getKeyRight()) {
+                } else if (code == Settings.getKeyRight() || code == Settings.getKeyRight(Settings.Player.P2)) {
                     board.moveRight();
-                } else if (code == Settings.getKeyDown()) {
+                } else if (code == Settings.getKeyDown() || code == Settings.getKeyDown(Settings.Player.P2)) {
                     board.moveDown();
-                } else if (code == Settings.getKeyRotate()) {
+                } else if (code == Settings.getKeyRotate() || code == Settings.getKeyRotate(Settings.Player.P2)) {
                     board.rotate();
-                } else if (code == Settings.getKeyHardDrop()) {
+                } else if (code == Settings.getKeyHardDrop() || code == Settings.getKeyHardDrop(Settings.Player.P2)) {
                     board.hardDrop();
                 }
 
