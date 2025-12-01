@@ -35,6 +35,7 @@ public class RankingBoard extends JDialog {
     private final int highlightScore;
     private final boolean showReturnButton;
     private final boolean isItemMode;
+    private final boolean isTimeAttackMode;
     
     private JButton[] buttons;
     private int selectedIndex = 0;
@@ -56,14 +57,15 @@ public class RankingBoard extends JDialog {
         this.highlightScore = -1;
         this.showReturnButton = false;
         this.isItemMode = false;
+        this.isTimeAttackMode = false;
         initializeUI();
     }
     
     public RankingBoard(String highlightPlayerName, int highlightScore, boolean showReturnButton) {
-        this(highlightPlayerName, highlightScore, showReturnButton, false);
+        this(highlightPlayerName, highlightScore, showReturnButton, false, false);
     }
     
-    public RankingBoard(String highlightPlayerName, int highlightScore, boolean showReturnButton, boolean isItemMode) {
+    public RankingBoard(String highlightPlayerName, int highlightScore, boolean showReturnButton, boolean isItemMode, boolean isTimeAttackMode) {
         super((java.awt.Frame) null, "Ranking Board", true); // 모달 다이얼로그로 생성
         int width = Settings.getWindowWidth();
         int height = Settings.getWindowHeight();
@@ -79,6 +81,7 @@ public class RankingBoard extends JDialog {
         this.highlightScore = highlightScore;
         this.showReturnButton = showReturnButton;
         this.isItemMode = isItemMode;
+        this.isTimeAttackMode = isTimeAttackMode;
         initializeUI();
     }
 
@@ -117,10 +120,13 @@ public class RankingBoard extends JDialog {
         tabbedPane.addTab("Time Attack Mode", timeAttackModePanel);
         tabbedPane.addTab("Item Mode", itemModePanel);
         
-        // 아이템 모드인 경우 아이템 모드 탭을 기본으로 선택
+        // 모드에 따라 해당 탭을 기본으로 선택
         if (isItemMode) {
-            tabbedPane.setSelectedIndex(2);
+            tabbedPane.setSelectedIndex(2); // Item Mode 탭
+        } else if (isTimeAttackMode) {
+            tabbedPane.setSelectedIndex(1); // Time Attack Mode 탭
         }
+        // 그 외(Soft Mode)는 기본값인 0번 탭이 선택됨
 
         mainContainer.add(tabbedPane, BorderLayout.CENTER);
         

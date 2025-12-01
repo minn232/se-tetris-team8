@@ -81,6 +81,7 @@ class RankingBoardTest {
         }
     }
 
+
     @Test
     @DisplayName("아이템 모드 생성자 테스트")
     void testItemModeConstructor() {
@@ -90,7 +91,7 @@ class RankingBoardTest {
         }
         
         try {
-            RankingBoard board = new RankingBoard("TestPlayer", 5000, true, true);
+            RankingBoard board = new RankingBoard("TestPlayer", 5000, true, true, false);
             assertNotNull(board);
             board.dispose();
         } catch (Exception e) {
