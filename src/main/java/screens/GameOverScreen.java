@@ -30,13 +30,19 @@ public class GameOverScreen extends JFrame {
     private final int finalScore;
     private final Difficulty difficulty;
     private final boolean isItemMode;
+    private final boolean isTimeAttackMode;
     private JButton[] buttons;
     private int selectedIndex = 0;
 
     public GameOverScreen(int finalScore, Difficulty difficulty, boolean isItemMode) {
+        this(finalScore, difficulty, isItemMode, false);
+    }
+
+    public GameOverScreen(int finalScore, Difficulty difficulty, boolean isItemMode, boolean isTimeAttackMode) {
         this.finalScore = finalScore;
         this.difficulty = difficulty;
         this.isItemMode = isItemMode;
+        this.isTimeAttackMode = isTimeAttackMode;
         initializeUI();
     }
     
@@ -113,7 +119,7 @@ public class GameOverScreen extends JFrame {
     private void restartGame() {
         SwingUtilities.invokeLater(() -> {
             Board board = new Board(difficulty, isItemMode);
-            GamePanel panel = new GamePanel(board, isItemMode);
+            GamePanel panel = new GamePanel(board, isItemMode, isTimeAttackMode);
 
             JFrame gameFrame = new JFrame("SE Tetris Team8");
             gameFrame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);

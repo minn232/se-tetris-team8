@@ -28,6 +28,7 @@ import core.Settings;
 public class RankingBoard extends JDialog {
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
     private static final String NORMAL_RANKING_FILE = "normal_rankings.dat";
+    private static final String TIMEATTACK_RANKING_FILE = "timeattack_rankings.dat";
     private static final String ITEM_RANKING_FILE = "item_rankings.dat";
     
     private final String highlightPlayerName;
@@ -93,10 +94,16 @@ public class RankingBoard extends JDialog {
         
         JTabbedPane tabbedPane = new JTabbedPane();
         
-        JPanel normalModePanel = createRankingPanel(
+        JPanel softModePanel = createRankingPanel(
             RankingManager.getInstance(NORMAL_RANKING_FILE).getRankings(),
-            "Normal Mode",
-            false // 일반 모드
+            "Soft Mode",
+            false // Soft 모드
+        );
+        
+        JPanel timeAttackModePanel = createRankingPanel(
+            RankingManager.getInstance(TIMEATTACK_RANKING_FILE).getRankings(),
+            "Time Attack Mode",
+            false // Time Attack 모드
         );
         
         JPanel itemModePanel = createRankingPanel(
@@ -105,12 +112,13 @@ public class RankingBoard extends JDialog {
             true // 아이템 모드
         );
 
-        tabbedPane.addTab("Normal Mode", normalModePanel);
+        tabbedPane.addTab("Soft Mode", softModePanel);
+        tabbedPane.addTab("Time Attack Mode", timeAttackModePanel);
         tabbedPane.addTab("Item Mode", itemModePanel);
         
         // 아이템 모드인 경우 아이템 모드 탭을 기본으로 선택
         if (isItemMode) {
-            tabbedPane.setSelectedIndex(1);
+            tabbedPane.setSelectedIndex(2);
         }
 
         mainContainer.add(tabbedPane, BorderLayout.CENTER);

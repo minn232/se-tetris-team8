@@ -35,16 +35,19 @@ public class NameInputScreen extends JFrame {
     private static final int MAX_NAME_LENGTH = 10;
     private static final String ALPHABET_PATTERN = "[a-zA-Z]+";
     private static final String ITEM_RANKING_FILE = "item_rankings.dat";
+    private static final String TIMEATTACK_RANKING_FILE = "timeattack_rankings.dat";
     
     private final int finalScore;
     private final Difficulty difficulty;
     private final boolean isItemMode;
+    private final boolean isTimeAttackMode;
     private JTextField nameField;
 
-    public NameInputScreen(int finalScore, Difficulty difficulty, boolean isItemMode) {
+    public NameInputScreen(int finalScore, Difficulty difficulty, boolean isItemMode, boolean isTimeAttackMode) {
         this.finalScore = finalScore;
         this.difficulty = difficulty;
         this.isItemMode = isItemMode;
+        this.isTimeAttackMode = isTimeAttackMode;
         initializeUI();
     }
 
@@ -114,9 +117,14 @@ public class NameInputScreen extends JFrame {
         String playerName = nameField.getText().trim();
         
         if (!playerName.isEmpty()) {
-            RankingManager manager = isItemMode ? 
-                RankingManager.getInstance(ITEM_RANKING_FILE) :
-                RankingManager.getInstance();
+            RankingManager manager;
+            if (isItemMode) {
+                manager = RankingManager.getInstance(ITEM_RANKING_FILE);
+            } else if (isTimeAttackMode) {
+                manager = RankingManager.getInstance(TIMEATTACK_RANKING_FILE);
+            } else {
+                manager = RankingManager.getInstance();
+            }
             
             // 랭킹에 추가 (난이도 정보 포함)
             manager.addEntry(new RankingEntry(playerName, finalScore, LocalDateTime.now(), difficulty));

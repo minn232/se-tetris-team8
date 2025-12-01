@@ -180,7 +180,7 @@ public class DifficultySelectionScreen extends JFrame {
         }
         
         Board board = new Board(difficulty, isItemMode);
-        GamePanel gamePanel = new GamePanel(board, isItemMode);
+        GamePanel gamePanel = new GamePanel(board, isItemMode, isTimeAttack);
         
         JFrame gameFrame = new JFrame("Tetris - " + difficulty.name());
         gameFrame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);

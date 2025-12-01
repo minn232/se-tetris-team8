@@ -22,6 +22,7 @@ import ranking.RankingManager;
 
 public class GamePanel extends JPanel {
     private final boolean isItemMode;
+    private final boolean isTimeAttackMode;
     private final Board board;
     private final Timer timer;
 
@@ -46,9 +47,10 @@ public class GamePanel extends JPanel {
     private long flashUntil = 0;
     private static final long FLASH_MS = 150;
 
-    public GamePanel(Board board, boolean isItemMode) {
+    public GamePanel(Board board, boolean isItemMode, boolean isTimeAttackMode) {
         this.board = board;
         this.isItemMode = isItemMode;
+        this.isTimeAttackMode = isTimeAttackMode;
         
         // 메인 메뉴 음악 끄고 게임 음악 켜기
         BackgroundMusicPlayer.getInstance().stop();
@@ -195,9 +197,14 @@ public class GamePanel extends JPanel {
         BackgroundMusicPlayer.getInstance().stop(); // 게임 음악 정지
         int finalScore = board.getScore();
         
-        RankingManager manager = isItemMode ? 
-            RankingManager.getInstance("item_rankings.dat") :
-            RankingManager.getInstance();
+        RankingManager manager;
+        if (isItemMode) {
+            manager = RankingManager.getInstance("item_rankings.dat");
+        } else if (isTimeAttackMode) {
+            manager = RankingManager.getInstance("timeattack_rankings.dat");
+        } else {
+            manager = RankingManager.getInstance();
+        }
             
         // 게임오버 시 처리
         SwingUtilities.invokeLater(() -> {
@@ -208,10 +215,10 @@ public class GamePanel extends JPanel {
                 // 랭킹에 들어가는지 확인
                 if (manager.getRankings().size() < 10 || manager.shouldInputName(finalScore)) {
                     // 랭킹 진입: 이름 입력 화면 표시 (이름 입력 후 스코어보드 표시)
-                    new NameInputScreen(finalScore, board.getDifficulty(), isItemMode).setVisible(true);
+                    new NameInputScreen(finalScore, board.getDifficulty(), isItemMode, isTimeAttackMode).setVisible(true);
                 } else {
                     // 랭킹 미진입: 게임오버 화면 표시
-                    new GameOverScreen(finalScore, board.getDifficulty(), isItemMode).setVisible(true);
+                    new GameOverScreen(finalScore, board.getDifficulty(), isItemMode, isTimeAttackMode).setVisible(true);
                 }
             }
         });
