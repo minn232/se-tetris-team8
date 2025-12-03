@@ -92,9 +92,13 @@ public class P2PBattlePanel extends JPanel {
 
         // 전체 패널 크기: SIDE + BOARD + GAP + BOARD + SIDE
         int totalWidth = SIDE_W + BOARD_W + GAP + BOARD_W + SIDE_W;
-        setPreferredSize(new Dimension(totalWidth, BOARD_H));
+
+        // ★ 수정된 부분
+        setPreferredSize(new Dimension(totalWidth, BOARD_H + 200));
+
         setBackground(Color.BLACK);
         setFocusable(true);
+
 
         // 키 입력 처리
         addKeyListener(new KeyAdapter() {
@@ -237,6 +241,12 @@ public class P2PBattlePanel extends JPanel {
     private void handleKeyPress(KeyEvent e) {
         int code = e.getKeyCode();
 
+        // ENTER → 채팅창 포커스 이동 (추가 옵션)
+        if (code == KeyEvent.VK_ENTER) {
+            chatInput.requestFocusInWindow();
+            return;
+        }
+
         // 일시정지
         if (code == KeyEvent.VK_P) {
             togglePause();
@@ -248,7 +258,7 @@ public class P2PBattlePanel extends JPanel {
             return;
         }
 
-        // 내 보드 조작 (Settings에서 가져온 P1 키)
+        // 내 보드 조작
         if (!myBoard.isGameOver()) {
             if (code == Settings.getKeyLeft(Settings.Player.P1)) {
                 myBoard.moveLeft();
@@ -271,6 +281,7 @@ public class P2PBattlePanel extends JPanel {
         repaint();
     }
 
+
     private void checkFlashing(Board board, boolean isMine) {
         int[] rows = board.pollClearingRows();
         if (rows != null && rows.length > 0) {
@@ -279,10 +290,15 @@ public class P2PBattlePanel extends JPanel {
                 flashUntilMy = System.currentTimeMillis() + FLASH_MS;
 
                 // 2줄 이상 클리어 시 상대에게 공격 전송
-                if (rows.length >= 2) {
-                    List<ShapeType[]> attackPattern = myBoard.getAttackPattern(rows);
-                    sendAttackPattern(attackPattern);
-                }
+            if (rows.length >= 2) {
+                List<ShapeType[]> attackPattern = myBoard.getAttackPattern(rows);
+
+                // ✔ 내 pending 공격에도 추가해야 오른쪽 UI가 업데이트됨
+                myBoard.addPendingAttackLines(attackPattern);
+
+                // 상대에게 전송
+                sendAttackPattern(attackPattern);
+            }
             } else {
                 flashingRowsEnemy = rows;
                 flashUntilEnemy = System.currentTimeMillis() + FLASH_MS;
@@ -425,6 +441,7 @@ public class P2PBattlePanel extends JPanel {
 
     private void returnToMenu() {
 
+        NetworkManager.getInstance().setMessageListener(null);
         NetworkManager.getInstance().close();
 
         timer.stop();
@@ -694,6 +711,10 @@ public class P2PBattlePanel extends JPanel {
         NetworkManager.getInstance().send("CHAT:" + msg);
         chatArea.append("ME: " + msg + "\n");
         chatInput.setText("");
+
+            
+        // ★ 게임 패널로 포커스 되돌리기
+        requestFocusInWindow();
     }
 
     // ATTACK 패턴 JSON 문자열 -> List<ShapeType[]> 변환

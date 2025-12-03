@@ -15,7 +15,10 @@ public class NetworkManager {
         return instance;
     }
 
+    private volatile boolean running = true;
+
     private Socket socket;
+    private ServerSocket serverSocket;
     private PrintWriter out;
     private BufferedReader in;
 
@@ -31,32 +34,30 @@ public class NetworkManager {
         return connected;
     }
 
-
     // ======================================================
     // SERVER MODE
     // ======================================================
     public void startServer(int port) {
         new Thread(() -> {
             try {
-                ServerSocket server = new ServerSocket(port);
-                socket = server.accept();
+                serverSocket = new ServerSocket(port);
+                socket = serverSocket.accept();
 
                 out = new PrintWriter(socket.getOutputStream(), true);
                 in  = new BufferedReader(new InputStreamReader(socket.getInputStream()));
 
                 connected = true;
+                running = true;
 
                 startPing();
                 listenLoop();
 
-                server.close();
             } catch (IOException e) {
                 System.err.println("서버 시작 실패: " + e.getMessage());
                 connected = false;
             }
         }).start();
     }
-
 
     // ======================================================
     // CLIENT MODE
@@ -70,6 +71,7 @@ public class NetworkManager {
                 in  = new BufferedReader(new InputStreamReader(socket.getInputStream()));
 
                 connected = true;
+                running = true;
 
                 startPing();
                 listenLoop();
@@ -81,7 +83,6 @@ public class NetworkManager {
         }).start();
     }
 
-
     // ======================================================
     // 메시지 수신 루프
     // ======================================================
@@ -89,7 +90,8 @@ public class NetworkManager {
         new Thread(() -> {
             try {
                 String msg;
-                while ((msg = in.readLine()) != null) {
+
+                while (running && (msg = in.readLine()) != null) {
 
                     // ===== PING =====
                     if (msg.startsWith("PING:")) {
@@ -102,7 +104,7 @@ public class NetworkManager {
                     if (msg.startsWith("PONG:")) {
                         long sent = Long.parseLong(msg.substring(5));
                         long now = System.currentTimeMillis();
-                        lastRTT = now - sent;       
+                        lastRTT = now - sent;
                         lastPingReceivedTime = now;
                         continue;
                     }
@@ -112,40 +114,43 @@ public class NetworkManager {
                         messageListener.accept(msg);
                     }
                 }
+
             } catch (IOException | NumberFormatException ignored) {}
+
         }).start();
     }
-
 
     // ======================================================
     // SEND
     // ======================================================
     public void send(String msg) {
-        if (out != null) {
-            out.println(msg);
-        }
+        if (out != null) out.println(msg);
     }
 
-
     // ======================================================
-    // CLOSE
+    // CLOSE (완전 종료)
     // ======================================================
     public void close() {
         try {
+            running = false;
             connected = false;
-
-            if (out != null) { out.close(); out = null; }
-            if (in != null) { in.close(); in = null; }
-            if (socket != null && !socket.isClosed()) { socket.close(); socket = null; }
-
             messageListener = null;
 
-        } catch (IOException e) {
-            System.err.println("연결 종료 중 오류: " + e.getMessage());
+            if (socket != null && !socket.isClosed()) {
+                socket.close();
+            }
+
+            if (serverSocket != null && !serverSocket.isClosed()) {
+                serverSocket.close();
+            }
+
+            if (in != null) in.close();
+            if (out != null) out.close();
+
+        } catch (Exception e) {
+            e.printStackTrace();
         }
     }
-
-
 
     // ======================================================
     //  PING / PONG 시스템
@@ -158,7 +163,7 @@ public class NetworkManager {
     public void startPing() {
         new Thread(() -> {
             try {
-                while (socket != null && socket.isConnected()) {
+                while (running && socket != null && socket.isConnected()) {
 
                     long now = System.currentTimeMillis();
                     lastPingSentTime = now;
@@ -171,12 +176,10 @@ public class NetworkManager {
         }).start();
     }
 
-    // 현재 RTT 가져오기
     public long getRTT() {
         return lastRTT;
     }
 
-    // 마지막 ping 수신 시간 → 끊김 감지용
     public long getLastPingTime() {
         return lastPingReceivedTime;
     }
