@@ -2,6 +2,7 @@ plugins {
     id 'java'
     id 'application'
     id 'jacoco'
+    id 'edu.sc.seis.launch4j' version '3.0.5'
 }
 
 repositories {
@@ -60,4 +61,36 @@ jacocoTestCoverageVerification {
             }
         }
     }
+}
+
+// JAR 파일 생성 설정
+tasks.named('jar') {
+    manifest {
+        attributes(
+            'Main-Class': 'screens.Mainmenu',
+            'Class-Path': configurations.runtimeClasspath.files.collect { it.name }.join(' ')
+        )
+    }
+    // 모든 의존성을 포함한 Fat JAR 생성
+    from {
+        configurations.runtimeClasspath.collect { it.isDirectory() ? it : zipTree(it) }
+    }
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+}
+
+// Launch4j 설정 (exe 파일 생성)
+launch4j {
+    mainClassName = 'screens.Mainmenu'
+    outputDir = 'exe'
+    outfile = 'Tetris.exe'
+    productName = 'Tetris Game'
+    version = '1.0.0'
+    textVersion = '1.0.0'
+    copyright = '2025'
+    bundledJrePath = 'jre'
+    jreMinVersion = '17'
+    windowTitle = 'Tetris'
+    
+    // JVM 옵션
+    jvmOptions = ['-Xmx512m']
 }
