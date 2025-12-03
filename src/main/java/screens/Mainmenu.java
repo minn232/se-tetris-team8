@@ -32,9 +32,8 @@ public class Mainmenu extends JFrame {
         setLocationRelativeTo(null);
         setFocusable(true);
         
-        // 배경음악 재생 시작
-        BackgroundMusicPlayer.getInstance().play("/music/MainBGM.wav");
-        BackgroundMusicPlayer.getInstance().setVolume(Settings.getMainMusicVolume());
+        // 배경음악 재생 시작 (설정된 볼륨으로)
+        BackgroundMusicPlayer.getInstance().play("/music/MainBGM.wav", Settings.getMainMusicVolume());
         
         JPanel mainPanel = new JPanel();
         mainPanel.setOpaque(false);

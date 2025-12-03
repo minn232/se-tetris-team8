@@ -40,6 +40,7 @@ public class RankingBoard extends JDialog {
     private JButton[] buttons;
     private int selectedIndex = 0;
     private JTabbedPane tabbedPane;
+    private boolean focusOnButtons = false; // true: 버튼 포커스, false: 탭 포커스
     
     public RankingBoard() {
         super((java.awt.Frame) null, "Ranking Board", true); // 모달 다이얼로그로 생성
@@ -181,14 +182,30 @@ public class RankingBoard extends JDialog {
     
     private void handleKeyPress(KeyEvent e) {
         switch (e.getKeyCode()) {
+            case KeyEvent.VK_UP:
+                if (showReturnButton && focusOnButtons) {
+                    // 버튼에서 탭으로 포커스 이동
+                    focusOnButtons = false;
+                    updateButtonHighlight();
+                }
+                break;
+            case KeyEvent.VK_DOWN:
+                if (showReturnButton && !focusOnButtons) {
+                    // 탭에서 버튼으로 포커스 이동
+                    focusOnButtons = true;
+                    selectedIndex = 0; // 첫 번째 버튼 선택
+                    updateButtonHighlight();
+                }
+                break;
             case KeyEvent.VK_LEFT:
-                // Shift 키와 함께 누르면 버튼 네비게이션, 아니면 탭 전환
-                if (e.isShiftDown()) {
+                if (focusOnButtons) {
+                    // 버튼 간 이동
                     if (selectedIndex > 0) {
                         selectedIndex--;
                         updateButtonHighlight();
                     }
                 } else {
+                    // 탭 전환
                     int currentIndex = tabbedPane.getSelectedIndex();
                     if (currentIndex > 0) {
                         tabbedPane.setSelectedIndex(currentIndex - 1);
@@ -196,13 +213,14 @@ public class RankingBoard extends JDialog {
                 }
                 break;
             case KeyEvent.VK_RIGHT:
-                // Shift 키와 함께 누르면 버튼 네비게이션, 아니면 탭 전환
-                if (e.isShiftDown()) {
+                if (focusOnButtons) {
+                    // 버튼 간 이동
                     if (selectedIndex < buttons.length - 1) {
                         selectedIndex++;
                         updateButtonHighlight();
                     }
                 } else {
+                    // 탭 전환
                     int currentIndex = tabbedPane.getSelectedIndex();
                     if (currentIndex < tabbedPane.getTabCount() - 1) {
                         tabbedPane.setSelectedIndex(currentIndex + 1);
@@ -211,12 +229,15 @@ public class RankingBoard extends JDialog {
                 break;
             case KeyEvent.VK_ENTER:
             case KeyEvent.VK_SPACE:
-                buttons[selectedIndex].doClick();
+                if (focusOnButtons) {
+                    buttons[selectedIndex].doClick();
+                }
                 break;
             case KeyEvent.VK_ESCAPE:
                 dispose();
                 // showReturnButton이 true이면 메인 메뉴로 복귀
                 if (showReturnButton) {
+                    screens.ScreenNavigator.getInstance().clear();
                     new screens.Mainmenu().setVisible(true);
                 }
                 break;
@@ -225,7 +246,7 @@ public class RankingBoard extends JDialog {
     
     private void updateButtonHighlight() {
         for (int i = 0; i < buttons.length; i++) {
-            if (i == selectedIndex) {
+            if (focusOnButtons && i == selectedIndex) {
                 buttons[i].setBackground(new Color(100, 150, 255));
                 buttons[i].setForeground(Color.BLACK);
                 buttons[i].setOpaque(true);
@@ -272,6 +293,7 @@ public class RankingBoard extends JDialog {
         mainMenuButton.setPreferredSize(new java.awt.Dimension((int)(150 * scaleFactor), (int)(40 * scaleFactor)));
         mainMenuButton.addActionListener(e -> {
             dispose();
+            screens.ScreenNavigator.getInstance().clear();
             new screens.Mainmenu().setVisible(true);
         });
         

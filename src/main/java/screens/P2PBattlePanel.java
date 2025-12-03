@@ -78,10 +78,9 @@ public class P2PBattlePanel extends JPanel {
         this.enemyBoard = new Board(difficulty, isItemMode);  // 렌더링 전용
         this.gameStartTime = System.currentTimeMillis();
 
-        // 메인 메뉴 음악 끄고 게임 음악 켜기
+        // 메인 메뉴 음악 끄고 게임 음악 켜기 (설정된 볼륨으로)
         BackgroundMusicPlayer.getInstance().stop();
-        BackgroundMusicPlayer.getInstance().play("/music/InGameBGM.wav");
-        BackgroundMusicPlayer.getInstance().setVolume(Settings.getGameMusicVolume());
+        BackgroundMusicPlayer.getInstance().play("/music/InGameBGM.wav", Settings.getGameMusicVolume());
 
         // Settings에서 셀 크기 및 화면 크기 계산
         this.CELL = Settings.getCellSize();
@@ -429,8 +428,7 @@ public class P2PBattlePanel extends JPanel {
 
         timer.stop();
         BackgroundMusicPlayer.getInstance().stop();
-        BackgroundMusicPlayer.getInstance().play("/music/MainBGM.wav");
-        BackgroundMusicPlayer.getInstance().setVolume(Settings.getGameMusicVolume());
+        BackgroundMusicPlayer.getInstance().play("/music/MainBGM.wav", Settings.getMainMusicVolume());
 
         java.awt.Window w = SwingUtilities.getWindowAncestor(this);
         if (w != null) {

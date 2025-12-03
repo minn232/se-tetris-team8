@@ -26,8 +26,13 @@ public class ScreenNavigator {
     
     /**
      * 현재 화면을 히스토리에 추가
+     * Mainmenu인 경우 히스토리를 초기화하고 추가
      */
     public void push(String screenName, Object... params) {
+        // Mainmenu로 가는 경우 히스토리 초기화
+        if ("Mainmenu".equals(screenName)) {
+            history.clear();
+        }
         history.push(new ScreenInfo(screenName, params));
     }
     

@@ -52,10 +52,9 @@ public class GamePanel extends JPanel {
         this.isItemMode = isItemMode;
         this.isTimeAttackMode = isTimeAttackMode;
         
-        // 메인 메뉴 음악 끄고 게임 음악 켜기
+        // 메인 메뉴 음악 끄고 게임 음악 켜기 (설정된 볼륨으로)
         BackgroundMusicPlayer.getInstance().stop();
-        BackgroundMusicPlayer.getInstance().play("/music/InGameBGM.wav");
-        BackgroundMusicPlayer.getInstance().setVolume(Settings.getGameMusicVolume());
+        BackgroundMusicPlayer.getInstance().play("/music/InGameBGM.wav", Settings.getGameMusicVolume());
 
         // Settings에서 셀 크기 및 화면 크기 계산
         this.CELL = Settings.getCellSize();

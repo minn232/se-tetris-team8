@@ -1,6 +1,7 @@
 package screens;
 
 import java.awt.BorderLayout;
+import java.awt.Font;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
@@ -15,6 +16,7 @@ import javax.swing.JFrame;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JTextField;
+import javax.swing.UIManager;
 
 import core.Settings;
 import network.NetworkManager;
@@ -23,6 +25,13 @@ import network.NetworkManager;
  * 네트워크 배틀 - Host/Join 선택 화면
  */
 public class HostJoinScreen extends JFrame {
+    
+    // JOptionPane 폰트 설정 (시스템 호환성)
+    static {
+        Font font = new Font("Dialog", Font.PLAIN, 14);
+        UIManager.put("OptionPane.messageFont", font);
+        UIManager.put("OptionPane.buttonFont", font);
+    }
 
     private final JButton[] buttons;
     private int selectedIndex = 0;
@@ -171,6 +180,9 @@ public class HostJoinScreen extends JFrame {
                     cancelled[0] = true;
                     waitingDialog.dispose();
                     NetworkManager.getInstance().close();
+                    
+                    // 히스토리 초기화하고 메인 메뉴로
+                    ScreenNavigator.getInstance().clear();
                     new Mainmenu().setVisible(true);
                 }
             });
@@ -196,6 +208,8 @@ public class HostJoinScreen extends JFrame {
         } catch (IOException ex) {
             JOptionPane.showMessageDialog(null,
                 "Failed to start server: " + ex.getMessage());
+            // 히스토리 초기화하고 메인 메뉴로
+            ScreenNavigator.getInstance().clear();
             new Mainmenu().setVisible(true);
         }
     }
@@ -219,6 +233,8 @@ public class HostJoinScreen extends JFrame {
         );
 
         if (option != JOptionPane.OK_OPTION) {
+            // 히스토리 초기화하고 메인 메뉴로
+            ScreenNavigator.getInstance().clear();
             new Mainmenu().setVisible(true);
             return;
         }
@@ -228,6 +244,8 @@ public class HostJoinScreen extends JFrame {
 
         if (!isValidIP(ip)) {
             JOptionPane.showMessageDialog(null, "Invalid IP format.");
+            // 히스토리 초기화하고 메인 메뉴로
+            ScreenNavigator.getInstance().clear();
             new Mainmenu().setVisible(true);
             return;
         }
@@ -256,6 +274,8 @@ public class HostJoinScreen extends JFrame {
             } else {
                 javax.swing.SwingUtilities.invokeLater(() -> {
                     JOptionPane.showMessageDialog(null, "Failed to connect.");
+                    // 히스토리 초기화하고 메인 메뉴로
+                    ScreenNavigator.getInstance().clear();
                     new Mainmenu().setVisible(true);
                 });
             }

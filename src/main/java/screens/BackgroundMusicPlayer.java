@@ -38,6 +38,15 @@ public class BackgroundMusicPlayer {
      * @param musicPath 음악 파일 경로 (예: "/music/MainBGM.mp3")
      */
     public void play(String musicPath) {
+        play(musicPath, 0.7f); // 기본 볼륨으로 재생
+    }
+    
+    /**
+     * 음악 파일을 로드하고 지정된 볼륨으로 반복 재생 시작
+     * @param musicPath 음악 파일 경로 (예: "/music/MainBGM.mp3")
+     * @param volume 초기 볼륨 (0.0 ~ 1.0)
+     */
+    public void play(String musicPath, float volume) {
         if (isPlaying) {
             System.out.println("Music already playing, ignoring request");
             return; // 이미 재생 중이면 무시
@@ -107,6 +116,10 @@ public class BackgroundMusicPlayer {
                 clip.open(audioStream);
                 System.out.println("✓ Clip opened");
                 
+                // 볼륨을 재생 전에 먼저 설정
+                setVolume(volume);
+                System.out.println("✓ Volume set to: " + volume);
+                
                 // Clip 이벤트 리스너 추가 (디버깅용)
                 clip.addLineListener(event -> {
                     if (event.getType() == LineEvent.Type.STOP) {
@@ -123,10 +136,6 @@ public class BackgroundMusicPlayer {
                         System.out.println("✓ Clip started playing");
                     }
                 });
-                
-                // 볼륨 조절 (선택사항: 0.0 ~ 1.0)
-                setVolume(0.7f);
-                System.out.println("✓ Volume set");
                 
                 // 무한 반복 설정
                 clip.loop(Clip.LOOP_CONTINUOUSLY);

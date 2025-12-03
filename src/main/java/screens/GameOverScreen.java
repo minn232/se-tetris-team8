@@ -75,6 +75,7 @@ public class GameOverScreen extends JFrame {
         
         mainMenuButton.addActionListener(e -> {
             dispose();
+            ScreenNavigator.getInstance().clear();
             new Mainmenu().setVisible(true);
         });
         
