@@ -45,32 +45,59 @@ public class ModeSelectionScreen extends JFrame {
         int btnWidth = (int)(80 * scale);
         int btnHeight = (int)(120 * scale);
         
-        JButton softButton = addButton(mainPanel, "/images/SoftModeButton.png", 
-            btnWidth, btnHeight, 
-            (int)(width / 2.0 - btnWidth / 2.0 + 30 * scale), (int)(height / 2.0 - 20 * scale));
-        softButton.addActionListener(e -> {
-            System.out.println("[ModeSelection] Soft Mode selected");
-            dispose();
-            new DifficultySelectionScreen(false, isBattleMode).setVisible(true);
-        });
-        
-        JButton timeAttackButton = addButton(mainPanel, "/images/TimeattackModeButton.png", 
-            btnWidth, btnHeight, 
-            (int)(width / 2.0 - btnWidth / 2.0 + 130 * scale), (int)(height / 2.0 - 20 * scale));
-        timeAttackButton.addActionListener(e -> {
-            System.out.println("[ModeSelection] Time Attack Mode selected");
-            dispose();
-            new DifficultySelectionScreen(false, isBattleMode, true).setVisible(true);
-        });
-        
-        JButton itemButton = addButton(mainPanel, "/images/ItemModeButton.png", 
-            btnWidth, btnHeight, 
-            (int)(width / 2.0 - btnWidth / 2.0 + 230 * scale), (int)(height / 2.0 - 20 * scale));
-        itemButton.addActionListener(e -> {
-            System.out.println("[ModeSelection] Item Mode selected");
-            dispose();
-            new DifficultySelectionScreen(true, isBattleMode).setVisible(true);
-        });
+        // 싱글플레이와 배틀 모드에 따라 버튼 구성 변경
+        if (isBattleMode) {
+            // 배틀 모드: 3개 버튼 (Soft, TimeAttack, Item)
+            JButton softButton = addButton(mainPanel, "/images/SoftModeButton.png", 
+                btnWidth, btnHeight, 
+                (int)(width / 2.0 - btnWidth / 2.0 + 30 * scale), (int)(height / 2.0 - 20 * scale));
+            softButton.addActionListener(e -> {
+                System.out.println("[ModeSelection] Soft Mode selected");
+                dispose();
+                new DifficultySelectionScreen(false, isBattleMode).setVisible(true);
+            });
+            
+            JButton timeAttackButton = addButton(mainPanel, "/images/TimeattackModeButton.png", 
+                btnWidth, btnHeight, 
+                (int)(width / 2.0 - btnWidth / 2.0 + 130 * scale), (int)(height / 2.0 - 20 * scale));
+            timeAttackButton.addActionListener(e -> {
+                System.out.println("[ModeSelection] Time Attack Mode selected");
+                dispose();
+                new DifficultySelectionScreen(false, isBattleMode, true).setVisible(true);
+            });
+            
+            JButton itemButton = addButton(mainPanel, "/images/ItemModeButton.png", 
+                btnWidth, btnHeight, 
+                (int)(width / 2.0 - btnWidth / 2.0 + 230 * scale), (int)(height / 2.0 - 20 * scale));
+            itemButton.addActionListener(e -> {
+                System.out.println("[ModeSelection] Item Mode selected");
+                dispose();
+                new DifficultySelectionScreen(true, isBattleMode).setVisible(true);
+            });
+            
+            buttons = new JButton[]{softButton, timeAttackButton, itemButton};
+        } else {
+            // 싱글플레이: 2개 버튼 (Soft, Item) - 가운데 정렬
+            JButton softButton = addButton(mainPanel, "/images/SoftModeButton.png", 
+                btnWidth, btnHeight, 
+                (int)(width / 2.0 - btnWidth / 2.0 + 80 * scale), (int)(height / 2.0 - 20 * scale));
+            softButton.addActionListener(e -> {
+                System.out.println("[ModeSelection] Soft Mode selected");
+                dispose();
+                new DifficultySelectionScreen(false, isBattleMode).setVisible(true);
+            });
+            
+            JButton itemButton = addButton(mainPanel, "/images/ItemModeButton.png", 
+                btnWidth, btnHeight, 
+                (int)(width / 2.0 - btnWidth / 2.0 + 180 * scale), (int)(height / 2.0 - 20 * scale));
+            itemButton.addActionListener(e -> {
+                System.out.println("[ModeSelection] Item Mode selected");
+                dispose();
+                new DifficultySelectionScreen(true, isBattleMode).setVisible(true);
+            });
+            
+            buttons = new JButton[]{softButton, itemButton};
+        }
         
         // 뒤로가기 버튼 추가
         int backBtnSize = (int)(40 * scale);
@@ -89,9 +116,6 @@ public class ModeSelectionScreen extends JFrame {
         bg.setLayout(new BorderLayout());
         bg.add(mainPanel, BorderLayout.CENTER);
         setContentPane(bg);
-        
-        // 버튼 배열 초기화 (키보드 네비게이션용)
-        buttons = new JButton[]{softButton, timeAttackButton, itemButton};
         
         // 모든 버튼의 포커스 비활성화
         for (JButton btn : buttons) {
