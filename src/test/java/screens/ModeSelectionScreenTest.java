@@ -52,6 +52,12 @@ public class ModeSelectionScreenTest {
         isBattleModeField.setAccessible(true);
         assertTrue((boolean) isBattleModeField.get(battleScreen));
         
+        // 배틀 모드는 3개 버튼 (Soft, TimeAttack, Item)
+        Field buttonsField = ModeSelectionScreen.class.getDeclaredField("buttons");
+        buttonsField.setAccessible(true);
+        JButton[] buttons = (JButton[]) buttonsField.get(battleScreen);
+        assertEquals(3, buttons.length);
+        
         battleScreen.dispose();
     }
     
@@ -80,7 +86,8 @@ public class ModeSelectionScreenTest {
         JButton[] buttons = (JButton[]) buttonsField.get(screen);
         
         assertNotNull(buttons);
-        assertEquals(3, buttons.length);
+        // 싱글 플레이 모드는 2개 버튼 (Soft, Item)
+        assertEquals(2, buttons.length);
         
         for (JButton btn : buttons) {
             assertFalse(btn.isFocusable());
@@ -152,14 +159,15 @@ public class ModeSelectionScreenTest {
         
         Field selectedIndexField = ModeSelectionScreen.class.getDeclaredField("selectedIndex");
         selectedIndexField.setAccessible(true);
-        selectedIndexField.set(screen, 2);
+        // 싱글 플레이 모드는 최대 인덱스가 1
+        selectedIndexField.set(screen, 1);
         
         Method handleKeyPress = ModeSelectionScreen.class.getDeclaredMethod("handleKeyPress", int.class);
         handleKeyPress.setAccessible(true);
         handleKeyPress.invoke(screen, KeyEvent.VK_RIGHT);
         
         int newIndex = (int) selectedIndexField.get(screen);
-        assertEquals(2, newIndex);
+        assertEquals(1, newIndex);
     }
     
     @Test
@@ -180,7 +188,7 @@ public class ModeSelectionScreenTest {
         
         assertEquals(0.75f, buttons[0].getClientProperty("opacity"));
         assertEquals(1.0f, buttons[1].getClientProperty("opacity"));
-        assertEquals(1.0f, buttons[2].getClientProperty("opacity"));
+        // 싱글 플레이는 2개 버튼만 있음
     }
     
     @Test
@@ -201,28 +209,33 @@ public class ModeSelectionScreenTest {
         
         assertEquals(1.0f, buttons[0].getClientProperty("opacity"));
         assertEquals(0.75f, buttons[1].getClientProperty("opacity"));
-        assertEquals(1.0f, buttons[2].getClientProperty("opacity"));
+        // 싱글 플레이는 2개 버튼만 있음
     }
     
     @Test
     public void testUpdateButtonFocusThirdButton() throws Exception {
         if (GraphicsEnvironment.isHeadless()) return;
         
+        // 배틀 모드에서만 3개 버튼이 있음
+        ModeSelectionScreen battleScreen = new ModeSelectionScreen(true);
+        
         Field buttonsField = ModeSelectionScreen.class.getDeclaredField("buttons");
         buttonsField.setAccessible(true);
-        JButton[] buttons = (JButton[]) buttonsField.get(screen);
+        JButton[] buttons = (JButton[]) buttonsField.get(battleScreen);
         
         Field selectedIndexField = ModeSelectionScreen.class.getDeclaredField("selectedIndex");
         selectedIndexField.setAccessible(true);
-        selectedIndexField.set(screen, 2);
+        selectedIndexField.set(battleScreen, 2);
         
         Method updateButtonFocus = ModeSelectionScreen.class.getDeclaredMethod("updateButtonFocus");
         updateButtonFocus.setAccessible(true);
-        updateButtonFocus.invoke(screen);
+        updateButtonFocus.invoke(battleScreen);
         
         assertEquals(1.0f, buttons[0].getClientProperty("opacity"));
         assertEquals(1.0f, buttons[1].getClientProperty("opacity"));
         assertEquals(0.75f, buttons[2].getClientProperty("opacity"));
+        
+        battleScreen.dispose();
     }
     
     @Test
@@ -284,14 +297,15 @@ public class ModeSelectionScreenTest {
         
         Field selectedIndexField = ModeSelectionScreen.class.getDeclaredField("selectedIndex");
         selectedIndexField.setAccessible(true);
-        selectedIndexField.set(screen, 2);
+        // 싱글 플레이는 인덱스 1이 최대
+        selectedIndexField.set(screen, 1);
         
         Method handleKeyPress = ModeSelectionScreen.class.getDeclaredMethod("handleKeyPress", int.class);
         handleKeyPress.setAccessible(true);
         handleKeyPress.invoke(screen, KeyEvent.VK_LEFT);
         
         int newIndex = (int) selectedIndexField.get(screen);
-        assertEquals(1, newIndex);
+        assertEquals(0, newIndex);
     }
     
     @Test
@@ -300,14 +314,14 @@ public class ModeSelectionScreenTest {
         
         Field selectedIndexField = ModeSelectionScreen.class.getDeclaredField("selectedIndex");
         selectedIndexField.setAccessible(true);
-        selectedIndexField.set(screen, 1);
+        selectedIndexField.set(screen, 0);
         
         Method handleKeyPress = ModeSelectionScreen.class.getDeclaredMethod("handleKeyPress", int.class);
         handleKeyPress.setAccessible(true);
         handleKeyPress.invoke(screen, KeyEvent.VK_RIGHT);
         
         int newIndex = (int) selectedIndexField.get(screen);
-        assertEquals(2, newIndex);
+        assertEquals(1, newIndex);
     }
     
     @Test
