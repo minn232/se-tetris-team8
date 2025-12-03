@@ -35,6 +35,7 @@ public class P2PBattlePanel extends JPanel {
     private final Board enemyBoard;   // 상대 보드 (렌더링 전용)
 
     private final Timer timer;
+    private Timer networkTimer;
     private final int CELL;
     private final int BOARD_W;
     private final int BOARD_H;
@@ -143,7 +144,8 @@ public class P2PBattlePanel extends JPanel {
         timer.start();
 
         // 네트워크 상태 체크 타이머 추가
-        new Timer(100, ev -> checkNetworkStatus()).start();
+        networkTimer = new Timer(100, ev -> checkNetworkStatus());
+        networkTimer.start();
 
         // 초기 현재 블록 저장
         lastCurrentMy = myBoard.getCurrent();
@@ -241,6 +243,7 @@ public class P2PBattlePanel extends JPanel {
             // 대기 중인 공격 줄을 적용
             myBoard.applyPendingAttackLines();
 
+            // 내가 보낸 공격 패턴 UI 초기화
             outgoingAttackPattern.clear();
 
             // 내 보드 상태를 네트워크로 전송
@@ -414,6 +417,7 @@ public class P2PBattlePanel extends JPanel {
         if (myOver && enemyOver) {
             winner = "DRAW";
             timer.stop();
+            networkTimer.stop();
             showGameOver();
         } else if (myOver) {
             // 내가 먼저 죽었다 → 상대에게 GAMEOVER 알림 보내기
@@ -421,10 +425,12 @@ public class P2PBattlePanel extends JPanel {
 
             winner = "YOU LOSE";
             timer.stop();
+            networkTimer.stop();
             showGameOver();
         } else if (enemyOver) {
             winner = "YOU WIN";
             timer.stop();
+            networkTimer.stop();
             showGameOver();
         }
     }
@@ -455,6 +461,7 @@ public class P2PBattlePanel extends JPanel {
         NetworkManager.getInstance().close();
 
         timer.stop();
+        networkTimer.stop();
         BackgroundMusicPlayer.getInstance().stop();
         BackgroundMusicPlayer.getInstance().play("/music/MainBGM.wav");
         BackgroundMusicPlayer.getInstance().setVolume(Settings.getGameMusicVolume());
@@ -581,13 +588,13 @@ public class P2PBattlePanel extends JPanel {
             String sender = body.substring(0, p);   // HOST or CLIENT
             String json = body.substring(p + 1);
 
-            // 내가 보낸 공격이면 무시
+            // 🔥 내가 보낸 공격이면 무시
             if ((sender.equals("HOST") && isHost) ||
                 (sender.equals("CLIENT") && !isHost)) {
                 return;
             }
 
-            // 상대 공격은 적용
+            // 🔥 상대 공격은 적용
             List<ShapeType[]> patterns = parseAttackPattern(json);
             SwingUtilities.invokeLater(() -> {
                 myBoard.addPendingAttackLines(patterns);
