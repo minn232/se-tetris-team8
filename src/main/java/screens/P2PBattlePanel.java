@@ -29,6 +29,7 @@ public class P2PBattlePanel extends JPanel {
 
     private long lastRTT = 0;
     private boolean isLagging = false;
+    private final boolean isHost;
 
     private final Board myBoard;      // 내 보드
     private final Board enemyBoard;   // 상대 보드 (렌더링 전용)
@@ -72,8 +73,15 @@ public class P2PBattlePanel extends JPanel {
     private long lastAliveTime = System.currentTimeMillis();
     private boolean connectionLost = false;
 
-    public P2PBattlePanel(Difficulty difficulty, boolean isItemMode, boolean isTimeAttack) {
+        public P2PBattlePanel(
+        Difficulty difficulty, 
+        boolean isItemMode, 
+        boolean isTimeAttack,
+        boolean isHost
+    ) {
         this.isTimeAttack = isTimeAttack;
+        this.isHost = isHost; 
+        
         this.myBoard = new Board(difficulty, isItemMode);
         this.enemyBoard = new Board(difficulty, isItemMode);  // 렌더링 전용
         this.gameStartTime = System.currentTimeMillis();
@@ -527,7 +535,7 @@ public class P2PBattlePanel extends JPanel {
         }
 
         sb.append("]}");
-        NetworkManager.getInstance().send(sb.toString());
+        NetworkManager.getInstance().send("ATTACK:" + (isHost ? "HOST" : "CLIENT") + ":" + sb.toString());
     }
 
     // 네트워크 메시지 수신
@@ -561,15 +569,29 @@ public class P2PBattlePanel extends JPanel {
 
         // ===== 공격 패턴 수신 =====
         if (msg.startsWith("ATTACK:")) {
-            String json = msg.substring(7);
-            try {
-                List<ShapeType[]> pattern = parseAttackPattern(json);
-                myBoard.addPendingAttackLines(pattern);
-            } catch (Exception ex) {
-                ex.printStackTrace();
+            String body = msg.substring(7); // HOST:{"rows":[...}
+            int p = body.indexOf(":");
+            if (p < 0) return;
+
+            String sender = body.substring(0, p);   // HOST or CLIENT
+            String json = body.substring(p + 1);
+
+            // 🔥 내가 보낸 공격이면 무시
+            if ((sender.equals("HOST") && isHost) ||
+                (sender.equals("CLIENT") && !isHost)) {
+                return;
             }
+
+            // 🔥 상대 공격은 적용
+            List<ShapeType[]> patterns = parseAttackPattern(json);
+            SwingUtilities.invokeLater(() -> {
+                myBoard.addPendingAttackLines(patterns);
+                repaint();
+            });
+
             return;
         }
+
 
         // ===== 상대 게임 오버 =====
         if (msg.equals("GAMEOVER")) {
@@ -1093,4 +1115,6 @@ protected void paintComponent(Graphics g) {
         int textWidth = g.getFontMetrics().stringWidth(winText);
         g.drawString(winText, (getWidth() - textWidth) / 2, getHeight() / 2);
     }
+
+    
 }

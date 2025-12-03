@@ -31,7 +31,9 @@ public class P2PBattlePanelTest {
     @BeforeEach
     public void setUp() {
         if (GraphicsEnvironment.isHeadless()) return;
-        panel = new P2PBattlePanel(Difficulty.NORMAL, false, false);
+
+        // 생성자 4번째 인자 isHost=true 추가
+        panel = new P2PBattlePanel(Difficulty.NORMAL, false, false, true);
     }
     
     @AfterEach
@@ -42,12 +44,8 @@ public class P2PBattlePanelTest {
                 Field timerField = P2PBattlePanel.class.getDeclaredField("timer");
                 timerField.setAccessible(true);
                 Timer timer = (Timer) timerField.get(panel);
-                if (timer != null) {
-                    timer.stop();
-                }
-            } catch (Exception e) {
-                // ignore
-            }
+                if (timer != null) timer.stop();
+            } catch (Exception ignored) {}
         }
     }
     
@@ -67,7 +65,9 @@ public class P2PBattlePanelTest {
     public void testConstructorItemMode() throws Exception {
         if (GraphicsEnvironment.isHeadless()) return;
         
-        P2PBattlePanel itemPanel = new P2PBattlePanel(Difficulty.NORMAL, true, false);
+        P2PBattlePanel itemPanel =
+                new P2PBattlePanel(Difficulty.NORMAL, true, false, true);
+
         assertNotNull(itemPanel);
         
         Field myBoardField = P2PBattlePanel.class.getDeclaredField("myBoard");
@@ -85,7 +85,9 @@ public class P2PBattlePanelTest {
     public void testConstructorTimeAttackMode() throws Exception {
         if (GraphicsEnvironment.isHeadless()) return;
         
-        P2PBattlePanel timePanel = new P2PBattlePanel(Difficulty.NORMAL, false, true);
+        P2PBattlePanel timePanel =
+                new P2PBattlePanel(Difficulty.NORMAL, false, true, true);
+
         assertNotNull(timePanel);
         
         Field isTimeAttackField = P2PBattlePanel.class.getDeclaredField("isTimeAttack");
@@ -109,13 +111,11 @@ public class P2PBattlePanelTest {
         
         Field myBoardField = P2PBattlePanel.class.getDeclaredField("myBoard");
         myBoardField.setAccessible(true);
-        Board myBoard = (Board) myBoardField.get(panel);
-        assertNotNull(myBoard);
+        assertNotNull(myBoardField.get(panel));
         
         Field enemyBoardField = P2PBattlePanel.class.getDeclaredField("enemyBoard");
         enemyBoardField.setAccessible(true);
-        Board enemyBoard = (Board) enemyBoardField.get(panel);
-        assertNotNull(enemyBoard);
+        assertNotNull(enemyBoardField.get(panel));
     }
     
     @Test
@@ -124,8 +124,7 @@ public class P2PBattlePanelTest {
         
         Field baseDelayField = P2PBattlePanel.class.getDeclaredField("baseDelay");
         baseDelayField.setAccessible(true);
-        int baseDelay = (int) baseDelayField.get(panel);
-        assertEquals(800, baseDelay);
+        assertEquals(800, baseDelayField.get(panel));
     }
     
     @Test
@@ -135,6 +134,7 @@ public class P2PBattlePanelTest {
         Field timerField = P2PBattlePanel.class.getDeclaredField("timer");
         timerField.setAccessible(true);
         Timer timer = (Timer) timerField.get(panel);
+        
         assertNotNull(timer);
         assertTrue(timer.isRunning());
     }
@@ -145,8 +145,7 @@ public class P2PBattlePanelTest {
         
         Field pausedField = P2PBattlePanel.class.getDeclaredField("paused");
         pausedField.setAccessible(true);
-        boolean paused = (boolean) pausedField.get(panel);
-        assertFalse(paused);
+        assertFalse((boolean) pausedField.get(panel));
     }
     
     @Test
@@ -155,8 +154,7 @@ public class P2PBattlePanelTest {
         
         Field winnerField = P2PBattlePanel.class.getDeclaredField("winner");
         winnerField.setAccessible(true);
-        String winner = (String) winnerField.get(panel);
-        assertNull(winner);
+        assertNull(winnerField.get(panel));
     }
     
     @Test
@@ -165,8 +163,7 @@ public class P2PBattlePanelTest {
         
         Field flashMsField = P2PBattlePanel.class.getDeclaredField("FLASH_MS");
         flashMsField.setAccessible(true);
-        long flashMs = (long) flashMsField.get(null);
-        assertEquals(150L, flashMs);
+        assertEquals(150L, flashMsField.get(null));
     }
     
     @Test
@@ -175,13 +172,11 @@ public class P2PBattlePanelTest {
         
         Field flashingRowsMyField = P2PBattlePanel.class.getDeclaredField("flashingRowsMy");
         flashingRowsMyField.setAccessible(true);
-        int[] flashingRowsMy = (int[]) flashingRowsMyField.get(panel);
-        assertNull(flashingRowsMy);
+        assertNull(flashingRowsMyField.get(panel));
         
         Field flashingRowsEnemyField = P2PBattlePanel.class.getDeclaredField("flashingRowsEnemy");
         flashingRowsEnemyField.setAccessible(true);
-        int[] flashingRowsEnemy = (int[]) flashingRowsEnemyField.get(panel);
-        assertNull(flashingRowsEnemy);
+        assertNull(flashingRowsEnemyField.get(panel));
     }
     
     @Test
@@ -191,19 +186,18 @@ public class P2PBattlePanelTest {
         Field chatAreaField = P2PBattlePanel.class.getDeclaredField("chatArea");
         chatAreaField.setAccessible(true);
         javax.swing.JTextArea chatArea = (javax.swing.JTextArea) chatAreaField.get(panel);
+        
         assertNotNull(chatArea);
         assertFalse(chatArea.isEditable());
         
         Field chatInputField = P2PBattlePanel.class.getDeclaredField("chatInput");
         chatInputField.setAccessible(true);
-        javax.swing.JTextField chatInput = (javax.swing.JTextField) chatInputField.get(panel);
-        assertNotNull(chatInput);
+        assertNotNull(chatInputField.get(panel));
         
         Field chatSendBtnField = P2PBattlePanel.class.getDeclaredField("chatSendBtn");
         chatSendBtnField.setAccessible(true);
-        javax.swing.JButton chatSendBtn = (javax.swing.JButton) chatSendBtnField.get(panel);
-        assertNotNull(chatSendBtn);
-        assertEquals("Send", chatSendBtn.getText());
+        assertEquals("Send",
+            ((javax.swing.JButton) chatSendBtnField.get(panel)).getText());
     }
     
     @Test
@@ -212,76 +206,67 @@ public class P2PBattlePanelTest {
         
         Field lastRTTField = P2PBattlePanel.class.getDeclaredField("lastRTT");
         lastRTTField.setAccessible(true);
-        long lastRTT = (long) lastRTTField.get(panel);
-        assertEquals(0L, lastRTT);
+        assertEquals(0L, lastRTTField.get(panel));
         
         Field isLaggingField = P2PBattlePanel.class.getDeclaredField("isLagging");
         isLaggingField.setAccessible(true);
-        boolean isLagging = (boolean) isLaggingField.get(panel);
-        assertFalse(isLagging);
+        assertFalse((boolean) isLaggingField.get(panel));
         
         Field connectionLostField = P2PBattlePanel.class.getDeclaredField("connectionLost");
         connectionLostField.setAccessible(true);
-        boolean connectionLost = (boolean) connectionLostField.get(panel);
-        assertFalse(connectionLost);
+        assertFalse((boolean) connectionLostField.get(panel));
     }
     
     @Test
     public void testCheckNetworkStatusMethodExists() throws Exception {
         if (GraphicsEnvironment.isHeadless()) return;
         
-        Method checkNetworkStatus = P2PBattlePanel.class.getDeclaredMethod("checkNetworkStatus");
-        checkNetworkStatus.setAccessible(true);
-        assertNotNull(checkNetworkStatus);
+        Method m = P2PBattlePanel.class.getDeclaredMethod("checkNetworkStatus");
+        assertNotNull(m);
     }
     
     @Test
     public void testCheckBlockPlacementMethod() throws Exception {
         if (GraphicsEnvironment.isHeadless()) return;
         
-        Method checkBlockPlacement = P2PBattlePanel.class.getDeclaredMethod("checkBlockPlacement");
-        checkBlockPlacement.setAccessible(true);
-        assertDoesNotThrow(() -> checkBlockPlacement.invoke(panel));
+        Method m = P2PBattlePanel.class.getDeclaredMethod("checkBlockPlacement");
+        assertDoesNotThrow(() -> m.invoke(panel));
     }
     
     @Test
-    public void testHandleKeyPressPMethodExists() throws Exception {
+    public void testHandleKeyPressMethodExists() throws Exception {
         if (GraphicsEnvironment.isHeadless()) return;
         
-        Method handleKeyPress = P2PBattlePanel.class.getDeclaredMethod("handleKeyPress", KeyEvent.class);
-        handleKeyPress.setAccessible(true);
-        assertNotNull(handleKeyPress);
+        Method m = P2PBattlePanel.class.getDeclaredMethod("handleKeyPress", KeyEvent.class);
+        assertNotNull(m);
     }
     
     @Test
     public void testCheckFlashingMethodWithNoRows() throws Exception {
         if (GraphicsEnvironment.isHeadless()) return;
         
-        Field myBoardField = P2PBattlePanel.class.getDeclaredField("myBoard");
-        myBoardField.setAccessible(true);
-        Board myBoard = (Board) myBoardField.get(panel);
+        Field boardField = P2PBattlePanel.class.getDeclaredField("myBoard");
+        boardField.setAccessible(true);
+        Board b = (Board) boardField.get(panel);
         
-        Method checkFlashing = P2PBattlePanel.class.getDeclaredMethod("checkFlashing", Board.class, boolean.class);
-        checkFlashing.setAccessible(true);
-        assertDoesNotThrow(() -> checkFlashing.invoke(panel, myBoard, true));
+        Method m = P2PBattlePanel.class.getDeclaredMethod("checkFlashing", Board.class, boolean.class);
+        assertDoesNotThrow(() -> m.invoke(panel, b, true));
     }
     
     @Test
     public void testTogglePauseMethodExists() throws Exception {
         if (GraphicsEnvironment.isHeadless()) return;
         
-        Method togglePause = P2PBattlePanel.class.getDeclaredMethod("togglePause");
-        togglePause.setAccessible(true);
-        assertNotNull(togglePause);
+        Method m = P2PBattlePanel.class.getDeclaredMethod("togglePause");
+        assertNotNull(m);
     }
     
     @Test
     public void testSendBoardStateMethod() throws Exception {
         if (GraphicsEnvironment.isHeadless()) return;
         
-        Method sendBoardState = P2PBattlePanel.class.getDeclaredMethod("sendBoardState");
-        sendBoardState.setAccessible(true);
-        assertDoesNotThrow(() -> sendBoardState.invoke(panel));
+        Method m = P2PBattlePanel.class.getDeclaredMethod("sendBoardState");
+        assertDoesNotThrow(() -> m.invoke(panel));
     }
     
     @Test
@@ -291,9 +276,8 @@ public class P2PBattlePanelTest {
         List<ShapeType[]> pattern = new ArrayList<>();
         pattern.add(new ShapeType[]{ShapeType.I, null, ShapeType.O, null, null, null, null, null, null, null});
         
-        Method sendAttackPattern = P2PBattlePanel.class.getDeclaredMethod("sendAttackPattern", List.class);
-        sendAttackPattern.setAccessible(true);
-        assertDoesNotThrow(() -> sendAttackPattern.invoke(panel, pattern));
+        Method m = P2PBattlePanel.class.getDeclaredMethod("sendAttackPattern", List.class);
+        assertDoesNotThrow(() -> m.invoke(panel, pattern));
     }
     
     @Test
@@ -304,9 +288,9 @@ public class P2PBattlePanelTest {
         chatAreaField.setAccessible(true);
         javax.swing.JTextArea chatArea = (javax.swing.JTextArea) chatAreaField.get(panel);
         
-        Method handleNetworkMessage = P2PBattlePanel.class.getDeclaredMethod("handleNetworkMessage", String.class);
-        handleNetworkMessage.setAccessible(true);
-        handleNetworkMessage.invoke(panel, "CHAT:Hello");
+        Method m = P2PBattlePanel.class.getDeclaredMethod("handleNetworkMessage", String.class);
+        m.setAccessible(true);
+        m.invoke(panel, "CHAT:Hello");
         
         assertTrue(chatArea.getText().contains("ENEMY: Hello"));
     }
@@ -315,15 +299,10 @@ public class P2PBattlePanelTest {
     public void testHandleNetworkMessageGameOver() throws Exception {
         if (GraphicsEnvironment.isHeadless()) return;
         
-        Field winnerField = P2PBattlePanel.class.getDeclaredField("winner");
-        winnerField.setAccessible(true);
+        Method m = P2PBattlePanel.class.getDeclaredMethod("handleNetworkMessage", String.class);
+        m.setAccessible(true);
         
-        Method handleNetworkMessage = P2PBattlePanel.class.getDeclaredMethod("handleNetworkMessage", String.class);
-        handleNetworkMessage.setAccessible(true);
-        handleNetworkMessage.invoke(panel, "GAMEOVER");
-        
-        // GAMEOVER 메시지는 showGameOver를 호출하므로 winner 설정만 확인
-        assertNotNull(winnerField);
+        assertDoesNotThrow(() -> m.invoke(panel, "GAMEOVER"));
     }
     
     @Test
@@ -332,9 +311,8 @@ public class P2PBattlePanelTest {
         
         String json = "{\"grid\":[[\"0\",\"0\",\"0\",\"0\",\"0\",\"0\",\"0\",\"0\",\"0\",\"0\"]],\"cur\":null,\"score\":100}";
         
-        Method updateEnemyBoard = P2PBattlePanel.class.getDeclaredMethod("updateEnemyBoard", String.class);
-        updateEnemyBoard.setAccessible(true);
-        assertDoesNotThrow(() -> updateEnemyBoard.invoke(panel, json));
+        Method m = P2PBattlePanel.class.getDeclaredMethod("updateEnemyBoard", String.class);
+        assertDoesNotThrow(() -> m.invoke(panel, json));
     }
     
     @Test
@@ -343,14 +321,12 @@ public class P2PBattlePanelTest {
         
         Field chatInputField = P2PBattlePanel.class.getDeclaredField("chatInput");
         chatInputField.setAccessible(true);
+        
         javax.swing.JTextField chatInput = (javax.swing.JTextField) chatInputField.get(panel);
         chatInput.setText("");
         
-        Method sendChat = P2PBattlePanel.class.getDeclaredMethod("sendChat");
-        sendChat.setAccessible(true);
-        assertDoesNotThrow(() -> sendChat.invoke(panel));
-        
-        // 빈 메시지는 전송되지 않음
+        Method m = P2PBattlePanel.class.getDeclaredMethod("sendChat");
+        assertDoesNotThrow(() -> m.invoke(panel));
         assertEquals("", chatInput.getText());
     }
     
@@ -367,9 +343,8 @@ public class P2PBattlePanelTest {
         chatAreaField.setAccessible(true);
         javax.swing.JTextArea chatArea = (javax.swing.JTextArea) chatAreaField.get(panel);
         
-        Method sendChat = P2PBattlePanel.class.getDeclaredMethod("sendChat");
-        sendChat.setAccessible(true);
-        sendChat.invoke(panel);
+        Method m = P2PBattlePanel.class.getDeclaredMethod("sendChat");
+        m.invoke(panel);
         
         assertTrue(chatArea.getText().contains("ME: Test message"));
         assertEquals("", chatInput.getText());
@@ -381,10 +356,10 @@ public class P2PBattlePanelTest {
         
         String json = "{\"rows\":[[\"I\",\"0\",\"O\",\"0\",\"0\",\"0\",\"0\",\"0\",\"0\",\"0\"]]}";
         
-        Method parseAttackPattern = P2PBattlePanel.class.getDeclaredMethod("parseAttackPattern", String.class);
-        parseAttackPattern.setAccessible(true);
+        Method m = P2PBattlePanel.class.getDeclaredMethod("parseAttackPattern", String.class);
+        
         @SuppressWarnings("unchecked")
-        List<ShapeType[]> result = (List<ShapeType[]>) parseAttackPattern.invoke(panel, json);
+        List<ShapeType[]> result = (List<ShapeType[]>) m.invoke(panel, json);
         
         assertNotNull(result);
     }
@@ -397,7 +372,6 @@ public class P2PBattlePanelTest {
         java.awt.Graphics2D g2 = img.createGraphics();
         
         assertDoesNotThrow(() -> panel.paintComponent(g2));
-        
         g2.dispose();
     }
     
@@ -408,10 +382,10 @@ public class P2PBattlePanelTest {
         BufferedImage img = new BufferedImage(800, 600, BufferedImage.TYPE_INT_ARGB);
         java.awt.Graphics2D g2 = img.createGraphics();
         
-        Method fillCell = P2PBattlePanel.class.getDeclaredMethod("fillCell", java.awt.Graphics2D.class, int.class, int.class, Color.class);
-        fillCell.setAccessible(true);
-        assertDoesNotThrow(() -> fillCell.invoke(panel, g2, 0, 0, Color.RED));
-        
+        Method m = P2PBattlePanel.class.getDeclaredMethod("fillCell",
+                java.awt.Graphics2D.class, int.class, int.class, Color.class);
+
+        assertDoesNotThrow(() -> m.invoke(panel, g2, 0, 0, Color.RED));
         g2.dispose();
     }
     
@@ -422,14 +396,14 @@ public class P2PBattlePanelTest {
         BufferedImage img = new BufferedImage(800, 600, BufferedImage.TYPE_INT_ARGB);
         java.awt.Graphics2D g2 = img.createGraphics();
         
-        Field myBoardField = P2PBattlePanel.class.getDeclaredField("myBoard");
-        myBoardField.setAccessible(true);
-        Board myBoard = (Board) myBoardField.get(panel);
+        Field boardField = P2PBattlePanel.class.getDeclaredField("myBoard");
+        boardField.setAccessible(true);
+        Board b = (Board) boardField.get(panel);
         
-        Method drawBoard = P2PBattlePanel.class.getDeclaredMethod("drawBoard", java.awt.Graphics2D.class, Board.class, int[].class);
-        drawBoard.setAccessible(true);
-        assertDoesNotThrow(() -> drawBoard.invoke(panel, g2, myBoard, null));
-        
+        Method m = P2PBattlePanel.class.getDeclaredMethod("drawBoard",
+                java.awt.Graphics2D.class, Board.class, int[].class);
+
+        assertDoesNotThrow(() -> m.invoke(panel, g2, b, null));
         g2.dispose();
     }
     
@@ -440,14 +414,14 @@ public class P2PBattlePanelTest {
         BufferedImage img = new BufferedImage(800, 600, BufferedImage.TYPE_INT_ARGB);
         java.awt.Graphics2D g2 = img.createGraphics();
         
-        Field myBoardField = P2PBattlePanel.class.getDeclaredField("myBoard");
-        myBoardField.setAccessible(true);
-        Board myBoard = (Board) myBoardField.get(panel);
+        Field boardField = P2PBattlePanel.class.getDeclaredField("myBoard");
+        boardField.setAccessible(true);
+        Board b = (Board) boardField.get(panel);
         
-        Method drawCurrent = P2PBattlePanel.class.getDeclaredMethod("drawCurrent", java.awt.Graphics2D.class, Board.class);
-        drawCurrent.setAccessible(true);
-        assertDoesNotThrow(() -> drawCurrent.invoke(panel, g2, myBoard));
-        
+        Method m = P2PBattlePanel.class.getDeclaredMethod("drawCurrent",
+                java.awt.Graphics2D.class, Board.class);
+
+        assertDoesNotThrow(() -> m.invoke(panel, g2, b));
         g2.dispose();
     }
     
@@ -458,10 +432,10 @@ public class P2PBattlePanelTest {
         BufferedImage img = new BufferedImage(800, 600, BufferedImage.TYPE_INT_ARGB);
         java.awt.Graphics2D g2 = img.createGraphics();
         
-        Method drawGrid = P2PBattlePanel.class.getDeclaredMethod("drawGrid", java.awt.Graphics2D.class);
-        drawGrid.setAccessible(true);
-        assertDoesNotThrow(() -> drawGrid.invoke(panel, g2));
-        
+        Method m = P2PBattlePanel.class.getDeclaredMethod("drawGrid",
+                java.awt.Graphics2D.class);
+
+        assertDoesNotThrow(() -> m.invoke(panel, g2));
         g2.dispose();
     }
     
@@ -472,14 +446,14 @@ public class P2PBattlePanelTest {
         BufferedImage img = new BufferedImage(800, 600, BufferedImage.TYPE_INT_ARGB);
         java.awt.Graphics2D g2 = img.createGraphics();
         
-        Field myBoardField = P2PBattlePanel.class.getDeclaredField("myBoard");
-        myBoardField.setAccessible(true);
-        Board myBoard = (Board) myBoardField.get(panel);
+        Field boardField = P2PBattlePanel.class.getDeclaredField("myBoard");
+        boardField.setAccessible(true);
+        Board b = (Board) boardField.get(panel);
         
-        Method drawSidebar = P2PBattlePanel.class.getDeclaredMethod("drawSidebar", java.awt.Graphics2D.class, Board.class, int.class, String.class);
-        drawSidebar.setAccessible(true);
-        assertDoesNotThrow(() -> drawSidebar.invoke(panel, g2, myBoard, 0, "YOU"));
-        
+        Method m = P2PBattlePanel.class.getDeclaredMethod("drawSidebar",
+                java.awt.Graphics2D.class, Board.class, int.class, String.class);
+
+        assertDoesNotThrow(() -> m.invoke(panel, g2, b, 0, "YOU"));
         g2.dispose();
     }
     
@@ -490,14 +464,14 @@ public class P2PBattlePanelTest {
         BufferedImage img = new BufferedImage(800, 600, BufferedImage.TYPE_INT_ARGB);
         java.awt.Graphics2D g2 = img.createGraphics();
         
-        Field myBoardField = P2PBattlePanel.class.getDeclaredField("myBoard");
-        myBoardField.setAccessible(true);
-        Board myBoard = (Board) myBoardField.get(panel);
+        Field boardField = P2PBattlePanel.class.getDeclaredField("myBoard");
+        boardField.setAccessible(true);
+        Board b = (Board) boardField.get(panel);
         
-        Method drawNextPreview = P2PBattlePanel.class.getDeclaredMethod("drawNextPreview", java.awt.Graphics2D.class, int.class, int.class, Board.class);
-        drawNextPreview.setAccessible(true);
-        assertDoesNotThrow(() -> drawNextPreview.invoke(panel, g2, 100, 100, myBoard));
-        
+        Method m = P2PBattlePanel.class.getDeclaredMethod("drawNextPreview",
+                java.awt.Graphics2D.class, int.class, int.class, Board.class);
+
+        assertDoesNotThrow(() -> m.invoke(panel, g2, 100, 100, b));
         g2.dispose();
     }
     
@@ -508,10 +482,10 @@ public class P2PBattlePanelTest {
         BufferedImage img = new BufferedImage(800, 600, BufferedImage.TYPE_INT_ARGB);
         java.awt.Graphics2D g2 = img.createGraphics();
         
-        Method drawPaused = P2PBattlePanel.class.getDeclaredMethod("drawPaused", java.awt.Graphics2D.class);
-        drawPaused.setAccessible(true);
-        assertDoesNotThrow(() -> drawPaused.invoke(panel, g2));
-        
+        Method m = P2PBattlePanel.class.getDeclaredMethod("drawPaused",
+                java.awt.Graphics2D.class);
+
+        assertDoesNotThrow(() -> m.invoke(panel, g2));
         g2.dispose();
     }
     
@@ -526,10 +500,10 @@ public class P2PBattlePanelTest {
         winnerField.setAccessible(true);
         winnerField.set(panel, "YOU WIN");
         
-        Method drawWinner = P2PBattlePanel.class.getDeclaredMethod("drawWinner", java.awt.Graphics2D.class);
-        drawWinner.setAccessible(true);
-        assertDoesNotThrow(() -> drawWinner.invoke(panel, g2));
-        
+        Method m = P2PBattlePanel.class.getDeclaredMethod("drawWinner",
+                java.awt.Graphics2D.class);
+
+        assertDoesNotThrow(() -> m.invoke(panel, g2));
         g2.dispose();
     }
     
@@ -537,40 +511,35 @@ public class P2PBattlePanelTest {
     public void testCELLConstant() throws Exception {
         if (GraphicsEnvironment.isHeadless()) return;
         
-        Field cellField = P2PBattlePanel.class.getDeclaredField("CELL");
-        cellField.setAccessible(true);
-        int cell = (int) cellField.get(panel);
-        assertTrue(cell > 0);
+        Field f = P2PBattlePanel.class.getDeclaredField("CELL");
+        f.setAccessible(true);
+        assertTrue((int) f.get(panel) > 0);
     }
     
     @Test
     public void testBoardDimensions() throws Exception {
         if (GraphicsEnvironment.isHeadless()) return;
         
-        Field boardWField = P2PBattlePanel.class.getDeclaredField("BOARD_W");
-        boardWField.setAccessible(true);
-        int boardW = (int) boardWField.get(panel);
-        assertTrue(boardW > 0);
+        Field fw = P2PBattlePanel.class.getDeclaredField("BOARD_W");
+        fw.setAccessible(true);
+        assertTrue((int) fw.get(panel) > 0);
         
-        Field boardHField = P2PBattlePanel.class.getDeclaredField("BOARD_H");
-        boardHField.setAccessible(true);
-        int boardH = (int) boardHField.get(panel);
-        assertTrue(boardH > 0);
+        Field fh = P2PBattlePanel.class.getDeclaredField("BOARD_H");
+        fh.setAccessible(true);
+        assertTrue((int) fh.get(panel) > 0);
     }
     
     @Test
     public void testSideWidthAndGap() throws Exception {
         if (GraphicsEnvironment.isHeadless()) return;
         
-        Field sideWField = P2PBattlePanel.class.getDeclaredField("SIDE_W");
-        sideWField.setAccessible(true);
-        int sideW = (int) sideWField.get(panel);
-        assertTrue(sideW > 0);
+        Field fw = P2PBattlePanel.class.getDeclaredField("SIDE_W");
+        fw.setAccessible(true);
+        assertTrue((int) fw.get(panel) > 0);
         
-        Field gapField = P2PBattlePanel.class.getDeclaredField("GAP");
-        gapField.setAccessible(true);
-        int gap = (int) gapField.get(panel);
-        assertTrue(gap > 0);
+        Field fg = P2PBattlePanel.class.getDeclaredField("GAP");
+        fg.setAccessible(true);
+        assertTrue((int) fg.get(panel) > 0);
     }
     
     @Test
@@ -584,44 +553,41 @@ public class P2PBattlePanelTest {
     public void testActionListenersOnChatComponents() throws Exception {
         if (GraphicsEnvironment.isHeadless()) return;
         
-        Field chatSendBtnField = P2PBattlePanel.class.getDeclaredField("chatSendBtn");
-        chatSendBtnField.setAccessible(true);
-        javax.swing.JButton chatSendBtn = (javax.swing.JButton) chatSendBtnField.get(panel);
-        assertTrue(chatSendBtn.getActionListeners().length > 0);
+        Field sendBtn = P2PBattlePanel.class.getDeclaredField("chatSendBtn");
+        sendBtn.setAccessible(true);
+        javax.swing.JButton b1 = (javax.swing.JButton) sendBtn.get(panel);
+        assertTrue(b1.getActionListeners().length > 0);
         
-        Field chatInputField = P2PBattlePanel.class.getDeclaredField("chatInput");
-        chatInputField.setAccessible(true);
-        javax.swing.JTextField chatInput = (javax.swing.JTextField) chatInputField.get(panel);
-        assertTrue(chatInput.getActionListeners().length > 0);
+        Field inputField = P2PBattlePanel.class.getDeclaredField("chatInput");
+        inputField.setAccessible(true);
+        javax.swing.JTextField b2 = (javax.swing.JTextField) inputField.get(panel);
+        assertTrue(b2.getActionListeners().length > 0);
     }
     
     @Test
     public void testGameStartTimeInitialized() throws Exception {
         if (GraphicsEnvironment.isHeadless()) return;
         
-        Field gameStartTimeField = P2PBattlePanel.class.getDeclaredField("gameStartTime");
-        gameStartTimeField.setAccessible(true);
-        long gameStartTime = (long) gameStartTimeField.get(panel);
-        assertTrue(gameStartTime > 0);
+        Field f = P2PBattlePanel.class.getDeclaredField("gameStartTime");
+        f.setAccessible(true);
+        assertTrue((long) f.get(panel) > 0);
     }
     
     @Test
     public void testPausedTimeInitial() throws Exception {
         if (GraphicsEnvironment.isHeadless()) return;
         
-        Field pausedTimeField = P2PBattlePanel.class.getDeclaredField("pausedTime");
-        pausedTimeField.setAccessible(true);
-        long pausedTime = (long) pausedTimeField.get(panel);
-        assertEquals(0L, pausedTime);
+        Field f = P2PBattlePanel.class.getDeclaredField("pausedTime");
+        f.setAccessible(true);
+        assertEquals(0L, (long) f.get(panel));
     }
     
     @Test
     public void testLastCurrentMyInitialized() throws Exception {
         if (GraphicsEnvironment.isHeadless()) return;
         
-        Field lastCurrentMyField = P2PBattlePanel.class.getDeclaredField("lastCurrentMy");
-        lastCurrentMyField.setAccessible(true);
-        Object lastCurrentMy = lastCurrentMyField.get(panel);
-        assertNotNull(lastCurrentMy);
+        Field f = P2PBattlePanel.class.getDeclaredField("lastCurrentMy");
+        f.setAccessible(true);
+        assertNotNull(f.get(panel));
     }
 }
