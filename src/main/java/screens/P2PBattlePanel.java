@@ -64,6 +64,9 @@ public class P2PBattlePanel extends JPanel {
     // 블록 배치 감지용
     private Tetromino lastCurrentMy = null;
 
+    // 내가 보낸 공격 패턴 (UI 표시용)
+    private List<ShapeType[]> outgoingAttackPattern = new java.util.ArrayList<>();
+
     // ===== CHAT UI =====
     private javax.swing.JTextArea chatArea;
     private javax.swing.JTextField chatInput;
@@ -238,6 +241,8 @@ public class P2PBattlePanel extends JPanel {
             // 대기 중인 공격 줄을 적용
             myBoard.applyPendingAttackLines();
 
+            outgoingAttackPattern.clear();
+
             // 내 보드 상태를 네트워크로 전송
             sendBoardState();
         }
@@ -300,9 +305,6 @@ public class P2PBattlePanel extends JPanel {
                 // 2줄 이상 클리어 시 상대에게 공격 전송
             if (rows.length >= 2) {
                 List<ShapeType[]> attackPattern = myBoard.getAttackPattern(rows);
-
-                // ✔ 내 pending 공격에도 추가해야 오른쪽 UI가 업데이트됨
-                myBoard.addPendingAttackLines(attackPattern);
 
                 // 상대에게 전송
                 sendAttackPattern(attackPattern);
@@ -515,6 +517,9 @@ public class P2PBattlePanel extends JPanel {
 
     // 공격 패턴 전송
     private void sendAttackPattern(List<ShapeType[]> pattern) {
+        // 내가 보낸 공격 패턴을 저장 (UI 표시용)
+        outgoingAttackPattern = new java.util.ArrayList<>(pattern);
+
         StringBuilder sb = new StringBuilder();
         sb.append("ATTACK:{\"rows\":[");
 
@@ -576,13 +581,13 @@ public class P2PBattlePanel extends JPanel {
             String sender = body.substring(0, p);   // HOST or CLIENT
             String json = body.substring(p + 1);
 
-            // 🔥 내가 보낸 공격이면 무시
+            // 내가 보낸 공격이면 무시
             if ((sender.equals("HOST") && isHost) ||
                 (sender.equals("CLIENT") && !isHost)) {
                 return;
             }
 
-            // 🔥 상대 공격은 적용
+            // 상대 공격은 적용
             List<ShapeType[]> patterns = parseAttackPattern(json);
             SwingUtilities.invokeLater(() -> {
                 myBoard.addPendingAttackLines(patterns);
@@ -964,7 +969,14 @@ protected void paintComponent(Graphics g) {
         }
 
         // 대기 중인 공격 줄 표시
-        List<ShapeType[]> pendingPatterns = board.getPendingAttackPattern();
+        List<ShapeType[]> pendingPatterns;
+        if (board == myBoard) {
+            // 내 보드: 내가 보낸 공격 패턴 표시
+            pendingPatterns = outgoingAttackPattern;
+        } else {
+            // 상대 보드: 상대가 받은 공격 패턴 표시
+            pendingPatterns = board.getPendingAttackPattern();
+        }
         int pendingLines = pendingPatterns.size();
         int displayLines = 10;
         int miniCellSize = 8;
