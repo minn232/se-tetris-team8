@@ -9,7 +9,6 @@ import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
 import java.util.List;
 
-import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.SwingUtilities;
 import javax.swing.Timer;
@@ -153,13 +152,13 @@ public class BattleGamePanel extends JPanel {
     private void handleKeyPress(KeyEvent e) {
         int code = e.getKeyCode();
         
-        // 일시정지
+        // 일시정지 (항상 처리)
         if (code == KeyEvent.VK_P) {
             togglePause();
             return;
         }
         
-        // 게임 종료 시 키 입력 무시
+        // 승자가 있거나 pause 상태면 게임 조작 무시
         if (winner != null || paused) return;
         
         // Player 1 조작 (Settings에서 가져온 키)
@@ -272,34 +271,119 @@ public class BattleGamePanel extends JPanel {
         repaint();
     }
     
+    private javax.swing.JDialog pauseDialog = null;
+    private javax.swing.JButton[] pauseButtons = null;
+    private int selectedPauseButton = 0;
+    
     private void showPauseMenu() {
-        String[] options = {"Resume", "Quit to Menu"};
-        int choice = JOptionPane.showOptionDialog(
-            this,
-            "Game Paused",
-            "Pause Menu",
-            JOptionPane.DEFAULT_OPTION,
-            JOptionPane.INFORMATION_MESSAGE,
-            null,
-            options,
-            options[0]
-        );
+        int baseFontSize = Settings.getBaseFontSize();
+        double scale = Settings.getScaleFactor();
         
-        switch (choice) {
-            case 0 -> {
-                // Resume
-                paused = false;
-                requestFocusInWindow();
+        pauseDialog = new javax.swing.JDialog((java.awt.Frame) null, "Pause", true);
+        pauseDialog.setLayout(new java.awt.BorderLayout());
+        pauseDialog.setSize((int)(400 * scale), (int)(250 * scale));
+        pauseDialog.setLocationRelativeTo(this);
+        pauseDialog.setDefaultCloseOperation(javax.swing.JDialog.DO_NOTHING_ON_CLOSE);
+        
+        // 메시지 패널
+        javax.swing.JPanel messagePanel = new javax.swing.JPanel();
+        javax.swing.JLabel messageLabel = new javax.swing.JLabel("Game Paused");
+        messageLabel.setFont(new Font("Arial", Font.BOLD, (int)(baseFontSize * 1.33)));
+        messagePanel.add(messageLabel);
+        pauseDialog.add(messagePanel, java.awt.BorderLayout.CENTER);
+        
+        // 버튼 패널
+        javax.swing.JPanel buttonPanel = new javax.swing.JPanel();
+        buttonPanel.setLayout(new java.awt.GridLayout(4, 1, 10, 10));
+        buttonPanel.setBorder(javax.swing.BorderFactory.createEmptyBorder(10, 40, 20, 40));
+        
+        javax.swing.JButton resumeButton = new javax.swing.JButton("Resume");
+        javax.swing.JButton restartButton = new javax.swing.JButton("Restart");
+        javax.swing.JButton menuButton = new javax.swing.JButton("Main Menu");
+        javax.swing.JButton exitButton = new javax.swing.JButton("Exit");
+        
+        for (javax.swing.JButton btn : new javax.swing.JButton[]{resumeButton, restartButton, menuButton, exitButton}) {
+            btn.setFont(new Font("Arial", Font.PLAIN, baseFontSize));
+            btn.setFocusable(false);
+        }
+        
+        resumeButton.addActionListener(e -> {
+            pauseDialog.dispose();
+            paused = false;
+            if (isTimeAttack && pauseStartTime > 0) {
+                pausedTime += System.currentTimeMillis() - pauseStartTime;
+                pauseStartTime = 0;
             }
-            case 1 -> {
-                // Quit to Menu
-                timer.stop();
-                returnToMenu();
+            requestFocusInWindow();
+        });
+        
+        restartButton.addActionListener(e -> {
+            pauseDialog.dispose();
+            restartGame();
+        });
+        
+        menuButton.addActionListener(e -> {
+            pauseDialog.dispose();
+            timer.stop();
+            returnToMenu();
+        });
+        
+        exitButton.addActionListener(e -> {
+            pauseDialog.dispose();
+            timer.stop();
+            System.exit(0);
+        });
+        
+        buttonPanel.add(resumeButton);
+        buttonPanel.add(restartButton);
+        buttonPanel.add(menuButton);
+        buttonPanel.add(exitButton);
+        pauseDialog.add(buttonPanel, java.awt.BorderLayout.SOUTH);
+        
+        pauseButtons = new javax.swing.JButton[]{resumeButton, restartButton, menuButton, exitButton};
+        selectedPauseButton = 0;
+        updatePauseButtonHighlight();
+        
+        pauseDialog.addKeyListener(new KeyAdapter() {
+            @Override
+            public void keyPressed(KeyEvent e) {
+                handlePauseKeyPress(e);
             }
-            default -> {
-                // 창을 닫은 경우
-                paused = false;
-                requestFocusInWindow();
+        });
+        
+        pauseDialog.setFocusable(true);
+        pauseDialog.setVisible(true);
+    }
+    
+    private void handlePauseKeyPress(KeyEvent e) {
+        switch (e.getKeyCode()) {
+            case KeyEvent.VK_UP:
+                if (selectedPauseButton > 0) {
+                    selectedPauseButton--;
+                    updatePauseButtonHighlight();
+                }
+                break;
+            case KeyEvent.VK_DOWN:
+                if (selectedPauseButton < pauseButtons.length - 1) {
+                    selectedPauseButton++;
+                    updatePauseButtonHighlight();
+                }
+                break;
+            case KeyEvent.VK_ENTER:
+            case KeyEvent.VK_SPACE:
+                pauseButtons[selectedPauseButton].doClick();
+                break;
+        }
+    }
+    
+    private void updatePauseButtonHighlight() {
+        for (int i = 0; i < pauseButtons.length; i++) {
+            if (i == selectedPauseButton) {
+                pauseButtons[i].setBackground(new Color(100, 150, 255));
+                pauseButtons[i].setOpaque(true);
+            } else {
+                pauseButtons[i].setBackground(null);
+                pauseButtons[i].setOpaque(false);
             }
         }
     }

@@ -70,7 +70,7 @@ public class GamePanel extends JPanel {
             @Override public void keyPressed(KeyEvent e) {
                 int code = e.getKeyCode();
 
-                // P: 일시정지 / 재개 + 메뉴
+                // P: 일시정지 / 재개 + 메뉴 (항상 처리)
                 if (code == KeyEvent.VK_P) {
                     togglePauseAndMenu();
                     repaint();
@@ -83,6 +83,7 @@ public class GamePanel extends JPanel {
                     return;
                 }
 
+                // 게임 오버거나 pause 상태면 게임 조작 무시
                 if (board.isGameOver() || paused) return;
 
                 // 기본 조작키 - Settings에서 가져옴 (WASD + 방향키 지원)
@@ -245,58 +246,143 @@ public class GamePanel extends JPanel {
     }
 
     // ==== 일시정지/메뉴 ====
+    private javax.swing.JDialog pauseDialog = null;
+    private javax.swing.JButton[] pauseButtons = null;
+    private int selectedPauseButton = 0;
+    
     private void togglePauseAndMenu() {
         paused = !paused;
         if (paused) {
-            BackgroundMusicPlayer.getInstance().pause(); // 음악 일시정지
-            Object[] options = {"resume", "restart", "main menu", "exit"};
-            int sel = JOptionPane.showOptionDialog(
-                    SwingUtilities.getWindowAncestor(this),
-                    "pause",
-                    "Pause",
-                    JOptionPane.DEFAULT_OPTION,
-                    JOptionPane.INFORMATION_MESSAGE,
-                    null, options, options[0]
-            );
-            switch (sel) {
-                case 0 -> { // 재개
-                    paused = false;
-                    BackgroundMusicPlayer.getInstance().resume(); // 음악 재개
-                }
-                case 1 -> { // 재시작
-                    board.reset();
-                    paused = false;
-                    currentDelay = baseDelay;
-                    normalDelay = baseDelay;
-                    timer.setDelay(currentDelay);
-                    timer.setInitialDelay(currentDelay);
-                    if (!slowEffectTimer.isRunning()) {
-                        slowEffectTimer.start(); // 슬로우 효과 타이머 재시작
-                    }
-                    BackgroundMusicPlayer.getInstance().resume(); // 음악 재개
-                }
-                case 2 -> { // 메인 메뉴
-                    timer.stop();
-                    slowEffectTimer.stop(); // 슬로우 효과 타이머 정지
-                    BackgroundMusicPlayer.getInstance().stop(); // 게임 음악 정지
-                    closeGameOnly();
-                    SwingUtilities.invokeLater(() -> {
-                        Mainmenu mainmenu = new Mainmenu();
-                        mainmenu.setVisible(true);  // 메인메뉴 화면 표시 (생성자에서 MainBGM 재생)
-                    });
-                }
-                case 3 -> { // 종료
-                    timer.stop();
-                    slowEffectTimer.stop();
-                    System.exit(0);
-                }
-                default -> { 
-                    // 닫기/취소 시 재개
-                    paused = false;
-                    BackgroundMusicPlayer.getInstance().resume();
-                }
+            BackgroundMusicPlayer.getInstance().pause();
+            showPauseDialog();
+        }
+    }
+    
+    private void showPauseDialog() {
+        int baseFontSize = Settings.getBaseFontSize();
+        double scale = Settings.getScaleFactor();
+        
+        pauseDialog = new javax.swing.JDialog((java.awt.Frame) null, "Pause", true);
+        pauseDialog.setLayout(new java.awt.BorderLayout());
+        pauseDialog.setSize((int)(400 * scale), (int)(250 * scale));
+        pauseDialog.setLocationRelativeTo(this);
+        pauseDialog.setDefaultCloseOperation(javax.swing.JDialog.DO_NOTHING_ON_CLOSE);
+        
+        // 메시지 패널
+        javax.swing.JPanel messagePanel = new javax.swing.JPanel();
+        javax.swing.JLabel messageLabel = new javax.swing.JLabel("Game Paused");
+        messageLabel.setFont(new Font("Arial", Font.BOLD, (int)(baseFontSize * 1.33)));
+        messagePanel.add(messageLabel);
+        pauseDialog.add(messagePanel, java.awt.BorderLayout.CENTER);
+        
+        // 버튼 패널
+        javax.swing.JPanel buttonPanel = new javax.swing.JPanel();
+        buttonPanel.setLayout(new java.awt.GridLayout(4, 1, 10, 10));
+        buttonPanel.setBorder(javax.swing.BorderFactory.createEmptyBorder(10, 40, 20, 40));
+        
+        javax.swing.JButton resumeButton = new javax.swing.JButton("Resume");
+        javax.swing.JButton restartButton = new javax.swing.JButton("Restart");
+        javax.swing.JButton menuButton = new javax.swing.JButton("Main Menu");
+        javax.swing.JButton exitButton = new javax.swing.JButton("Exit");
+        
+        for (javax.swing.JButton btn : new javax.swing.JButton[]{resumeButton, restartButton, menuButton, exitButton}) {
+            btn.setFont(new Font("Arial", Font.PLAIN, baseFontSize));
+            btn.setFocusable(false);
+        }
+        
+        resumeButton.addActionListener(e -> {
+            pauseDialog.dispose();
+            paused = false;
+            BackgroundMusicPlayer.getInstance().resume();
+            requestFocusInWindow();
+        });
+        
+        restartButton.addActionListener(e -> {
+            pauseDialog.dispose();
+            board.reset();
+            paused = false;
+            currentDelay = baseDelay;
+            normalDelay = baseDelay;
+            timer.setDelay(currentDelay);
+            timer.setInitialDelay(currentDelay);
+            if (!slowEffectTimer.isRunning()) {
+                slowEffectTimer.start();
             }
-
+            BackgroundMusicPlayer.getInstance().resume();
+            requestFocusInWindow();
+        });
+        
+        menuButton.addActionListener(e -> {
+            pauseDialog.dispose();
+            timer.stop();
+            slowEffectTimer.stop();
+            BackgroundMusicPlayer.getInstance().stop();
+            closeGameOnly();
+            SwingUtilities.invokeLater(() -> {
+                ScreenNavigator.getInstance().clear();
+                Mainmenu mainmenu = new Mainmenu();
+                mainmenu.setVisible(true);
+            });
+        });
+        
+        exitButton.addActionListener(e -> {
+            pauseDialog.dispose();
+            timer.stop();
+            slowEffectTimer.stop();
+            System.exit(0);
+        });
+        
+        buttonPanel.add(resumeButton);
+        buttonPanel.add(restartButton);
+        buttonPanel.add(menuButton);
+        buttonPanel.add(exitButton);
+        pauseDialog.add(buttonPanel, java.awt.BorderLayout.SOUTH);
+        
+        pauseButtons = new javax.swing.JButton[]{resumeButton, restartButton, menuButton, exitButton};
+        selectedPauseButton = 0;
+        updatePauseButtonHighlight();
+        
+        pauseDialog.addKeyListener(new KeyAdapter() {
+            @Override
+            public void keyPressed(KeyEvent e) {
+                handlePauseKeyPress(e);
+            }
+        });
+        
+        pauseDialog.setFocusable(true);
+        pauseDialog.setVisible(true);
+    }
+    
+    private void handlePauseKeyPress(KeyEvent e) {
+        switch (e.getKeyCode()) {
+            case KeyEvent.VK_UP:
+                if (selectedPauseButton > 0) {
+                    selectedPauseButton--;
+                    updatePauseButtonHighlight();
+                }
+                break;
+            case KeyEvent.VK_DOWN:
+                if (selectedPauseButton < pauseButtons.length - 1) {
+                    selectedPauseButton++;
+                    updatePauseButtonHighlight();
+                }
+                break;
+            case KeyEvent.VK_ENTER:
+            case KeyEvent.VK_SPACE:
+                pauseButtons[selectedPauseButton].doClick();
+                break;
+        }
+    }
+    
+    private void updatePauseButtonHighlight() {
+        for (int i = 0; i < pauseButtons.length; i++) {
+            if (i == selectedPauseButton) {
+                pauseButtons[i].setBackground(new Color(100, 150, 255));
+                pauseButtons[i].setOpaque(true);
+            } else {
+                pauseButtons[i].setBackground(null);
+                pauseButtons[i].setOpaque(false);
+            }
         }
     }
 
