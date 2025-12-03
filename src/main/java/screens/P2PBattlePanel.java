@@ -76,6 +76,11 @@ public class P2PBattlePanel extends JPanel {
     // ===== 네트워크 상태 체크용 =====
     private long lastAliveTime = System.currentTimeMillis();
     private boolean connectionLost = false;
+    
+    // ===== 게임 오버 버튼 네비게이션 =====
+    private int selectedButtonIndex = 0;
+    private javax.swing.JButton restartButton;
+    private javax.swing.JButton menuButton;
 
         public P2PBattlePanel(
         Difficulty difficulty, 
@@ -455,21 +460,109 @@ public class P2PBattlePanel extends JPanel {
     private void showGameOver() {
         SwingUtilities.invokeLater(() -> {
             String message = winner;
+            int baseFontSize = Settings.getBaseFontSize();
+            double scale = Settings.getScaleFactor();
 
-            String[] options = {"Return to Menu"};
-            JOptionPane.showOptionDialog(
-                    this,
-                    message,
-                    "Game Over",
-                    JOptionPane.DEFAULT_OPTION,
-                    JOptionPane.INFORMATION_MESSAGE,
-                    null,
-                    options,
-                    options[0]
-            );
-
-            returnToMenu();
+            // 커스텀 패널 생성
+            javax.swing.JPanel panel = new javax.swing.JPanel();
+            panel.setLayout(new java.awt.BorderLayout(10, 10));
+            panel.setBorder(javax.swing.BorderFactory.createEmptyBorder(20, 20, 20, 20));
+            
+            javax.swing.JLabel messageLabel = new javax.swing.JLabel(message);
+            messageLabel.setHorizontalAlignment(javax.swing.SwingConstants.CENTER);
+            messageLabel.setFont(new Font("Arial", Font.BOLD, (int)(baseFontSize * 1.5)));
+            panel.add(messageLabel, java.awt.BorderLayout.CENTER);
+            
+            // 버튼 패널
+            javax.swing.JPanel buttonPanel = new javax.swing.JPanel();
+            buttonPanel.setLayout(new java.awt.FlowLayout(java.awt.FlowLayout.CENTER, 20, 10));
+            
+            restartButton = new javax.swing.JButton("Restart");
+            menuButton = new javax.swing.JButton("Return to Menu");
+            
+            restartButton.setFont(new Font("Arial", Font.PLAIN, baseFontSize));
+            menuButton.setFont(new Font("Arial", Font.PLAIN, baseFontSize));
+            
+            restartButton.setPreferredSize(new Dimension((int)(120 * scale), (int)(40 * scale)));
+            menuButton.setPreferredSize(new Dimension((int)(150 * scale), (int)(40 * scale)));
+            
+            restartButton.setFocusable(false);
+            menuButton.setFocusable(false);
+            
+            buttonPanel.add(restartButton);
+            buttonPanel.add(menuButton);
+            
+            panel.add(buttonPanel, java.awt.BorderLayout.SOUTH);
+            
+            // 초기 하이라이트
+            selectedButtonIndex = 0;
+            updateGameOverButtonHighlight();
+            
+            // 다이얼로그 생성
+            javax.swing.JDialog dialog = new javax.swing.JDialog((java.awt.Frame) null, "Game Over", true);
+            dialog.setContentPane(panel);
+            dialog.setSize((int)(400 * scale), (int)(200 * scale));
+            dialog.setLocationRelativeTo(this);
+            dialog.setDefaultCloseOperation(javax.swing.JDialog.DO_NOTHING_ON_CLOSE);
+            
+            // 키 리스너 추가
+            dialog.addKeyListener(new java.awt.event.KeyAdapter() {
+                @Override
+                public void keyPressed(java.awt.event.KeyEvent e) {
+                    int code = e.getKeyCode();
+                    
+                    if (code == java.awt.event.KeyEvent.VK_LEFT) {
+                        if (selectedButtonIndex > 0) {
+                            selectedButtonIndex--;
+                            updateGameOverButtonHighlight();
+                        }
+                    } else if (code == java.awt.event.KeyEvent.VK_RIGHT) {
+                        if (selectedButtonIndex < 1) {
+                            selectedButtonIndex++;
+                            updateGameOverButtonHighlight();
+                        }
+                    } else if (code == java.awt.event.KeyEvent.VK_ENTER || code == java.awt.event.KeyEvent.VK_SPACE) {
+                        dialog.dispose();
+                        returnToMenu();
+                    }
+                }
+            });
+            
+            // 버튼 액션 리스너
+            restartButton.addActionListener(e -> {
+                dialog.dispose();
+                returnToMenu();
+            });
+            
+            menuButton.addActionListener(e -> {
+                dialog.dispose();
+                returnToMenu();
+            });
+            
+            dialog.setFocusable(true);
+            dialog.requestFocusInWindow();
+            dialog.setVisible(true);
         });
+    }
+    
+    private void updateGameOverButtonHighlight() {
+        if (restartButton != null && menuButton != null) {
+            if (selectedButtonIndex == 0) {
+                restartButton.setBackground(new Color(100, 150, 255));
+                restartButton.setForeground(Color.WHITE);
+                restartButton.setOpaque(true);
+                menuButton.setBackground(null);
+                menuButton.setForeground(Color.BLACK);
+                menuButton.setOpaque(false);
+            } else {
+                menuButton.setBackground(new Color(100, 150, 255));
+                menuButton.setForeground(Color.WHITE);
+                menuButton.setOpaque(true);
+                restartButton.setBackground(null);
+                restartButton.setForeground(Color.BLACK);
+                restartButton.setOpaque(false);
+            }
+        }
     }
 
     private void returnToMenu() {
@@ -480,7 +573,6 @@ public class P2PBattlePanel extends JPanel {
         timer.stop();
         networkTimer.stop();
         BackgroundMusicPlayer.getInstance().stop();
-        BackgroundMusicPlayer.getInstance().play("/music/MainBGM.wav", Settings.getMainMusicVolume());
 
         java.awt.Window w = SwingUtilities.getWindowAncestor(this);
         if (w != null) {

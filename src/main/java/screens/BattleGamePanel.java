@@ -59,6 +59,11 @@ public class BattleGamePanel extends JPanel {
     private Tetromino lastCurrent1 = null;
     private Tetromino lastCurrent2 = null;
     
+    // 게임 오버 다이얼로그 관련
+    private javax.swing.JDialog gameOverDialog = null;
+    private javax.swing.JButton[] gameOverButtons = null;
+    private int selectedGameOverButton = 0;
+    
     public BattleGamePanel(Difficulty difficulty) {
         this(difficulty, false, false);
     }
@@ -340,28 +345,102 @@ public class BattleGamePanel extends JPanel {
     
     private void showGameOver() {
         SwingUtilities.invokeLater(() -> {
-            String message = winner.equals("DRAW") ? 
-                "It's a DRAW!" : 
-                winner + " WINS!";
-            
-            String[] options = {"Return to Menu", "Restart"};
-            int choice = JOptionPane.showOptionDialog(
-                this,
-                message,
-                "Game Over",
-                JOptionPane.DEFAULT_OPTION,
-                JOptionPane.INFORMATION_MESSAGE,
-                null,
-                options,
-                options[0]
-            );
-            
-            if (choice == 0) {
-                returnToMenu();
-            } else if (choice == 1) {
-                restartGame();
+            createGameOverDialog();
+        });
+    }
+    
+    private void createGameOverDialog() {
+        int baseFontSize = Settings.getBaseFontSize();
+        double scale = Settings.getScaleFactor();
+        
+        gameOverDialog = new javax.swing.JDialog((java.awt.Frame) null, "Game Over", true);
+        gameOverDialog.setLayout(new java.awt.BorderLayout());
+        gameOverDialog.setSize((int)(400 * scale), (int)(200 * scale));
+        gameOverDialog.setLocationRelativeTo(this);
+        gameOverDialog.setDefaultCloseOperation(javax.swing.JDialog.DO_NOTHING_ON_CLOSE);
+        
+        // 메시지 패널
+        javax.swing.JPanel messagePanel = new javax.swing.JPanel();
+        messagePanel.setBorder(javax.swing.BorderFactory.createEmptyBorder((int)(scale * 30), 0, 0, 0));
+        String message = winner.equals("DRAW") ? "It's a DRAW!" : winner + " WINS!";
+        javax.swing.JLabel messageLabel = new javax.swing.JLabel(message);
+        messageLabel.setFont(new Font("Arial", Font.BOLD, (int)(baseFontSize * 1.33)));
+        messagePanel.add(messageLabel);
+        gameOverDialog.add(messagePanel, java.awt.BorderLayout.CENTER);
+        
+        // 버튼 패널
+        javax.swing.JPanel buttonPanel = new javax.swing.JPanel();
+        buttonPanel.setLayout(new java.awt.FlowLayout(java.awt.FlowLayout.CENTER, 20, 10));
+        
+        javax.swing.JButton menuButton = new javax.swing.JButton("Return to Menu");
+        menuButton.setFont(new Font("Arial", Font.PLAIN, baseFontSize));
+        menuButton.setPreferredSize(new Dimension((int)(150 * scale), (int)(40 * scale)));
+        menuButton.setFocusable(false);
+        menuButton.addActionListener(e -> {
+            gameOverDialog.dispose();
+            returnToMenu();
+        });
+        
+        javax.swing.JButton restartButton = new javax.swing.JButton("Restart");
+        restartButton.setFont(new Font("Arial", Font.PLAIN, baseFontSize));
+        restartButton.setPreferredSize(new Dimension((int)(120 * scale), (int)(40 * scale)));
+        restartButton.setFocusable(false);
+        restartButton.addActionListener(e -> {
+            gameOverDialog.dispose();
+            restartGame();
+        });
+        
+        buttonPanel.add(menuButton);
+        buttonPanel.add(restartButton);
+        gameOverDialog.add(buttonPanel, java.awt.BorderLayout.SOUTH);
+        
+        gameOverButtons = new javax.swing.JButton[]{menuButton, restartButton};
+        selectedGameOverButton = 0;
+        updateGameOverButtonHighlight();
+        
+        // 키보드 리스너
+        gameOverDialog.addKeyListener(new KeyAdapter() {
+            @Override
+            public void keyPressed(KeyEvent e) {
+                handleGameOverKeyPress(e);
             }
         });
+        
+        gameOverDialog.setFocusable(true);
+        gameOverDialog.setVisible(true);
+    }
+    
+    private void handleGameOverKeyPress(KeyEvent e) {
+        switch (e.getKeyCode()) {
+            case KeyEvent.VK_LEFT:
+                if (selectedGameOverButton > 0) {
+                    selectedGameOverButton--;
+                    updateGameOverButtonHighlight();
+                }
+                break;
+            case KeyEvent.VK_RIGHT:
+                if (selectedGameOverButton < gameOverButtons.length - 1) {
+                    selectedGameOverButton++;
+                    updateGameOverButtonHighlight();
+                }
+                break;
+            case KeyEvent.VK_ENTER:
+            case KeyEvent.VK_SPACE:
+                gameOverButtons[selectedGameOverButton].doClick();
+                break;
+        }
+    }
+    
+    private void updateGameOverButtonHighlight() {
+        for (int i = 0; i < gameOverButtons.length; i++) {
+            if (i == selectedGameOverButton) {
+                gameOverButtons[i].setBackground(new Color(100, 150, 255));
+                gameOverButtons[i].setOpaque(true);
+            } else {
+                gameOverButtons[i].setBackground(null);
+                gameOverButtons[i].setOpaque(false);
+            }
+        }
     }
     
     private void restartGame() {
@@ -389,6 +468,7 @@ public class BattleGamePanel extends JPanel {
             w.dispose();
         }
         SwingUtilities.invokeLater(() -> {
+            ScreenNavigator.getInstance().clear();
             Mainmenu menu = new Mainmenu();
             menu.setVisible(true);
         });
@@ -728,7 +808,8 @@ public class BattleGamePanel extends JPanel {
         g.setFont(g.getFont().deriveFont(Font.BOLD, 56f));
         String winText = winner.equals("DRAW") ? "DRAW!" : winner + " WINS!";
         int textWidth = g.getFontMetrics().stringWidth(winText);
-        g.drawString(winText, (getWidth() - textWidth) / 2, getHeight() / 2);
+        double scale = Settings.getScaleFactor();
+        g.drawString(winText, (getWidth() - textWidth) / 2, getHeight() / 2 + (int)(scale * 30));
     }
     
     private void fillCell(Graphics2D g, int x, int y, Color color) {
