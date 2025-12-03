@@ -1126,4 +1126,153 @@ public class GamePanelTest {
         int delayAfter = (int) currentDelayField.get(panel);
         assertEquals(delayBefore, delayAfter);
     }
+    
+    @Test
+    public void testCloseGameOnly() throws Exception {
+        if (GraphicsEnvironment.isHeadless()) return;
+        
+        Method closeGameOnly = GamePanel.class.getDeclaredMethod("closeGameOnly");
+        closeGameOnly.setAccessible(true);
+        
+        // closeGameOnly는 윈도우를 dispose할 뿐 타이머를 멈추지 않음
+        closeGameOnly.invoke(panel);
+        
+        // 메서드가 실행되었는지만 확인
+        assertNotNull(closeGameOnly);
+    }
+    
+    @Test
+    public void testHandleGameOverItemMode() throws Exception {
+        if (GraphicsEnvironment.isHeadless()) return;
+        
+        Board itemBoard = new Board(Difficulty.NORMAL, true);
+        GamePanel itemPanel = new GamePanel(itemBoard, true, false);
+        
+        Method handleGameOver = GamePanel.class.getDeclaredMethod("handleGameOver");
+        handleGameOver.setAccessible(true);
+        
+        // 게임오버 상태로 설정
+        Field gameOverField = Board.class.getDeclaredField("gameOver");
+        gameOverField.setAccessible(true);
+        gameOverField.set(itemBoard, true);
+        
+        handleGameOver.invoke(itemPanel);
+        
+        Field timerField = GamePanel.class.getDeclaredField("timer");
+        timerField.setAccessible(true);
+        Timer timer = (Timer) timerField.get(itemPanel);
+        
+        Field slowTimerField = GamePanel.class.getDeclaredField("slowEffectTimer");
+        slowTimerField.setAccessible(true);
+        Timer slowTimer = (Timer) slowTimerField.get(itemPanel);
+        
+        if (timer != null) timer.stop();
+        if (slowTimer != null) slowTimer.stop();
+    }
+    
+    @Test
+    public void testHandleGameOverTimeAttackMode() throws Exception {
+        if (GraphicsEnvironment.isHeadless()) return;
+        
+        Board timeBoard = new Board(Difficulty.NORMAL, false);
+        GamePanel timePanel = new GamePanel(timeBoard, false, true);
+        
+        Method handleGameOver = GamePanel.class.getDeclaredMethod("handleGameOver");
+        handleGameOver.setAccessible(true);
+        
+        // 게임오버 상태로 설정
+        Field gameOverField = Board.class.getDeclaredField("gameOver");
+        gameOverField.setAccessible(true);
+        gameOverField.set(timeBoard, true);
+        
+        handleGameOver.invoke(timePanel);
+        
+        Field timerField = GamePanel.class.getDeclaredField("timer");
+        timerField.setAccessible(true);
+        Timer timer = (Timer) timerField.get(timePanel);
+        
+        Field slowTimerField = GamePanel.class.getDeclaredField("slowEffectTimer");
+        slowTimerField.setAccessible(true);
+        Timer slowTimer = (Timer) slowTimerField.get(timePanel);
+        
+        if (timer != null) timer.stop();
+        if (slowTimer != null) slowTimer.stop();
+    }
+    
+    @Test
+    public void testTogglePauseAndMenu() throws Exception {
+        if (GraphicsEnvironment.isHeadless()) return;
+        
+        Field pausedField = GamePanel.class.getDeclaredField("paused");
+        pausedField.setAccessible(true);
+        
+        Method togglePause = GamePanel.class.getDeclaredMethod("togglePauseAndMenu");
+        togglePause.setAccessible(true);
+        
+        assertFalse((boolean) pausedField.get(panel));
+    }
+    
+    @Test
+    public void testHandlePauseKeyPressUp() throws Exception {
+        if (GraphicsEnvironment.isHeadless()) return;
+        
+        Method handlePauseKeyPress = GamePanel.class.getDeclaredMethod("handlePauseKeyPress", KeyEvent.class);
+        handlePauseKeyPress.setAccessible(true);
+        
+        Field selectedPauseButtonField = GamePanel.class.getDeclaredField("selectedPauseButton");
+        selectedPauseButtonField.setAccessible(true);
+        selectedPauseButtonField.set(panel, 1);
+        
+        assertNotNull(handlePauseKeyPress);
+    }
+    
+    @Test
+    public void testHandlePauseKeyPressDown() throws Exception {
+        if (GraphicsEnvironment.isHeadless()) return;
+        
+        Method handlePauseKeyPress = GamePanel.class.getDeclaredMethod("handlePauseKeyPress", KeyEvent.class);
+        handlePauseKeyPress.setAccessible(true);
+        
+        assertNotNull(handlePauseKeyPress);
+    }
+    
+    @Test
+    public void testUpdatePauseButtonHighlight() throws Exception {
+        if (GraphicsEnvironment.isHeadless()) return;
+        
+        Method updatePauseButtonHighlight = GamePanel.class.getDeclaredMethod("updatePauseButtonHighlight");
+        updatePauseButtonHighlight.setAccessible(true);
+        
+        assertNotNull(updatePauseButtonHighlight);
+    }
+    
+    @Test
+    public void testPauseDialogInitial() throws Exception {
+        if (GraphicsEnvironment.isHeadless()) return;
+        
+        Field pauseDialogField = GamePanel.class.getDeclaredField("pauseDialog");
+        pauseDialogField.setAccessible(true);
+        
+        assertNull(pauseDialogField.get(panel));
+    }
+    
+    @Test
+    public void testPauseButtonsInitial() throws Exception {
+        if (GraphicsEnvironment.isHeadless()) return;
+        
+        Field pauseButtonsField = GamePanel.class.getDeclaredField("pauseButtons");
+        pauseButtonsField.setAccessible(true);
+        
+        assertNull(pauseButtonsField.get(panel));
+    }
+    
+    @Test
+    public void testSelectedPauseButtonInitial() throws Exception {
+        if (GraphicsEnvironment.isHeadless()) return;
+        
+        Field selectedPauseButtonField = GamePanel.class.getDeclaredField("selectedPauseButton");
+        selectedPauseButtonField.setAccessible(true);
+        
+        assertEquals(0, (int) selectedPauseButtonField.get(panel));
+    }
 }

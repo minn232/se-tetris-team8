@@ -25,10 +25,10 @@
 ### 🎨 풍부한 게임 요소
 - **아이템 블록**: 
   - 💣 **Bomb Block**: 주변 블록 폭발
-  - ⚖️ **Weight Block**: 무거운 블록으로 하강
+  - ⚖️ **Weight Block**: 일직선 경로 상의 모든 블록 삭제
   - 🐌 **Slow Block**: 상대방 속도 감소
   - 📏 **Line Block**: 특정 라인 삭제
-  - 🔄 **Transform Block**: 랜덤 블록으로 변환
+  - 🔄 **Transform Block**: 이후 5개의 블록을 I 블록으로 변환
 - **난이도 선택**: Easy, Normal, Hard
 - **랭킹 시스템**: 모드별 점수 저장 및 관리
 
@@ -66,40 +66,18 @@
 
 ## 💻 시스템 요구사항
 
-- **OS**: Windows, macOS, Linux
+- **OS**: Windows
 - **Java**: JDK 17 이상
 - **메모리**: 최소 512MB RAM
 - **디스플레이**: 800x600 이상 해상도
 
 ## 🚀 설치 및 실행
 
-### Gradle로 빌드 및 실행
-
-```bash
-# 저장소 클론
-git clone https://github.com/yourusername/se-tetris-team8.git
-cd se-tetris-team8
-
-# 빌드
-./gradlew build
-
-# 실행
-./gradlew run
-```
-
-### JAR 파일로 실행
-
-```bash
-# JAR 생성
-./gradlew jar
-
-# 실행
-java -jar build/libs/se-tetris-team8.jar
-```
+### 다음 링크에서 다운로드: https://drive.google.com/file/d/1f23_G7MS7KcfKxY_F1usUhnwwoqHQEQd/view?usp=sharing
 
 ## 🎹 게임 조작법
 
-### 싱글 플레이 (기본 설정)
+### 싱글 플레이 (기본 설정, 설정 메뉴에서 변경 가능)
 | 동작 | 키보드 (WASD) | 키보드 (방향키) |
 |------|---------------|-----------------|
 | 왼쪽 이동 | A | ← |

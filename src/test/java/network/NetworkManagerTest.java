@@ -131,7 +131,17 @@ class NetworkManagerTest {
         serverThread.start();
         
         manager.startClient("localhost", port);
-        Thread.sleep(300);
+        
+        // 연결 대기 (polling)
+        int maxAttempts = 20;
+        for (int i = 0; i < maxAttempts; i++) {
+            if (manager.isConnected()) {
+                break;
+            }
+            Thread.sleep(100);
+        }
+        
+        assertTrue(manager.isConnected(), "클라이언트가 연결되지 않았습니다");
         
         manager.send("TEST_MESSAGE");
         Thread.sleep(300);
@@ -254,5 +264,82 @@ class NetworkManagerTest {
         Thread.sleep(300);
         
         assertFalse(manager.isConnected());
+    }
+    
+    @Test
+    @DisplayName("로컬 네트워크 - RTT 200ms 이하 (성능 요구사항)")
+    void testLocalNetworkLatency() throws Exception {
+        int port = 12351;
+        
+        // 서버 시작
+        ServerSocket server = new ServerSocket(port);
+        Thread serverThread = new Thread(() -> {
+            try {
+                Socket clientSocket = server.accept();
+                PrintWriter out = new PrintWriter(clientSocket.getOutputStream(), true);
+                BufferedReader in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
+                
+                String msg;
+                while ((msg = in.readLine()) != null) {
+                    if (msg.startsWith("PING:")) {
+                        String ts = msg.substring(5);
+                        // 즉시 응답 (최소 지연)
+                        out.println("PONG:" + ts);
+                    }
+                }
+            } catch (Exception ignored) {}
+        });
+        serverThread.start();
+        
+        manager.startClient("localhost", port);
+        Thread.sleep(2000); // PING/PONG 주기 대기
+        
+        long rtt = manager.getRTT();
+        
+        // 로컬 네트워크에서 RTT는 200ms 이하여야 함
+        assertTrue(rtt <= 200, 
+            String.format("로컬 네트워크 RTT가 200ms를 초과했습니다: %dms", rtt));
+        
+        server.close();
+        serverThread.interrupt();
+    }
+    
+    @Test
+    @DisplayName("네트워크 지연 감지 - RTT 200ms 초과 시 랙 상태")
+    void testLagDetection() throws Exception {
+        int port = 12352;
+        
+        // 서버 시작 (의도적으로 지연 추가)
+        ServerSocket server = new ServerSocket(port);
+        Thread serverThread = new Thread(() -> {
+            try {
+                Socket clientSocket = server.accept();
+                PrintWriter out = new PrintWriter(clientSocket.getOutputStream(), true);
+                BufferedReader in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
+                
+                String msg;
+                while ((msg = in.readLine()) != null) {
+                    if (msg.startsWith("PING:")) {
+                        String ts = msg.substring(5);
+                        // 의도적으로 250ms 지연
+                        Thread.sleep(250);
+                        out.println("PONG:" + ts);
+                    }
+                }
+            } catch (Exception ignored) {}
+        });
+        serverThread.start();
+        
+        manager.startClient("localhost", port);
+        Thread.sleep(2000); // PING/PONG 주기 대기
+        
+        long rtt = manager.getRTT();
+        
+        // 지연이 추가된 경우 RTT가 200ms를 초과해야 함
+        assertTrue(rtt > 200, 
+            String.format("지연이 감지되어야 합니다. 현재 RTT: %dms", rtt));
+        
+        server.close();
+        serverThread.interrupt();
     }
 }
