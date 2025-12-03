@@ -133,8 +133,9 @@ public class NetworkModeSelectionScreen extends JFrame {
             JFrame frame = new JFrame("P2P Battle");
             frame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
 
+            // 🔥 Host → isHost = true 전달
             P2PBattlePanel panel =
-                new P2PBattlePanel(Difficulty.NORMAL, isItemMode, isTimeAttack);
+                new P2PBattlePanel(Difficulty.NORMAL, isItemMode, isTimeAttack, isHost);
 
             frame.setContentPane(panel);
             frame.pack();
@@ -144,6 +145,7 @@ public class NetworkModeSelectionScreen extends JFrame {
             panel.requestFocusInWindow();
         });
     }
+
 
 
     private JButton addButton(JPanel panel, String imagePath, int w, int h, int x, int y) {

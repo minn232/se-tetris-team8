@@ -29,6 +29,7 @@ public class P2PBattlePanel extends JPanel {
 
     private long lastRTT = 0;
     private boolean isLagging = false;
+    private final boolean isHost;
 
     private final Board myBoard;      // 내 보드
     private final Board enemyBoard;   // 상대 보드 (렌더링 전용)
@@ -72,8 +73,15 @@ public class P2PBattlePanel extends JPanel {
     private long lastAliveTime = System.currentTimeMillis();
     private boolean connectionLost = false;
 
-    public P2PBattlePanel(Difficulty difficulty, boolean isItemMode, boolean isTimeAttack) {
+        public P2PBattlePanel(
+        Difficulty difficulty, 
+        boolean isItemMode, 
+        boolean isTimeAttack,
+        boolean isHost
+    ) {
         this.isTimeAttack = isTimeAttack;
+        this.isHost = isHost; 
+        
         this.myBoard = new Board(difficulty, isItemMode);
         this.enemyBoard = new Board(difficulty, isItemMode);  // 렌더링 전용
         this.gameStartTime = System.currentTimeMillis();
@@ -91,9 +99,13 @@ public class P2PBattlePanel extends JPanel {
 
         // 전체 패널 크기: SIDE + BOARD + GAP + BOARD + SIDE
         int totalWidth = SIDE_W + BOARD_W + GAP + BOARD_W + SIDE_W;
-        setPreferredSize(new Dimension(totalWidth, BOARD_H));
+
+        // ★ 수정된 부분
+        setPreferredSize(new Dimension(totalWidth, BOARD_H + 200));
+
         setBackground(Color.BLACK);
         setFocusable(true);
+
 
         // 키 입력 처리
         addKeyListener(new KeyAdapter() {
@@ -236,6 +248,12 @@ public class P2PBattlePanel extends JPanel {
     private void handleKeyPress(KeyEvent e) {
         int code = e.getKeyCode();
 
+        // ENTER → 채팅창 포커스 이동 (추가 옵션)
+        if (code == KeyEvent.VK_ENTER) {
+            chatInput.requestFocusInWindow();
+            return;
+        }
+
         // 일시정지
         if (code == KeyEvent.VK_P) {
             togglePause();
@@ -247,7 +265,7 @@ public class P2PBattlePanel extends JPanel {
             return;
         }
 
-        // 내 보드 조작 (Settings에서 가져온 P1 키)
+        // 내 보드 조작
         if (!myBoard.isGameOver()) {
             if (code == Settings.getKeyLeft(Settings.Player.P1)) {
                 myBoard.moveLeft();
@@ -270,6 +288,7 @@ public class P2PBattlePanel extends JPanel {
         repaint();
     }
 
+
     private void checkFlashing(Board board, boolean isMine) {
         int[] rows = board.pollClearingRows();
         if (rows != null && rows.length > 0) {
@@ -278,10 +297,15 @@ public class P2PBattlePanel extends JPanel {
                 flashUntilMy = System.currentTimeMillis() + FLASH_MS;
 
                 // 2줄 이상 클리어 시 상대에게 공격 전송
-                if (rows.length >= 2) {
-                    List<ShapeType[]> attackPattern = myBoard.getAttackPattern(rows);
-                    sendAttackPattern(attackPattern);
-                }
+            if (rows.length >= 2) {
+                List<ShapeType[]> attackPattern = myBoard.getAttackPattern(rows);
+
+                // ✔ 내 pending 공격에도 추가해야 오른쪽 UI가 업데이트됨
+                myBoard.addPendingAttackLines(attackPattern);
+
+                // 상대에게 전송
+                sendAttackPattern(attackPattern);
+            }
             } else {
                 flashingRowsEnemy = rows;
                 flashUntilEnemy = System.currentTimeMillis() + FLASH_MS;
@@ -424,6 +448,7 @@ public class P2PBattlePanel extends JPanel {
 
     private void returnToMenu() {
 
+        NetworkManager.getInstance().setMessageListener(null);
         NetworkManager.getInstance().close();
 
         timer.stop();
@@ -508,7 +533,7 @@ public class P2PBattlePanel extends JPanel {
         }
 
         sb.append("]}");
-        NetworkManager.getInstance().send(sb.toString());
+        NetworkManager.getInstance().send("ATTACK:" + (isHost ? "HOST" : "CLIENT") + ":" + sb.toString());
     }
 
     // 네트워크 메시지 수신
@@ -542,15 +567,29 @@ public class P2PBattlePanel extends JPanel {
 
         // ===== 공격 패턴 수신 =====
         if (msg.startsWith("ATTACK:")) {
-            String json = msg.substring(7);
-            try {
-                List<ShapeType[]> pattern = parseAttackPattern(json);
-                myBoard.addPendingAttackLines(pattern);
-            } catch (Exception ex) {
-                ex.printStackTrace();
+            String body = msg.substring(7); // HOST:{"rows":[...}
+            int p = body.indexOf(":");
+            if (p < 0) return;
+
+            String sender = body.substring(0, p);   // HOST or CLIENT
+            String json = body.substring(p + 1);
+
+            // 🔥 내가 보낸 공격이면 무시
+            if ((sender.equals("HOST") && isHost) ||
+                (sender.equals("CLIENT") && !isHost)) {
+                return;
             }
+
+            // 🔥 상대 공격은 적용
+            List<ShapeType[]> patterns = parseAttackPattern(json);
+            SwingUtilities.invokeLater(() -> {
+                myBoard.addPendingAttackLines(patterns);
+                repaint();
+            });
+
             return;
         }
+
 
         // ===== 상대 게임 오버 =====
         if (msg.equals("GAMEOVER")) {
@@ -692,6 +731,10 @@ public class P2PBattlePanel extends JPanel {
         NetworkManager.getInstance().send("CHAT:" + msg);
         chatArea.append("ME: " + msg + "\n");
         chatInput.setText("");
+
+            
+        // ★ 게임 패널로 포커스 되돌리기
+        requestFocusInWindow();
     }
 
     // ATTACK 패턴 JSON 문자열 -> List<ShapeType[]> 변환
@@ -1070,4 +1113,6 @@ protected void paintComponent(Graphics g) {
         int textWidth = g.getFontMetrics().stringWidth(winText);
         g.drawString(winText, (getWidth() - textWidth) / 2, getHeight() / 2);
     }
+
+    
 }

@@ -63,16 +63,13 @@ public class WaitingRoomScreen extends JFrame {
         startButton.setEnabled(false);
         panel.add(startButton);
 
-        // Client는 START 버튼 숨김
         if (!isHost) {
             startButton.setVisible(false);
         }
 
-        // Host only
         startButton.addActionListener(e -> startGameAsHost());
     }
 
-    // Ready toggle
     private void toggleReady() {
         myReady = !myReady;
 
@@ -97,7 +94,6 @@ public class WaitingRoomScreen extends JFrame {
 
         NetworkManager.getInstance().setMessageListener(msg -> {
 
-            // 상대 READY / UNREADY
             if (msg.equals("READY")) {
                 enemyReady = true;
                 enemyStatusLabel.setText("Enemy: READY");
@@ -108,9 +104,8 @@ public class WaitingRoomScreen extends JFrame {
                 enemyStatusLabel.setText("Enemy: Not Ready");
                 updateStartButtonState();
             }
-
-            // ========= Host가 모드 선택 후 클라이언트에게 보내는 MODE 전달 =========
             else if (msg.startsWith("MODE:")) {
+
                 String mode = msg.substring(5);
 
                 SwingUtilities.invokeLater(() -> {
@@ -121,38 +116,31 @@ public class WaitingRoomScreen extends JFrame {
         });
     }
 
-    // Host START 버튼 → Host만 모드 선택 화면으로 이동
     private void startGameAsHost() {
         if (!isHost) return;
         if (!myReady || !enemyReady) return;
 
-        // Host만 모드 선택 화면으로 이동
         dispose();
         new NetworkModeSelectionScreen(true).setVisible(true);
     }
 
-    // 클라이언트도 Host의 모드 결정 받으면 바로 BattlePanel로 이동
     private void launchBattle(String mode) {
+
         JFrame frame = new JFrame("P2P Battle");
         frame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
 
         boolean isItem = mode.equals("ITEM");
         boolean isTime = mode.equals("TIME");
 
+        // 🔥🔥🔥 수정된 부분: isHost 추가
         P2PBattlePanel panel =
-                new P2PBattlePanel(Difficulty.NORMAL, isItem, isTime);
-
-        // ★ pack() 쓰면 채팅창 잘려서 화면이 작아짐
-        // frame.setContentPane(panel);
-        // frame.pack();
+            new P2PBattlePanel(Difficulty.NORMAL, isItem, isTime, isHost);
 
         frame.setContentPane(panel);
 
-        // ====== ★ 채팅창 포함 전체 영역 보이도록 강제 사이즈 지정 ======
-        // 기본 보드는 높이가 약 600, 채팅 UI 포함시 최소 760 줘야 함
         frame.setSize(
-                panel.getPreferredSize().width + 20,
-                panel.getPreferredSize().height + 180   // ← 채팅창 공간 확보
+            panel.getPreferredSize().width + 20,
+            panel.getPreferredSize().height + 180
         );
 
         frame.setLocationRelativeTo(null);
