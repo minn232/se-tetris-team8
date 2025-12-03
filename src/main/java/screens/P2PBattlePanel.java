@@ -263,9 +263,11 @@ public class P2PBattlePanel extends JPanel {
             return;
         }
 
-        // 일시정지
+        // 일시정지 (호스트만)
         if (code == KeyEvent.VK_P) {
-            togglePause();
+            if (isHost) {
+                togglePause();
+            }
             return;
         }
 
@@ -352,12 +354,16 @@ public class P2PBattlePanel extends JPanel {
             if (isTimeAttack) {
                 pauseStartTime = System.currentTimeMillis();
             }
+            // 상대에게 PAUSE 알림
+            NetworkManager.getInstance().send("PAUSE");
             showPauseMenu();
         } else {
             if (isTimeAttack && pauseStartTime > 0) {
                 pausedTime += System.currentTimeMillis() - pauseStartTime;
                 pauseStartTime = 0;
             }
+            // 상대에게 RESUME 알림
+            NetworkManager.getInstance().send("RESUME");
         }
         repaint();
     }
@@ -378,6 +384,12 @@ public class P2PBattlePanel extends JPanel {
         if (choice == 0) {
             // Resume
             paused = false;
+            if (isTimeAttack && pauseStartTime > 0) {
+                pausedTime += System.currentTimeMillis() - pauseStartTime;
+                pauseStartTime = 0;
+            }
+            // 상대에게 RESUME 알림
+            NetworkManager.getInstance().send("RESUME");
             requestFocusInWindow();
         } else if (choice == 1) {
             // Quit to Menu
@@ -386,6 +398,12 @@ public class P2PBattlePanel extends JPanel {
         } else {
             // 창을 닫은 경우
             paused = false;
+            if (isTimeAttack && pauseStartTime > 0) {
+                pausedTime += System.currentTimeMillis() - pauseStartTime;
+                pauseStartTime = 0;
+            }
+            // 상대에게 RESUME 알림
+            NetworkManager.getInstance().send("RESUME");
             requestFocusInWindow();
         }
     }
@@ -576,6 +594,26 @@ public class P2PBattlePanel extends JPanel {
                 }
                 repaint();
             });
+            return;
+        }
+
+        // ===== 일시정지/재개 =====
+        if (msg.equals("PAUSE")) {
+            paused = true;
+            if (isTimeAttack) {
+                pauseStartTime = System.currentTimeMillis();
+            }
+            repaint();
+            return;
+        }
+
+        if (msg.equals("RESUME")) {
+            paused = false;
+            if (isTimeAttack && pauseStartTime > 0) {
+                pausedTime += System.currentTimeMillis() - pauseStartTime;
+                pauseStartTime = 0;
+            }
+            repaint();
             return;
         }
 
