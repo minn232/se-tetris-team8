@@ -104,12 +104,6 @@ public class RankingBoard extends JDialog {
             false // Soft 모드
         );
         
-        JPanel timeAttackModePanel = createRankingPanel(
-            RankingManager.getInstance(TIMEATTACK_RANKING_FILE).getRankings(),
-            "Time Attack Mode",
-            false // Time Attack 모드
-        );
-        
         JPanel itemModePanel = createRankingPanel(
             RankingManager.getInstance(ITEM_RANKING_FILE).getRankings(),
             "Item Mode",
@@ -117,14 +111,11 @@ public class RankingBoard extends JDialog {
         );
 
         tabbedPane.addTab("Soft Mode", softModePanel);
-        tabbedPane.addTab("Time Attack Mode", timeAttackModePanel);
         tabbedPane.addTab("Item Mode", itemModePanel);
         
         // 모드에 따라 해당 탭을 기본으로 선택
         if (isItemMode) {
-            tabbedPane.setSelectedIndex(2); // Item Mode 탭
-        } else if (isTimeAttackMode) {
-            tabbedPane.setSelectedIndex(1); // Time Attack Mode 탭
+            tabbedPane.setSelectedIndex(1); // Item Mode 탭
         }
         // 그 외(Soft Mode)는 기본값인 0번 탭이 선택됨
 
