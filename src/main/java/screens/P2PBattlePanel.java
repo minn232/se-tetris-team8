@@ -35,6 +35,7 @@ public class P2PBattlePanel extends JPanel {
     private final Board enemyBoard;   // 상대 보드 (렌더링 전용)
 
     private final Timer timer;
+    private Timer networkTimer;
     private final int CELL;
     private final int BOARD_W;
     private final int BOARD_H;
@@ -63,6 +64,9 @@ public class P2PBattlePanel extends JPanel {
 
     // 블록 배치 감지용
     private Tetromino lastCurrentMy = null;
+
+    // 내가 보낸 공격 패턴 (UI 표시용)
+    private List<ShapeType[]> outgoingAttackPattern = new java.util.ArrayList<>();
 
     // ===== CHAT UI =====
     private javax.swing.JTextArea chatArea;
@@ -139,7 +143,8 @@ public class P2PBattlePanel extends JPanel {
         timer.start();
 
         // 네트워크 상태 체크 타이머 추가
-        new Timer(100, ev -> checkNetworkStatus()).start();
+        networkTimer = new Timer(100, ev -> checkNetworkStatus());
+        networkTimer.start();
 
         // 초기 현재 블록 저장
         lastCurrentMy = myBoard.getCurrent();
@@ -237,6 +242,9 @@ public class P2PBattlePanel extends JPanel {
             // 대기 중인 공격 줄을 적용
             myBoard.applyPendingAttackLines();
 
+            // 내가 보낸 공격 패턴 UI 초기화
+            outgoingAttackPattern.clear();
+
             // 내 보드 상태를 네트워크로 전송
             sendBoardState();
         }
@@ -254,9 +262,11 @@ public class P2PBattlePanel extends JPanel {
             return;
         }
 
-        // 일시정지
+        // 일시정지 (호스트만)
         if (code == KeyEvent.VK_P) {
-            togglePause();
+            if (isHost) {
+                togglePause();
+            }
             return;
         }
 
@@ -299,9 +309,6 @@ public class P2PBattlePanel extends JPanel {
                 // 2줄 이상 클리어 시 상대에게 공격 전송
             if (rows.length >= 2) {
                 List<ShapeType[]> attackPattern = myBoard.getAttackPattern(rows);
-
-                // ✔ 내 pending 공격에도 추가해야 오른쪽 UI가 업데이트됨
-                myBoard.addPendingAttackLines(attackPattern);
 
                 // 상대에게 전송
                 sendAttackPattern(attackPattern);
@@ -346,12 +353,16 @@ public class P2PBattlePanel extends JPanel {
             if (isTimeAttack) {
                 pauseStartTime = System.currentTimeMillis();
             }
+            // 상대에게 PAUSE 알림
+            NetworkManager.getInstance().send("PAUSE");
             showPauseMenu();
         } else {
             if (isTimeAttack && pauseStartTime > 0) {
                 pausedTime += System.currentTimeMillis() - pauseStartTime;
                 pauseStartTime = 0;
             }
+            // 상대에게 RESUME 알림
+            NetworkManager.getInstance().send("RESUME");
         }
         repaint();
     }
@@ -372,6 +383,12 @@ public class P2PBattlePanel extends JPanel {
         if (choice == 0) {
             // Resume
             paused = false;
+            if (isTimeAttack && pauseStartTime > 0) {
+                pausedTime += System.currentTimeMillis() - pauseStartTime;
+                pauseStartTime = 0;
+            }
+            // 상대에게 RESUME 알림
+            NetworkManager.getInstance().send("RESUME");
             requestFocusInWindow();
         } else if (choice == 1) {
             // Quit to Menu
@@ -380,6 +397,12 @@ public class P2PBattlePanel extends JPanel {
         } else {
             // 창을 닫은 경우
             paused = false;
+            if (isTimeAttack && pauseStartTime > 0) {
+                pausedTime += System.currentTimeMillis() - pauseStartTime;
+                pauseStartTime = 0;
+            }
+            // 상대에게 RESUME 알림
+            NetworkManager.getInstance().send("RESUME");
             requestFocusInWindow();
         }
     }
@@ -411,6 +434,7 @@ public class P2PBattlePanel extends JPanel {
         if (myOver && enemyOver) {
             winner = "DRAW";
             timer.stop();
+            networkTimer.stop();
             showGameOver();
         } else if (myOver) {
             // 내가 먼저 죽었다 → 상대에게 GAMEOVER 알림 보내기
@@ -418,10 +442,12 @@ public class P2PBattlePanel extends JPanel {
 
             winner = "YOU LOSE";
             timer.stop();
+            networkTimer.stop();
             showGameOver();
         } else if (enemyOver) {
             winner = "YOU WIN";
             timer.stop();
+            networkTimer.stop();
             showGameOver();
         }
     }
@@ -452,6 +478,7 @@ public class P2PBattlePanel extends JPanel {
         NetworkManager.getInstance().close();
 
         timer.stop();
+        networkTimer.stop();
         BackgroundMusicPlayer.getInstance().stop();
         BackgroundMusicPlayer.getInstance().play("/music/MainBGM.wav", Settings.getMainMusicVolume());
 
@@ -513,6 +540,9 @@ public class P2PBattlePanel extends JPanel {
 
     // 공격 패턴 전송
     private void sendAttackPattern(List<ShapeType[]> pattern) {
+        // 내가 보낸 공격 패턴을 저장 (UI 표시용)
+        outgoingAttackPattern = new java.util.ArrayList<>(pattern);
+
         StringBuilder sb = new StringBuilder();
         sb.append("ATTACK:{\"rows\":[");
 
@@ -562,6 +592,26 @@ public class P2PBattlePanel extends JPanel {
                 }
                 repaint();
             });
+            return;
+        }
+
+        // ===== 일시정지/재개 =====
+        if (msg.equals("PAUSE")) {
+            paused = true;
+            if (isTimeAttack) {
+                pauseStartTime = System.currentTimeMillis();
+            }
+            repaint();
+            return;
+        }
+
+        if (msg.equals("RESUME")) {
+            paused = false;
+            if (isTimeAttack && pauseStartTime > 0) {
+                pausedTime += System.currentTimeMillis() - pauseStartTime;
+                pauseStartTime = 0;
+            }
+            repaint();
             return;
         }
 
@@ -962,7 +1012,14 @@ protected void paintComponent(Graphics g) {
         }
 
         // 대기 중인 공격 줄 표시
-        List<ShapeType[]> pendingPatterns = board.getPendingAttackPattern();
+        List<ShapeType[]> pendingPatterns;
+        if (board == myBoard) {
+            // 내 보드: 내가 보낸 공격 패턴 표시
+            pendingPatterns = outgoingAttackPattern;
+        } else {
+            // 상대 보드: 상대가 받은 공격 패턴 표시
+            pendingPatterns = board.getPendingAttackPattern();
+        }
         int pendingLines = pendingPatterns.size();
         int displayLines = 10;
         int miniCellSize = 8;
