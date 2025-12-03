@@ -779,13 +779,6 @@ public class BattleGamePanel extends JPanel {
                 }
             }
         }
-        
-        // 10줄 초과이면 "+N" 표시
-        if (pendingLines > 10) {
-            g.setColor(Color.RED);
-            g.setFont(g.getFont().deriveFont(Font.BOLD, (float)(baseFontSize * 0.75)));
-            g.drawString("+" + (pendingLines - 10), startX + miniCols * miniCellSize + 5, startY + displayLines * miniCellSize / 2);
-        }
     }
     
     private void drawNextPreview(Graphics2D g, int px, int py, Board board) {

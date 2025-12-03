@@ -122,7 +122,7 @@ public class GameOverScreen extends JFrame {
             Board board = new Board(difficulty, isItemMode);
             GamePanel panel = new GamePanel(board, isItemMode, isTimeAttackMode);
 
-            JFrame gameFrame = new JFrame("SE Tetris Team8");
+            JFrame gameFrame = new JFrame("Tetris - " + difficulty.name());
             gameFrame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
             gameFrame.setLayout(new BorderLayout());
             gameFrame.add(panel, BorderLayout.CENTER);

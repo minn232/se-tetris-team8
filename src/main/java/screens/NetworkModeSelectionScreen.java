@@ -80,17 +80,17 @@ public class NetworkModeSelectionScreen extends JFrame {
         itemButton.addActionListener(e -> selectMode("ITEM"));
         
         // 뒤로가기 버튼 추가
-        int backBtnSize = (int)(40 * scale);
-        int backBtnX = width - backBtnSize - (int)(10 * scale);
-        int backBtnY = height - backBtnSize - (int)(40 * scale);
+        // int backBtnSize = (int)(40 * scale);
+        // int backBtnX = width - backBtnSize - (int)(10 * scale);
+        // int backBtnY = height - backBtnSize - (int)(40 * scale);
         
-        JButton backButton = addButton(mainPanel, "/images/BackButton.png", 
-            backBtnSize, backBtnSize, backBtnX, backBtnY);
-        backButton.addActionListener(e -> {
-            System.out.println("[NetworkModeSelection] Back button clicked");
-            ScreenNavigator.getInstance().goBack(this);
-        });
-        backButton.setFocusable(false);
+        // JButton backButton = addButton(mainPanel, "/images/BackButton.png", 
+        //     backBtnSize, backBtnSize, backBtnX, backBtnY);
+        // backButton.addActionListener(e -> {
+        //     System.out.println("[NetworkModeSelection] Back button clicked");
+        //     ScreenNavigator.getInstance().goBack(this);
+        // });
+        // backButton.setFocusable(false);
 
         // Background UI
         BackgroundPanel bg = new BackgroundPanel("/images/MainScreen.png");

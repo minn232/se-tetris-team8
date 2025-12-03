@@ -676,6 +676,7 @@ public class Board {
     public ShapeType[][] getGrid()       { return grid; }
     public Tetromino getCurrent()        { return current; }
     public ShapeType getNextShape()      { return nextShape; }
+    public void setNextShape(ShapeType shape) { this.nextShape = shape; }
     
     // 아이템 모드 관련 게터
     public boolean isItemMode()                                  { return isItemMode; }

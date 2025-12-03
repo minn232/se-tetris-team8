@@ -220,64 +220,162 @@ public class HostJoinScreen extends JFrame {
     private void startAsClient() {
         dispose();
 
-        JTextField ipField = new JTextField(loadLastIP().isEmpty() ? "localhost" : loadLastIP());
-        JTextField portField = new JTextField("12345");
+        final String[] ipHolder = {null};
+        final int[] portHolder = {0};
 
-        Object[] message = {
-            "Enter Server IP:", ipField,
-            "Enter Server Port:", portField
-        };
+        while (true) {
+            JTextField ipField = new JTextField(loadLastIP().isEmpty() ? "localhost" : loadLastIP());
+            JTextField portField = new JTextField("12345");
 
-        int option = JOptionPane.showConfirmDialog(
-            null, message, "Connect to Server", JOptionPane.OK_CANCEL_OPTION
+            Object[] message = {
+                "Enter Server IP:", ipField,
+                "Enter Server Port:", portField
+            };
+
+            int option = JOptionPane.showConfirmDialog(
+                null, message, "Connect to Server", JOptionPane.OK_CANCEL_OPTION
+            );
+
+            if (option != JOptionPane.OK_OPTION) {
+                // 히스토리 초기화하고 메인 메뉴로
+                ScreenNavigator.getInstance().clear();
+                new Mainmenu().setVisible(true);
+                return;
+            }
+
+            String ip = ipField.getText().trim();
+            String portStr = portField.getText().trim();
+
+            if (!isValidIP(ip)) {
+                int retry = JOptionPane.showConfirmDialog(
+                    null,
+                    "Invalid IP format.\n\nWould you like to try again?",
+                    "Invalid Input",
+                    JOptionPane.YES_NO_OPTION
+                );
+                if (retry != JOptionPane.YES_OPTION) {
+                    // 히스토리 초기화하고 메인 메뉴로
+                    ScreenNavigator.getInstance().clear();
+                    new Mainmenu().setVisible(true);
+                    return;
+                }
+                continue; // 다시 입력받기
+            }
+
+            try {
+                int port = Integer.parseInt(portStr);
+                if (port < 1 || port > 65535) {
+                    int retry = JOptionPane.showConfirmDialog(
+                        null,
+                        "Port must be between 1 and 65535.\n\nWould you like to try again?",
+                        "Invalid Port",
+                        JOptionPane.YES_NO_OPTION
+                    );
+                    if (retry != JOptionPane.YES_OPTION) {
+                        ScreenNavigator.getInstance().clear();
+                        new Mainmenu().setVisible(true);
+                        return;
+                    }
+                    continue; // 다시 입력받기
+                }
+                
+                // 유효성 검사를 모두 통과하면 값 저장
+                ipHolder[0] = ip;
+                portHolder[0] = port;
+                break; // while 루프 탈출
+                
+            } catch (NumberFormatException e) {
+                int retry = JOptionPane.showConfirmDialog(
+                    null,
+                    "Invalid port number.\n\nWould you like to try again?",
+                    "Invalid Input",
+                    JOptionPane.YES_NO_OPTION
+                );
+                if (retry != JOptionPane.YES_OPTION) {
+                    ScreenNavigator.getInstance().clear();
+                    new Mainmenu().setVisible(true);
+                    return;
+                }
+                continue; // 다시 입력받기
+            }
+        }
+
+        final String finalIp = ipHolder[0];
+        final int finalPort = portHolder[0];
+
+        int connectOption = JOptionPane.showConfirmDialog(
+            null,
+            "Connect to server...\n" + finalIp + ":" + finalPort,
+            "Connecting",
+            JOptionPane.OK_CANCEL_OPTION
         );
 
-        if (option != JOptionPane.OK_OPTION) {
-            // 히스토리 초기화하고 메인 메뉴로
+        if (connectOption != JOptionPane.OK_OPTION) {
+            // 취소 선택 시 메인 메뉴로
             ScreenNavigator.getInstance().clear();
             new Mainmenu().setVisible(true);
             return;
         }
 
-        String ip = ipField.getText().trim();
-        String portStr = portField.getText().trim();
+        NetworkManager.getInstance().startClient(finalIp, finalPort);
 
-        if (!isValidIP(ip)) {
-            JOptionPane.showMessageDialog(null, "Invalid IP format.");
-            // 히스토리 초기화하고 메인 메뉴로
-            ScreenNavigator.getInstance().clear();
-            new Mainmenu().setVisible(true);
-            return;
-        }
+        final boolean[] connectionCancelled = {false};
 
-        int port = Integer.parseInt(portStr);
+        // 연결 시도 중 대기 다이얼로그
+        JDialog connectingDialog = new JDialog();
+        connectingDialog.setTitle("Connecting");
+        connectingDialog.setModal(false);
+        connectingDialog.setSize(300, 150);
+        connectingDialog.setLocationRelativeTo(null);
 
-        JOptionPane.showMessageDialog(null, "Connecting to server...\n" + ip + ":" + port);
+        JOptionPane connectingPane = new JOptionPane(
+            "Connecting to server...\n" + finalIp + ":" + finalPort,
+            JOptionPane.INFORMATION_MESSAGE,
+            JOptionPane.DEFAULT_OPTION,
+            null,
+            new Object[]{"Cancel"}
+        );
+        connectingDialog.setContentPane(connectingPane);
 
-        NetworkManager.getInstance().startClient(ip, port);
+        connectingPane.addPropertyChangeListener(evt -> {
+            if (JOptionPane.VALUE_PROPERTY.equals(evt.getPropertyName())) {
+                connectionCancelled[0] = true;
+                connectingDialog.dispose();
+                NetworkManager.getInstance().close();
+                
+                ScreenNavigator.getInstance().clear();
+                new Mainmenu().setVisible(true);
+            }
+        });
+
+        connectingDialog.setVisible(true);
 
         new Thread(() -> {
             int attempts = 0;
 
-            while (!NetworkManager.getInstance().isConnected() && attempts < 50) {
+            while (!NetworkManager.getInstance().isConnected() && attempts < 50 && !connectionCancelled[0]) {
                 try { Thread.sleep(100); } catch (InterruptedException ignored) {}
                 attempts++;
             }
 
-            if (NetworkManager.getInstance().isConnected()) {
-                saveLastIP(ip); // 최근 IP 저장
+            if (!connectionCancelled[0]) {
+                javax.swing.SwingUtilities.invokeLater(() -> connectingDialog.dispose());
 
-                javax.swing.SwingUtilities.invokeLater(() -> {
-                    JOptionPane.showMessageDialog(null, "Connected to server!");
-                    new WaitingRoomScreen(false).setVisible(true);
-                });
-            } else {
-                javax.swing.SwingUtilities.invokeLater(() -> {
-                    JOptionPane.showMessageDialog(null, "Failed to connect.");
-                    // 히스토리 초기화하고 메인 메뉴로
-                    ScreenNavigator.getInstance().clear();
-                    new Mainmenu().setVisible(true);
-                });
+                if (NetworkManager.getInstance().isConnected()) {
+                    saveLastIP(finalIp); // 최근 IP 저장
+
+                    javax.swing.SwingUtilities.invokeLater(() -> {
+                        JOptionPane.showMessageDialog(null, "Connected to server!");
+                        new WaitingRoomScreen(false).setVisible(true);
+                    });
+                } else {
+                    javax.swing.SwingUtilities.invokeLater(() -> {
+                        JOptionPane.showMessageDialog(null, "Failed to connect.");
+                        // 히스토리 초기화하고 메인 메뉴로
+                        ScreenNavigator.getInstance().clear();
+                        new Mainmenu().setVisible(true);
+                    });
+                }
             }
         }).start();
     }

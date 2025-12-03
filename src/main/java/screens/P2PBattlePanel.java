@@ -36,6 +36,7 @@ public class P2PBattlePanel extends JPanel {
 
     private final Timer timer;
     private Timer networkTimer;
+    private Timer syncTimer;  // 블록 동기화용 타이머
     private final int CELL;
     private final int BOARD_W;
     private final int BOARD_H;
@@ -62,11 +63,11 @@ public class P2PBattlePanel extends JPanel {
     // 승자 표시
     private String winner = null;
 
-    // 블록 배치 감지용
-    private Tetromino lastCurrentMy = null;
-
     // 내가 보낸 공격 패턴 (UI 표시용)
     private List<ShapeType[]> outgoingAttackPattern = new java.util.ArrayList<>();
+    
+    // 받은 공격 패턴 (대기 중, UI 표시용)
+    private List<ShapeType[]> incomingAttackPattern = new java.util.ArrayList<>();
 
     // ===== CHAT UI =====
     private javax.swing.JTextArea chatArea;
@@ -94,6 +95,9 @@ public class P2PBattlePanel extends JPanel {
         this.myBoard = new Board(difficulty, isItemMode);
         this.enemyBoard = new Board(difficulty, isItemMode);  // 렌더링 전용
         this.gameStartTime = System.currentTimeMillis();
+        
+        // 호스트와 클라이언트 모두 독립적으로 블록 생성
+        // myBoard는 자동으로 초기화됨
 
         // 메인 메뉴 음악 끄고 게임 음악 켜기 (설정된 볼륨으로)
         BackgroundMusicPlayer.getInstance().stop();
@@ -127,16 +131,26 @@ public class P2PBattlePanel extends JPanel {
 // 게임 타이머
         timer = new Timer(baseDelay, e -> {
             if (!paused && winner == null) {
+                // 내 보드 자동 낙하
                 if (!myBoard.isGameOver()) {
-                    // 블록 고정 후 새 블록이 떴는지 체크 + 공격줄 적용
-                    checkBlockPlacement();
-
                     // 자동 한 칸 낙하
                     boolean moved = myBoard.moveDown();
 
+                    if (!moved) {
+                        // 블록이 고정되었을 때 (moveDown이 false 반환)
+                        checkBlockPlacement();
+                    }
+
                     if (moved) {
                         checkFlashing(myBoard, true);
-                        sendBoardState(); // 낙하 상태도 상대에게 전송
+                    }
+                }
+                
+                // 상대방 보드 자동 낙하
+                if (!enemyBoard.isGameOver()) {
+                    boolean enemyMoved = enemyBoard.moveDown();
+                    if (enemyMoved) {
+                        checkFlashing(enemyBoard, false);
                     }
                 }
 
@@ -150,14 +164,32 @@ public class P2PBattlePanel extends JPanel {
         // 네트워크 상태 체크 타이머 추가
         networkTimer = new Timer(100, ev -> checkNetworkStatus());
         networkTimer.start();
-
-        // 초기 현재 블록 저장
-        lastCurrentMy = myBoard.getCurrent();
+        
+        // 블록 동기화 타이머 (100ms 주기) - 양쪽 모두 전송
+        syncTimer = new Timer(100, ev -> {
+            if (!paused && winner == null) {
+                sendBlockShapes();
+            }
+        });
+        syncTimer.start();
 
         // 네트워크 메시지 수신 핸들러
         NetworkManager.getInstance().setMessageListener(msg -> {
             handleNetworkMessage(msg);
         });
+        
+        // 호스트는 게임 시작 시 초기 블록 정보 전송 (지연 실행) - 비활성화
+        // 각자 독립적으로 블록 생성
+        /*
+        if (isHost) {
+            javax.swing.Timer initTimer = new javax.swing.Timer(100, e -> {
+                sendInitialBlocks();
+                ((javax.swing.Timer)e.getSource()).stop();
+            });
+            initTimer.setRepeats(false);
+            initTimer.start();
+        }
+        */
 // ===== CHAT UI INIT =====
         setLayout(null);
 
@@ -198,8 +230,15 @@ public class P2PBattlePanel extends JPanel {
         chatSendBtn.setForeground(Color.WHITE);
         chatSendBtn.setBorder(javax.swing.BorderFactory.createLineBorder(Color.WHITE));
 
-        chatSendBtn.addActionListener(e -> sendChat());
-        chatInput.addActionListener(e -> sendChat());
+        chatSendBtn.addActionListener(e -> {
+            sendChat();
+            requestFocusInWindow(); // 게임 패널로 포커스 복귀
+        });
+        
+        chatInput.addActionListener(e -> {
+            sendChat();
+            requestFocusInWindow(); // 게임 패널로 포커스 복귀
+        });
 
         add(scroll);
         add(chatInput);
@@ -229,7 +268,7 @@ public class P2PBattlePanel extends JPanel {
             timer.stop();
             JOptionPane.showMessageDialog(
                     this,
-                    "네트워크 연결이 끊어졌습니다.",
+                    "Network connection has been lost.",
                     "Connection Lost",
                     JOptionPane.ERROR_MESSAGE
             );
@@ -240,29 +279,27 @@ public class P2PBattlePanel extends JPanel {
     }
 
     private void checkBlockPlacement() {
-        Tetromino current = myBoard.getCurrent();
-
-        // 새로운 블록이 생성되었을 때 (블록이 배치된 직후)
-        if (current != lastCurrentMy && lastCurrentMy != null) {
-            // 대기 중인 공격 줄을 적용
+        // 블록이 고정되었을 때 호출됨 (moveDown이 false를 반환한 직후)
+        System.out.println("[" + (isHost ? "HOST" : "CLIENT") + "] 블록 배치 감지! 대기 중인 공격: " + incomingAttackPattern.size());
+        
+        // 대기 중인 공격 줄을 보드에 적용 (블록이 고정되기 전에 적용)
+        if (!incomingAttackPattern.isEmpty()) {
+            System.out.println("[" + (isHost ? "HOST" : "CLIENT") + "] 공격 적용 중...");
+            myBoard.addPendingAttackLines(incomingAttackPattern);
             myBoard.applyPendingAttackLines();
-
-            // 내가 보낸 공격 패턴 UI 초기화
-            outgoingAttackPattern.clear();
-
-            // 내 보드 상태를 네트워크로 전송
-            sendBoardState();
+            incomingAttackPattern.clear();
+            System.out.println("[" + (isHost ? "HOST" : "CLIENT") + "] 공격 적용 완료!");
         }
 
-        // 현재 블록 저장
-        lastCurrentMy = current;
+        // 블록 배치 시 보드 전체 상태 전송
+        sendBoardState();
     }
 
     private void handleKeyPress(KeyEvent e) {
         int code = e.getKeyCode();
 
-        // ENTER → 채팅창 포커스 이동 (추가 옵션)
-        if (code == KeyEvent.VK_ENTER) {
+        // ENTER → 채팅창 포커스 이동 (채팅창이 포커스 없을 때만)
+        if (code == KeyEvent.VK_ENTER && !chatInput.isFocusOwner()) {
             chatInput.requestFocusInWindow();
             return;
         }
@@ -284,18 +321,23 @@ public class P2PBattlePanel extends JPanel {
         if (!myBoard.isGameOver()) {
             if (code == Settings.getKeyLeft(Settings.Player.P1)) {
                 myBoard.moveLeft();
+                sendAction("LEFT");
                 checkFlashing(myBoard, true);
             } else if (code == Settings.getKeyRight(Settings.Player.P1)) {
                 myBoard.moveRight();
+                sendAction("RIGHT");
                 checkFlashing(myBoard, true);
             } else if (code == Settings.getKeyDown(Settings.Player.P1)) {
                 myBoard.moveDown();
+                sendAction("DOWN");
                 checkFlashing(myBoard, true);
             } else if (code == Settings.getKeyRotate(Settings.Player.P1)) {
                 myBoard.rotate();
+                sendAction("ROTATE");
                 checkFlashing(myBoard, true);
             } else if (code == Settings.getKeyHardDrop(Settings.Player.P1)) {
                 myBoard.hardDrop();
+                sendAction("HARDDROP");
                 checkFlashing(myBoard, true);
             }
         }
@@ -315,6 +357,10 @@ public class P2PBattlePanel extends JPanel {
             if (rows.length >= 2) {
                 List<ShapeType[]> attackPattern = myBoard.getAttackPattern(rows);
 
+                // 이전 공격 초기화 후 새 공격으로 교체
+                outgoingAttackPattern.clear();
+                outgoingAttackPattern = new java.util.ArrayList<>(attackPattern);
+                
                 // 상대에게 전송
                 sendAttackPattern(attackPattern);
             }
@@ -661,6 +707,9 @@ public class P2PBattlePanel extends JPanel {
 
         timer.stop();
         networkTimer.stop();
+        if (syncTimer != null) {
+            syncTimer.stop();
+        }
         BackgroundMusicPlayer.getInstance().stop();
 
         java.awt.Window w = SwingUtilities.getWindowAncestor(this);
@@ -674,16 +723,43 @@ public class P2PBattlePanel extends JPanel {
         });
     }
 
-    // ===== 네트워크 관련 메서드 =====
-    // 내 보드 상태 전송 (grid + current + score)
-    private void sendBoardState() {
-        ShapeType[][] grid = myBoard.getGrid();
-        Tetromino cur = myBoard.getCurrent();
-
+    // 매 프레임 블록 shape 전송
+    private void sendBlockShapes() {
+        Tetromino current = myBoard.getCurrent();
+        ShapeType next = myBoard.getNextShape();
+        
         StringBuilder sb = new StringBuilder();
-        sb.append("BOARD:{");
+        sb.append("SHAPES:").append(isHost ? "HOST" : "CLIENT").append(":");
+        sb.append("{");
+        
+        // 현재 블록
+        if (current != null) {
+            sb.append("\"current\":\"").append(current.getShape().name()).append("\",");
+        } else {
+            sb.append("\"current\":null,");
+        }
+        
+        // 다음 블록
+        sb.append("\"next\":\"").append(next.name()).append("\"");
+        sb.append("}");
+        
+        NetworkManager.getInstance().send(sb.toString());
+    }
 
-        // ===== GRID =====
+    // ===== 네트워크 관련 메서드 =====
+    // 보드 전체 상태 전송 (블록 배치 시)
+    private void sendBoardState() {
+        int score = myBoard.getScore();
+        ShapeType[][] grid = myBoard.getGrid();
+        
+        StringBuilder sb = new StringBuilder();
+        sb.append("BOARDSTATE:").append(isHost ? "HOST" : "CLIENT").append(":");
+        sb.append("{");
+        
+        // 점수
+        sb.append("\"score\":").append(score).append(",");
+        
+        // 고정된 블록들의 grid 전송
         sb.append("\"grid\":[");
         for (int y = 0; y < Board.ROWS; y++) {
             sb.append("[");
@@ -699,24 +775,70 @@ public class P2PBattlePanel extends JPanel {
                 sb.append(",");
             }
         }
-        sb.append("],");
-
-        // ===== CURRENT BLOCK =====
-        if (cur != null) {
-            sb.append("\"cur\":{");
-            sb.append("\"shape\":\"").append(cur.getShape().name()).append("\",");
-            sb.append("\"x\":").append(cur.getX()).append(",");
-            sb.append("\"y\":").append(cur.getY()).append(",");
-            sb.append("\"rot\":").append(cur.getRotation());
-            sb.append("},");
-        } else {
-            sb.append("\"cur\":null,");
+        sb.append("]").append(",");
+        
+        // 받을 공격 패턴 (incomingAttackPattern)
+        sb.append("\"incoming\":[");
+        for (int i = 0; i < incomingAttackPattern.size(); i++) {
+            ShapeType[] row = incomingAttackPattern.get(i);
+            sb.append("[");
+            for (int j = 0; j < row.length; j++) {
+                sb.append(row[j] == null ? "\"0\"" : "\"" + row[j].name() + "\"");
+                if (j < row.length - 1) sb.append(",");
+            }
+            sb.append("]");
+            if (i < incomingAttackPattern.size() - 1) sb.append(",");
         }
-
-        sb.append("\"score\":").append(myBoard.getScore());
+        sb.append("]").append(",");
+        
+        // 보낼 공격 패턴 (outgoingAttackPattern)
+        sb.append("\"outgoing\":[");
+        for (int i = 0; i < outgoingAttackPattern.size(); i++) {
+            ShapeType[] row = outgoingAttackPattern.get(i);
+            sb.append("[");
+            for (int j = 0; j < row.length; j++) {
+                sb.append(row[j] == null ? "\"0\"" : "\"" + row[j].name() + "\"");
+                if (j < row.length - 1) sb.append(",");
+            }
+            sb.append("]");
+            if (i < outgoingAttackPattern.size() - 1) sb.append(",");
+        }
+        sb.append("]");
+        
         sb.append("}");
-
+        
         NetworkManager.getInstance().send(sb.toString());
+        System.out.println("[" + (isHost ? "HOST" : "CLIENT") + "] 보드 상태 전송 (incoming: " + 
+                          incomingAttackPattern.size() + "줄, outgoing: " + outgoingAttackPattern.size() + "줄)");
+    }
+    
+    // 초기 블록 정보 전송 (호스트만)
+    private void sendInitialBlocks() {
+        Tetromino current = myBoard.getCurrent();
+        ShapeType nextShape = myBoard.getNextShape();
+        
+        StringBuilder sb = new StringBuilder();
+        sb.append("INIT:{");
+        
+        // 현재 블록
+        if (current != null) {
+            sb.append("\"current\":\"").append(current.getShape().name()).append("\",");
+            System.out.println("[Host] Sending current: " + current.getShape().name());
+        }
+        
+        // 다음 블록
+        sb.append("\"next\":\"").append(nextShape.name()).append("\"");
+        System.out.println("[Host] Sending next: " + nextShape.name());
+        sb.append("}");
+        
+        String message = sb.toString();
+        System.out.println("[Host] Sending INIT: " + message);
+        NetworkManager.getInstance().send(message);
+    }
+    
+    // 조작 이벤트 전송
+    private void sendAction(String action) {
+        NetworkManager.getInstance().send("ACTION:" + action);
     }
 
     // 공격 패턴 전송
@@ -759,18 +881,93 @@ public class P2PBattlePanel extends JPanel {
             chatArea.append("ENEMY: " + text + "\n");
             return;
         }
-
-        // ===== 상대 보드 상태 갱신 (grid + current) =====
-        if (msg.startsWith("BOARD:")) {
-            String json = msg.substring(6);
-
-            // 네트워크 스레드 → EDT 로 넘기기
+        
+        // ===== 블록 shape 정보 수신 =====
+        if (msg.startsWith("SHAPES:")) {
+            String body = msg.substring(7); // HOST:{...} or CLIENT:{...}
+            int colonIndex = body.indexOf(":");
+            if (colonIndex < 0) return;
+            
+            String sender = body.substring(0, colonIndex); // HOST or CLIENT
+            String json = body.substring(colonIndex + 1);
+            
+            // 내가 보낸 메시지는 무시
+            if ((sender.equals("HOST") && isHost) || (sender.equals("CLIENT") && !isHost)) {
+                return;
+            }
+            
+            // 상대 메시지 처리
             javax.swing.SwingUtilities.invokeLater(() -> {
                 try {
-                    updateEnemyBoard(json);
+                    handleBlockShapes(json);
                 } catch (Exception ex) {
                     ex.printStackTrace();
                 }
+            });
+            return;
+        }
+        
+        // ===== 초기 블록 정보 수신 (클라이언트만) =====
+        if (msg.startsWith("INIT:")) {
+            if (!isHost) {
+                String json = msg.substring(5);
+                javax.swing.SwingUtilities.invokeLater(() -> {
+                    try {
+                        handleInitialBlocks(json);
+                    } catch (Exception ex) {
+                        ex.printStackTrace();
+                    }
+                    repaint();
+                });
+            }
+            return;
+        }
+
+        // ===== 새 블록 정보 수신 (deprecated) =====
+        if (msg.startsWith("NEWBLOCK:")) {
+            String json = msg.substring(9);
+            javax.swing.SwingUtilities.invokeLater(() -> {
+                try {
+                    handleNewBlock(json);
+                } catch (Exception ex) {
+                    ex.printStackTrace();
+                }
+                repaint();
+            });
+            return;
+        }
+        
+        // ===== 보드 전체 상태 수신 =====
+        if (msg.startsWith("BOARDSTATE:")) {
+            String body = msg.substring(11); // HOST:{...} or CLIENT:{...}
+            int colonIndex = body.indexOf(":");
+            if (colonIndex < 0) return;
+            
+            String sender = body.substring(0, colonIndex);
+            String json = body.substring(colonIndex + 1);
+            
+            // 내가 보낸 메시지는 무시
+            if ((sender.equals("HOST") && isHost) || (sender.equals("CLIENT") && !isHost)) {
+                return;
+            }
+            
+            // 상대 보드 상태 업데이트
+            javax.swing.SwingUtilities.invokeLater(() -> {
+                try {
+                    handleBoardState(json);
+                } catch (Exception ex) {
+                    ex.printStackTrace();
+                }
+                repaint();
+            });
+            return;
+        }
+        
+        // ===== 조작 이벤트 수신 =====
+        if (msg.startsWith("ACTION:")) {
+            String action = msg.substring(7);
+            javax.swing.SwingUtilities.invokeLater(() -> {
+                handleEnemyAction(action);
                 repaint();
             });
             return;
@@ -811,10 +1008,33 @@ public class P2PBattlePanel extends JPanel {
                 return;
             }
 
-            // 🔥 상대 공격은 적용
+            // 🔥 상대 공격은 임시 저장 (블록 배치 시 적용)
             List<ShapeType[]> patterns = parseAttackPattern(json);
+            System.out.println("[" + (isHost ? "HOST" : "CLIENT") + "] 공격 수신! 줄 수: " + patterns.size() + ", 발신자: " + sender);
             SwingUtilities.invokeLater(() -> {
-                myBoard.addPendingAttackLines(patterns);
+                int incomingLines = patterns.size();
+                
+                // 이미 10줄이면 무시
+                if (incomingAttackPattern.size() >= 10) {
+                    System.out.println("[" + (isHost ? "HOST" : "CLIENT") + "] 공격 무시 (이미 10줄)");
+                    repaint();
+                    return;
+                }
+                
+                // 기존 + 새로운 줄이 10을 초과하면, 아래쪽(앞쪽)부터 제거
+                int totalLines = incomingAttackPattern.size() + incomingLines;
+                if (totalLines > 10) {
+                    int toRemove = totalLines - 10;
+                    // 앞쪽(아래쪽)부터 제거
+                    for (int i = 0; i < toRemove && !incomingAttackPattern.isEmpty(); i++) {
+                        incomingAttackPattern.remove(0);
+                    }
+                    System.out.println("[" + (isHost ? "HOST" : "CLIENT") + "] 아래쪽 " + toRemove + "줄 제거 (10줄 제한)");
+                }
+                
+                // 새로운 공격을 리스트 앞에 추가하여 가장 아래쪽에 배치되도록 함
+                incomingAttackPattern.addAll(0, patterns);
+                System.out.println("[" + (isHost ? "HOST" : "CLIENT") + "] 대기 중인 총 공격 줄: " + incomingAttackPattern.size());
                 repaint();
             });
 
@@ -833,126 +1053,6 @@ public class P2PBattlePanel extends JPanel {
     }
 
     // 상대 보드(grid) 상태 갱신
-    // 상대 보드(grid + current) 상태 갱신
-    private void updateEnemyBoard(String json) {
-        try {
-            // ----- 1) GRID 파싱 -----
-            int gridStart = json.indexOf("\"grid\":") + 7;
-            int gridEnd = json.indexOf("],\"cur\"");
-            if (gridStart < 7 || gridEnd < 0) {
-                return;
-            }
-
-            String gridJson = json.substring(gridStart, gridEnd + 1);
-            String[] rowStrs = gridJson.substring(1, gridJson.length() - 1).split("\\],\\[");
-
-            ShapeType[][] newGrid = new ShapeType[Board.ROWS][Board.COLS];
-
-            for (int y = 0; y < rowStrs.length && y < Board.ROWS; y++) {
-                String row = rowStrs[y].replace("[", "").replace("]", "");
-                String[] cols = row.split(",");
-
-                for (int x = 0; x < cols.length && x < Board.COLS; x++) {
-                    String v = cols[x].replace("\"", "");
-                    newGrid[y][x] = v.equals("0") ? null : ShapeType.valueOf(v);
-                }
-            }
-
-            // Board.grid 내부 값만 복사
-            enemyBoard.setGrid(newGrid);
-
-            // ----- 2) CURRENT 파싱 -----
-            int curIndex = json.indexOf("\"cur\":");
-            if (curIndex == -1) {
-                // cur 필드가 아예 없으면 current 제거
-                enemyBoard.overrideCurrent(null);
-                return;
-            }
-
-            int valueStart = curIndex + 6; // "cur": 뒤
-            if (json.startsWith("null", valueStart)) {
-                // "cur":null 인 경우
-                enemyBoard.overrideCurrent(null);
-                return;
-            }
-
-            // "cur":{ ... } 영역 추출
-            int braceStart = json.indexOf('{', curIndex);
-            int braceEnd = json.indexOf('}', braceStart);
-            if (braceStart == -1 || braceEnd == -1) {
-                enemyBoard.overrideCurrent(null);
-                return;
-            }
-
-            String curJson = json.substring(braceStart + 1, braceEnd);
-            String[] fields = curJson.split(",");
-
-            ShapeType type = null;
-            int cx = 0;
-            int cy = 0;
-            int rot = 0;
-
-            for (String f : fields) {
-                String[] kv = f.split(":");
-                if (kv.length != 2) {
-                    continue;
-                }
-
-                String key = kv[0].replace("\"", "").trim();
-                String val = kv[1].replace("\"", "").trim();
-
-                switch (key) {
-                    case "shape" ->
-                        type = ShapeType.valueOf(val);
-                    case "x" ->
-                        cx = Integer.parseInt(val);
-                    case "y" ->
-                        cy = Integer.parseInt(val);
-                    case "rot" ->
-                        rot = Integer.parseInt(val);
-                }
-            }
-
-            if (type != null) {
-                Tetromino enemyCur = new Tetromino(type, cx, cy);
-                // Tetromino.rotate() 는 보드 충돌 검사 안 하니까 여기서 여러 번 돌려도 됨
-                for (int i = 0; i < rot; i++) {
-                    enemyCur.rotate();
-                }
-                enemyBoard.overrideCurrent(enemyCur);
-            } else {
-                enemyBoard.overrideCurrent(null);
-            }
-            if (type != null) {
-                Tetromino enemyCur = new Tetromino(type, cx, cy);
-                for (int i = 0; i < rot; i++) {
-                    enemyCur.rotate();
-                }
-                enemyBoard.overrideCurrent(enemyCur);
-            } else {
-                enemyBoard.overrideCurrent(null);
-            }
-
-            // ===== SCORE 파싱 =====
-            int scoreIndex = json.indexOf("\"score\":");
-            if (scoreIndex != -1) {
-                int end = json.indexOf("}", scoreIndex);
-                if (end == -1) {
-                    end = json.length();
-                }
-                String val = json.substring(scoreIndex + 8, end).trim();
-                try {
-                    int enemyScore = Integer.parseInt(val);
-                    enemyBoard.setScore(enemyScore);   // ★ 상대 점수 갱신
-                } catch (Exception ignored) {
-                }
-            }
-
-        } catch (Exception ex) {
-            ex.printStackTrace();
-         }
-    }
-
     private void sendChat() {
         String msg = chatInput.getText().trim();
         if (msg.isEmpty()) {
@@ -962,10 +1062,229 @@ public class P2PBattlePanel extends JPanel {
         NetworkManager.getInstance().send("CHAT:" + msg);
         chatArea.append("ME: " + msg + "\n");
         chatInput.setText("");
-
+    }
+    
+    // 블록 shape 정보 수신 처리
+    private void handleBlockShapes(String json) {
+        try {
+            // current 파싱
+            ShapeType currentShape = null;
+            int currentIndex = json.indexOf("\"current\":");
+            if (currentIndex != -1) {
+                int valueStart = currentIndex + 10;
+                if (json.startsWith("null", valueStart)) {
+                    currentShape = null;
+                } else {
+                    int quoteStart = json.indexOf("\"", valueStart) + 1;
+                    int quoteEnd = json.indexOf("\"", quoteStart);
+                    if (quoteStart > 0 && quoteEnd > quoteStart) {
+                        String currentStr = json.substring(quoteStart, quoteEnd);
+                        currentShape = ShapeType.valueOf(currentStr);
+                    }
+                }
+            }
             
-        // ★ 게임 패널로 포커스 되돌리기
-        requestFocusInWindow();
+            // next 파싱
+            int nextIndex = json.indexOf("\"next\":\"");
+            ShapeType nextShape = null;
+            if (nextIndex != -1) {
+                int nextEnd = json.indexOf("\"", nextIndex + 8);
+                if (nextEnd > nextIndex + 8) {
+                    String nextStr = json.substring(nextIndex + 8, nextEnd);
+                    nextShape = ShapeType.valueOf(nextStr);
+                }
+            }
+            
+            // 상대방의 블록을 enemyBoard에 표시
+            if (currentShape != null) {
+                Tetromino current = enemyBoard.getCurrent();
+                // current 블록이 없거나 shape이 다르면 새로 생성
+                if (current == null || current.getShape() != currentShape) {
+                    Tetromino newCurrent = new Tetromino(currentShape, Board.COLS / 2 - 2, 0);
+                    enemyBoard.overrideCurrent(newCurrent);
+                }
+            } else {
+                enemyBoard.overrideCurrent(null);
+            }
+            
+            if (nextShape != null) {
+                enemyBoard.setNextShape(nextShape);
+            }
+            
+        } catch (Exception ex) {
+            System.err.println("[🔥 handleBlockShapes 에러] " + ex.getMessage());
+            ex.printStackTrace();
+        }
+    }
+    
+    // 초기 블록 정보 수신 처리 (클라이언트만)
+    private void handleInitialBlocks(String json) {
+        try {
+            System.out.println("[Client] Received INIT: " + json);
+            
+            // current 파싱
+            int currentIndex = json.indexOf("\"current\":\"");
+            ShapeType currentShape = null;
+            if (currentIndex != -1) {
+                int currentEnd = json.indexOf("\"", currentIndex + 11);
+                String currentStr = json.substring(currentIndex + 11, currentEnd);
+                currentShape = ShapeType.valueOf(currentStr);
+                System.out.println("[Client] Current shape: " + currentShape);
+            }
+            
+            // next 파싱
+            int nextIndex = json.indexOf("\"next\":\"");
+            ShapeType nextShape = null;
+            if (nextIndex != -1) {
+                int nextEnd = json.indexOf("\"", nextIndex + 8);
+                String nextStr = json.substring(nextIndex + 8, nextEnd);
+                nextShape = ShapeType.valueOf(nextStr);
+                System.out.println("[Client] Next shape: " + nextShape);
+            }
+            
+            // 클라이언트: 호스트의 블록을 내 보드에 설정
+            if (currentShape != null) {
+                Tetromino currentBlock = new Tetromino(currentShape, Board.COLS / 2 - 2, 0);
+                myBoard.overrideCurrent(currentBlock);
+                System.out.println("[Client] Set my current block: " + currentShape);
+            }
+            
+            // 다음 블록도 호스트와 동일하게 설정
+            if (nextShape != null) {
+                myBoard.setNextShape(nextShape);
+                System.out.println("[Client] Set my next block: " + nextShape);
+            }
+            
+        } catch (Exception ex) {
+            System.err.println("[Client] Error handling INIT: " + ex.getMessage());
+            ex.printStackTrace();
+        }
+    }
+    
+    // 새 블록 정보 수신 처리
+    private void handleNewBlock(String json) {
+        try {
+            // next 파싱
+            int nextIndex = json.indexOf("\"next\":\"");
+            if (nextIndex == -1) return;
+            int nextEnd = json.indexOf("\"", nextIndex + 8);
+            String nextStr = json.substring(nextIndex + 8, nextEnd);
+            ShapeType nextShape = ShapeType.valueOf(nextStr);
+            
+            // score 파싱
+            int scoreIndex = json.indexOf("\"score\":");
+            int scoreEnd = json.indexOf(",", scoreIndex);
+            if (scoreEnd == -1) scoreEnd = json.indexOf("}", scoreIndex);
+            String scoreStr = json.substring(scoreIndex + 8, scoreEnd).trim();
+            int score = Integer.parseInt(scoreStr);
+            
+            // grid 파싱
+            int gridStart = json.indexOf("\"grid\":") + 7;
+            int gridEnd = json.lastIndexOf("]}");
+            if (gridStart < 7 || gridEnd < 0) return;
+            
+            String gridJson = json.substring(gridStart, gridEnd + 1);
+            String[] rowStrs = gridJson.substring(1, gridJson.length() - 1).split("\\],\\[");
+            
+            ShapeType[][] newGrid = new ShapeType[Board.ROWS][Board.COLS];
+            for (int y = 0; y < rowStrs.length && y < Board.ROWS; y++) {
+                String row = rowStrs[y].replace("[", "").replace("]", "");
+                String[] cols = row.split(",");
+                for (int x = 0; x < cols.length && x < Board.COLS; x++) {
+                    String v = cols[x].replace("\"", "");
+                    newGrid[y][x] = v.equals("0") ? null : ShapeType.valueOf(v);
+                }
+            }
+            
+            // 상대 보드 업데이트
+            enemyBoard.setGrid(newGrid);
+            enemyBoard.setScore(score);
+            
+            // 상대 보드 next 설정
+            enemyBoard.setNextShape(nextShape);
+            
+            // 클라이언트는 호스트가 보낸 next를 자신의 다음 블록으로도 설정
+            if (!isHost) {
+                myBoard.setNextShape(nextShape);
+            }
+            
+        } catch (Exception ex) {
+            ex.printStackTrace();
+        }
+    }
+    
+    // 보드 전체 상태 수신 처리
+    private void handleBoardState(String json) {
+        try {
+            // score 파싱
+            int scoreIndex = json.indexOf("\"score\":");
+            int scoreEnd = json.indexOf(",", scoreIndex);
+            if (scoreEnd == -1) scoreEnd = json.indexOf("}", scoreIndex);
+            String scoreStr = json.substring(scoreIndex + 8, scoreEnd).trim();
+            int score = Integer.parseInt(scoreStr);
+            
+            // grid 파싱
+            int gridStart = json.indexOf("\"grid\":") + 7;
+            int gridCommaIndex = json.indexOf("],\"incoming\"");
+            if (gridCommaIndex < 0) gridCommaIndex = json.lastIndexOf("]}");
+            
+            String gridJson = json.substring(gridStart, gridCommaIndex + 1);
+            String[] rowStrs = gridJson.substring(1, gridJson.length() - 1).split("\\],\\[");
+            
+            ShapeType[][] newGrid = new ShapeType[Board.ROWS][Board.COLS];
+            for (int y = 0; y < rowStrs.length && y < Board.ROWS; y++) {
+                String row = rowStrs[y].replace("[", "").replace("]", "");
+                String[] cols = row.split(",");
+                for (int x = 0; x < cols.length && x < Board.COLS; x++) {
+                    String v = cols[x].replace("\"", "");
+                    newGrid[y][x] = v.equals("0") ? null : ShapeType.valueOf(v);
+                }
+            }
+            
+            // 상대 보드 업데이트
+            enemyBoard.setGrid(newGrid);
+            enemyBoard.setScore(score);
+            
+            // incoming 파싱 (상대의 incoming = 상대가 받을 공격 = 내가 보낸 공격)
+            int incomingStart = json.indexOf("\"incoming\":[");
+            if (incomingStart >= 0) {
+                int incomingArrayStart = incomingStart + 12;
+                int incomingArrayEnd = json.indexOf("],\"outgoing\"", incomingArrayStart);
+                if (incomingArrayEnd < 0) incomingArrayEnd = json.indexOf("]}", incomingArrayStart);
+                
+                String incomingContent = json.substring(incomingArrayStart, incomingArrayEnd);
+                
+                // 상대방의 incoming이 비어있으면 (공격을 적용했으면)
+                if (incomingContent.trim().isEmpty()) {
+                    // 내가 보낸 공격이 적용되었으므로 outgoing 초기화
+                    if (!outgoingAttackPattern.isEmpty()) {
+                        System.out.println("[" + (isHost ? "HOST" : "CLIENT") + "] 상대가 공격을 받음. outgoing 초기화");
+                        outgoingAttackPattern.clear();
+                    }
+                }
+            }
+            
+            // outgoing 파싱 (상대의 outgoing = 상대가 보낸 공격)
+            // ATTACK 메시지로 이미 incomingAttackPattern에 추가되므로 별도 처리 불필요
+            
+            System.out.println("[" + (isHost ? "HOST" : "CLIENT") + "] 보드 상태 수신 완료 - Score: " + score);
+            
+        } catch (Exception ex) {
+            System.err.println("[handleBoardState 에러] " + ex.getMessage());
+            ex.printStackTrace();
+        }
+    }
+    
+    // 상대방 조작 이벤트 처리
+    private void handleEnemyAction(String action) {
+        switch (action) {
+            case "LEFT" -> enemyBoard.moveLeft();
+            case "RIGHT" -> enemyBoard.moveRight();
+            case "DOWN" -> enemyBoard.moveDown();
+            case "ROTATE" -> enemyBoard.rotate();
+            case "HARDDROP" -> enemyBoard.hardDrop();
+        }
+        checkFlashing(enemyBoard, false);
     }
 
     // ATTACK 패턴 JSON 문자열 -> List<ShapeType[]> 변환
@@ -1195,11 +1514,11 @@ protected void paintComponent(Graphics g) {
         // 대기 중인 공격 줄 표시
         List<ShapeType[]> pendingPatterns;
         if (board == myBoard) {
-            // 내 보드: 내가 보낸 공격 패턴 표시
-            pendingPatterns = outgoingAttackPattern;
+            // 내 보드: 내가 받을 공격 패턴 표시 (incoming)
+            pendingPatterns = incomingAttackPattern;
         } else {
-            // 상대 보드: 상대가 받은 공격 패턴 표시
-            pendingPatterns = board.getPendingAttackPattern();
+            // 상대 보드: 내가 보낼 공격 패턴 표시 (outgoing)
+            pendingPatterns = outgoingAttackPattern;
         }
         int pendingLines = pendingPatterns.size();
         int displayLines = 10;

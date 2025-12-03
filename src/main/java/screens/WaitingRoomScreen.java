@@ -7,6 +7,7 @@ import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.SwingUtilities;
+import javax.swing.Timer;
 
 import core.Difficulty;
 import network.NetworkManager;
@@ -21,6 +22,7 @@ public class WaitingRoomScreen extends JFrame {
     private JLabel enemyStatusLabel;
     private JButton readyButton;
     private JButton startButton;
+    private Timer readyStatusTimer;
 
     public WaitingRoomScreen(boolean isHost) {
         this.isHost = isHost;
@@ -33,6 +35,27 @@ public class WaitingRoomScreen extends JFrame {
 
         initUI();
         initNetworkListener();
+        startReadyStatusTimer();
+    }
+
+    private void startReadyStatusTimer() {
+        // 100ms마다 ready 상태 전송
+        readyStatusTimer = new Timer(100, e -> {
+            if (myReady) {
+                NetworkManager.getInstance().send("READY");
+            } else {
+                NetworkManager.getInstance().send("UNREADY");
+            }
+        });
+        readyStatusTimer.start();
+    }
+
+    @Override
+    public void dispose() {
+        if (readyStatusTimer != null) {
+            readyStatusTimer.stop();
+        }
+        super.dispose();
     }
 
     private void initUI() {

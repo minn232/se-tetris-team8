@@ -53,7 +53,7 @@ public class NetworkManager {
                 listenLoop();
 
             } catch (IOException e) {
-                System.err.println("서버 시작 실패: " + e.getMessage());
+                System.err.println("Failed to start server: " + e.getMessage());
                 connected = false;
             }
         }).start();
@@ -77,7 +77,7 @@ public class NetworkManager {
                 listenLoop();
 
             } catch (IOException e) {
-                System.err.println("서버 접속 실패 (" + ip + ":" + port + "): " + e.getMessage());
+                System.err.println("Failed to connect to server (" + ip + ":" + port + "): " + e.getMessage());
                 connected = false;
             }
         }).start();
