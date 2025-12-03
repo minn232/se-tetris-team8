@@ -1,0 +1,396 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="ko"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>RankingBoard.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">se-tetris-team8</a> &gt; <a href="index.source.html" class="el_package">ranking</a> &gt; <span class="el_source">RankingBoard.java</span></div><h1>RankingBoard.java</h1><pre class="source lang-java linenums">package ranking;
+
+import java.awt.BorderLayout;
+import java.awt.Color;
+import java.awt.Component;
+import java.awt.Font;
+import java.awt.event.KeyAdapter;
+import java.awt.event.KeyEvent;
+import java.time.format.DateTimeFormatter;
+import java.util.List;
+
+import javax.swing.BorderFactory;
+import javax.swing.Box;
+import javax.swing.BoxLayout;
+import javax.swing.JButton;
+import javax.swing.JDialog;
+import javax.swing.JLabel;
+import javax.swing.JPanel;
+import javax.swing.JScrollPane;
+import javax.swing.JTabbedPane;
+
+import core.Settings;
+
+/**
+ * 랭킹 보드 UI
+ * 일반 모드와 아이템 모드 랭킹을 탭으로 분리하여 표시
+ */
+public class RankingBoard extends JDialog {
+<span class="fc" id="L29">    private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern(&quot;yyyy-MM-dd HH:mm&quot;);</span>
+    private static final String NORMAL_RANKING_FILE = &quot;normal_rankings.dat&quot;;
+    private static final String TIMEATTACK_RANKING_FILE = &quot;timeattack_rankings.dat&quot;;
+    private static final String ITEM_RANKING_FILE = &quot;item_rankings.dat&quot;;
+    
+    private final String highlightPlayerName;
+    private final int highlightScore;
+    private final boolean showReturnButton;
+    private final boolean isItemMode;
+    private final boolean isTimeAttackMode;
+    
+    private JButton[] buttons;
+<span class="fc" id="L41">    private int selectedIndex = 0;</span>
+    private JTabbedPane tabbedPane;
+<span class="fc" id="L43">    private boolean focusOnButtons = false; // true: 버튼 포커스, false: 탭 포커스</span>
+    
+    public RankingBoard() {
+<span class="fc" id="L46">        super((java.awt.Frame) null, &quot;Ranking Board&quot;, true); // 모달 다이얼로그로 생성</span>
+<span class="fc" id="L47">        int width = Settings.getWindowWidth();</span>
+<span class="fc" id="L48">        int height = Settings.getWindowHeight();</span>
+<span class="fc" id="L49">        int baseFontSize = Settings.getBaseFontSize();</span>
+        
+<span class="fc" id="L51">        setTitle(&quot;Ranking Board&quot;);</span>
+<span class="fc" id="L52">        setSize((int)(width * 0.8), (int)(height * 0.9));</span>
+<span class="fc" id="L53">        setResizable(false);</span>
+<span class="fc" id="L54">        setDefaultCloseOperation(JDialog.DISPOSE_ON_CLOSE);</span>
+<span class="fc" id="L55">        setLocationRelativeTo(null);</span>
+        
+<span class="fc" id="L57">        this.highlightPlayerName = null;</span>
+<span class="fc" id="L58">        this.highlightScore = -1;</span>
+<span class="fc" id="L59">        this.showReturnButton = false;</span>
+<span class="fc" id="L60">        this.isItemMode = false;</span>
+<span class="fc" id="L61">        this.isTimeAttackMode = false;</span>
+<span class="fc" id="L62">        initializeUI();</span>
+<span class="fc" id="L63">    }</span>
+    
+    public RankingBoard(String highlightPlayerName, int highlightScore, boolean showReturnButton) {
+<span class="fc" id="L66">        this(highlightPlayerName, highlightScore, showReturnButton, false, false);</span>
+<span class="fc" id="L67">    }</span>
+    
+    public RankingBoard(String highlightPlayerName, int highlightScore, boolean showReturnButton, boolean isItemMode, boolean isTimeAttackMode) {
+<span class="fc" id="L70">        super((java.awt.Frame) null, &quot;Ranking Board&quot;, true); // 모달 다이얼로그로 생성</span>
+<span class="fc" id="L71">        int width = Settings.getWindowWidth();</span>
+<span class="fc" id="L72">        int height = Settings.getWindowHeight();</span>
+<span class="fc" id="L73">        int baseFontSize = Settings.getBaseFontSize();</span>
+        
+<span class="fc" id="L75">        setTitle(&quot;Ranking Board&quot;);</span>
+<span class="fc" id="L76">        setSize((int)(width * 0.8), (int)(height * 0.9));</span>
+<span class="fc" id="L77">        setResizable(false);</span>
+<span class="fc" id="L78">        setDefaultCloseOperation(JDialog.DISPOSE_ON_CLOSE);</span>
+<span class="fc" id="L79">        setLocationRelativeTo(null);</span>
+        
+<span class="fc" id="L81">        this.highlightPlayerName = highlightPlayerName;</span>
+<span class="fc" id="L82">        this.highlightScore = highlightScore;</span>
+<span class="fc" id="L83">        this.showReturnButton = showReturnButton;</span>
+<span class="fc" id="L84">        this.isItemMode = isItemMode;</span>
+<span class="fc" id="L85">        this.isTimeAttackMode = isTimeAttackMode;</span>
+<span class="fc" id="L86">        initializeUI();</span>
+<span class="fc" id="L87">    }</span>
+
+    private void initializeUI() {
+<span class="fc" id="L90">        int width = (int)(Settings.getWindowWidth() * 0.5);</span>
+<span class="fc" id="L91">        int height = (int)(Settings.getWindowHeight());</span>
+        
+<span class="fc" id="L93">        setTitle(&quot;Ranking Board&quot;);</span>
+<span class="fc" id="L94">        setSize(width, height);</span>
+<span class="fc" id="L95">        setLocationRelativeTo(null);</span>
+<span class="fc" id="L96">        setDefaultCloseOperation(JDialog.DISPOSE_ON_CLOSE);</span>
+
+<span class="fc" id="L98">        JPanel mainContainer = new JPanel(new BorderLayout());</span>
+        
+<span class="fc" id="L100">        tabbedPane = new JTabbedPane();</span>
+        
+<span class="fc" id="L102">        JPanel softModePanel = createRankingPanel(</span>
+<span class="fc" id="L103">            RankingManager.getInstance(NORMAL_RANKING_FILE).getRankings(),</span>
+            &quot;Soft Mode&quot;,
+            false // Soft 모드
+        );
+        
+<span class="fc" id="L108">        JPanel itemModePanel = createRankingPanel(</span>
+<span class="fc" id="L109">            RankingManager.getInstance(ITEM_RANKING_FILE).getRankings(),</span>
+            &quot;Item Mode&quot;,
+            true // 아이템 모드
+        );
+
+<span class="fc" id="L114">        tabbedPane.addTab(&quot;Soft Mode&quot;, softModePanel);</span>
+<span class="fc" id="L115">        tabbedPane.addTab(&quot;Item Mode&quot;, itemModePanel);</span>
+        
+        // 모드에 따라 해당 탭을 기본으로 선택
+<span class="fc bfc" id="L118" title="All 2 branches covered.">        if (isItemMode) {</span>
+<span class="fc" id="L119">            tabbedPane.setSelectedIndex(1); // Item Mode 탭</span>
+        }
+        // 그 외(Soft Mode)는 기본값인 0번 탭이 선택됨
+
+<span class="fc" id="L123">        mainContainer.add(tabbedPane, BorderLayout.CENTER);</span>
+        
+        // 게임 종료 후 표시되는 경우 버튼 추가
+<span class="fc bfc" id="L126" title="All 2 branches covered.">        if (showReturnButton) {</span>
+<span class="fc" id="L127">            JPanel buttonPanel = createButtonPanel();</span>
+<span class="fc" id="L128">            mainContainer.add(buttonPanel, BorderLayout.SOUTH);</span>
+            
+            // 키보드 네비게이션 설정
+<span class="fc" id="L131">            setupKeyboardNavigation();</span>
+<span class="fc" id="L132">        } else {</span>
+            // 일반 랭킹 보기의 경우 Close 버튼 추가
+<span class="fc" id="L134">            JPanel closeButtonPanel = createCloseButtonPanel();</span>
+<span class="fc" id="L135">            mainContainer.add(closeButtonPanel, BorderLayout.SOUTH);</span>
+            
+            // ESC 키 및 탭 전환을 위한 키보드 리스너 추가
+<span class="fc" id="L138">            setFocusable(true);</span>
+<span class="fc" id="L139">            addKeyListener(new KeyAdapter() {</span>
+                @Override
+                public void keyPressed(KeyEvent e) {
+<span class="nc bnc" id="L142" title="All 2 branches missed.">                    if (e.getKeyCode() == KeyEvent.VK_ESCAPE) {</span>
+<span class="nc" id="L143">                        dispose();</span>
+<span class="nc bnc" id="L144" title="All 2 branches missed.">                    } else if (e.getKeyCode() == KeyEvent.VK_LEFT) {</span>
+<span class="nc" id="L145">                        int currentIndex = tabbedPane.getSelectedIndex();</span>
+<span class="nc bnc" id="L146" title="All 2 branches missed.">                        if (currentIndex &gt; 0) {</span>
+<span class="nc" id="L147">                            tabbedPane.setSelectedIndex(currentIndex - 1);</span>
+                        }
+<span class="nc bnc" id="L149" title="All 2 branches missed.">                    } else if (e.getKeyCode() == KeyEvent.VK_RIGHT) {</span>
+<span class="nc" id="L150">                        int currentIndex = tabbedPane.getSelectedIndex();</span>
+<span class="nc bnc" id="L151" title="All 2 branches missed.">                        if (currentIndex &lt; tabbedPane.getTabCount() - 1) {</span>
+<span class="nc" id="L152">                            tabbedPane.setSelectedIndex(currentIndex + 1);</span>
+                        }
+                    }
+<span class="nc" id="L155">                }</span>
+            });
+        }
+
+<span class="fc" id="L159">        add(mainContainer);</span>
+<span class="fc" id="L160">    }</span>
+    
+    private void setupKeyboardNavigation() {
+        // 키보드 포커스를 받을 수 있도록 설정
+<span class="fc" id="L164">        setFocusable(true);</span>
+        
+        // 버튼들의 포커스 비활성화
+<span class="fc bfc" id="L167" title="All 2 branches covered.">        for (JButton btn : buttons) {</span>
+<span class="fc" id="L168">            btn.setFocusable(false);</span>
+        }
+        
+        // 초기 하이라이트 설정
+<span class="fc" id="L172">        updateButtonHighlight();</span>
+        
+        // 키보드 이벤트 리스너 추가
+<span class="fc" id="L175">        addKeyListener(new KeyAdapter() {</span>
+            @Override
+            public void keyPressed(KeyEvent e) {
+<span class="nc" id="L178">                handleKeyPress(e);</span>
+<span class="nc" id="L179">            }</span>
+        });
+<span class="fc" id="L181">    }</span>
+    
+    private void handleKeyPress(KeyEvent e) {
+<span class="nc bnc" id="L184" title="All 7 branches missed.">        switch (e.getKeyCode()) {</span>
+            case KeyEvent.VK_UP:
+<span class="nc bnc" id="L186" title="All 4 branches missed.">                if (showReturnButton &amp;&amp; focusOnButtons) {</span>
+                    // 버튼에서 탭으로 포커스 이동
+<span class="nc" id="L188">                    focusOnButtons = false;</span>
+<span class="nc" id="L189">                    updateButtonHighlight();</span>
+                }
+                break;
+            case KeyEvent.VK_DOWN:
+<span class="nc bnc" id="L193" title="All 4 branches missed.">                if (showReturnButton &amp;&amp; !focusOnButtons) {</span>
+                    // 탭에서 버튼으로 포커스 이동
+<span class="nc" id="L195">                    focusOnButtons = true;</span>
+<span class="nc" id="L196">                    selectedIndex = 0; // 첫 번째 버튼 선택</span>
+<span class="nc" id="L197">                    updateButtonHighlight();</span>
+                }
+                break;
+            case KeyEvent.VK_LEFT:
+<span class="nc bnc" id="L201" title="All 2 branches missed.">                if (focusOnButtons) {</span>
+                    // 버튼 간 이동
+<span class="nc bnc" id="L203" title="All 2 branches missed.">                    if (selectedIndex &gt; 0) {</span>
+<span class="nc" id="L204">                        selectedIndex--;</span>
+<span class="nc" id="L205">                        updateButtonHighlight();</span>
+                    }
+                } else {
+                    // 탭 전환
+<span class="nc" id="L209">                    int currentIndex = tabbedPane.getSelectedIndex();</span>
+<span class="nc bnc" id="L210" title="All 2 branches missed.">                    if (currentIndex &gt; 0) {</span>
+<span class="nc" id="L211">                        tabbedPane.setSelectedIndex(currentIndex - 1);</span>
+                    }
+                }
+<span class="nc" id="L214">                break;</span>
+            case KeyEvent.VK_RIGHT:
+<span class="nc bnc" id="L216" title="All 2 branches missed.">                if (focusOnButtons) {</span>
+                    // 버튼 간 이동
+<span class="nc bnc" id="L218" title="All 2 branches missed.">                    if (selectedIndex &lt; buttons.length - 1) {</span>
+<span class="nc" id="L219">                        selectedIndex++;</span>
+<span class="nc" id="L220">                        updateButtonHighlight();</span>
+                    }
+                } else {
+                    // 탭 전환
+<span class="nc" id="L224">                    int currentIndex = tabbedPane.getSelectedIndex();</span>
+<span class="nc bnc" id="L225" title="All 2 branches missed.">                    if (currentIndex &lt; tabbedPane.getTabCount() - 1) {</span>
+<span class="nc" id="L226">                        tabbedPane.setSelectedIndex(currentIndex + 1);</span>
+                    }
+                }
+<span class="nc" id="L229">                break;</span>
+            case KeyEvent.VK_ENTER:
+            case KeyEvent.VK_SPACE:
+<span class="nc bnc" id="L232" title="All 2 branches missed.">                if (focusOnButtons) {</span>
+<span class="nc" id="L233">                    buttons[selectedIndex].doClick();</span>
+                }
+                break;
+            case KeyEvent.VK_ESCAPE:
+<span class="nc" id="L237">                dispose();</span>
+                // showReturnButton이 true이면 메인 메뉴로 복귀
+<span class="nc bnc" id="L239" title="All 2 branches missed.">                if (showReturnButton) {</span>
+<span class="nc" id="L240">                    screens.ScreenNavigator.getInstance().clear();</span>
+<span class="nc" id="L241">                    new screens.Mainmenu().setVisible(true);</span>
+                }
+                break;
+        }
+<span class="nc" id="L245">    }</span>
+    
+    private void updateButtonHighlight() {
+<span class="fc bfc" id="L248" title="All 2 branches covered.">        for (int i = 0; i &lt; buttons.length; i++) {</span>
+<span class="pc bpc" id="L249" title="3 of 4 branches missed.">            if (focusOnButtons &amp;&amp; i == selectedIndex) {</span>
+<span class="nc" id="L250">                buttons[i].setBackground(new Color(100, 150, 255));</span>
+<span class="nc" id="L251">                buttons[i].setForeground(Color.BLACK);</span>
+<span class="nc" id="L252">                buttons[i].setOpaque(true);</span>
+            } else {
+<span class="fc" id="L254">                buttons[i].setBackground(null);</span>
+<span class="fc" id="L255">                buttons[i].setForeground(Color.BLACK);</span>
+<span class="fc" id="L256">                buttons[i].setOpaque(false);</span>
+            }
+        }
+<span class="fc" id="L259">        repaint();</span>
+<span class="fc" id="L260">    }</span>
+
+    private JPanel createRankingPanel(List&lt;RankingEntry&gt; rankings, String title, boolean isItemMode) {
+<span class="fc" id="L263">        int baseFontSize = Settings.getBaseFontSize();</span>
+        
+<span class="fc" id="L265">        JPanel mainPanel = new JPanel(new BorderLayout());</span>
+<span class="fc" id="L266">        JPanel contentPanel = new JPanel();</span>
+<span class="fc" id="L267">        contentPanel.setLayout(new BoxLayout(contentPanel, BoxLayout.Y_AXIS));</span>
+<span class="fc" id="L268">        contentPanel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));</span>
+
+<span class="fc" id="L270">        JPanel titlePanel = createTitlePanel(title, baseFontSize);</span>
+<span class="fc" id="L271">        contentPanel.add(titlePanel);</span>
+<span class="fc" id="L272">        contentPanel.add(Box.createVerticalStrut(20));</span>
+
+<span class="fc" id="L274">        addRankingEntries(contentPanel, rankings, baseFontSize, isItemMode);</span>
+
+<span class="fc" id="L276">        JScrollPane scrollPane = new JScrollPane(contentPanel);</span>
+<span class="fc" id="L277">        scrollPane.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED);</span>
+<span class="fc" id="L278">        mainPanel.add(scrollPane, BorderLayout.CENTER);</span>
+        
+<span class="fc" id="L280">        return mainPanel;</span>
+    }
+    
+    private JPanel createButtonPanel() {
+<span class="fc" id="L284">        int baseFontSize = Settings.getBaseFontSize();</span>
+<span class="fc" id="L285">        double scaleFactor = Settings.getScaleFactor();</span>
+        
+<span class="fc" id="L287">        JPanel buttonPanel = new JPanel();</span>
+<span class="fc" id="L288">        buttonPanel.setBorder(BorderFactory.createEmptyBorder(10, 20, 10, 20));</span>
+<span class="fc" id="L289">        buttonPanel.setLayout(new BoxLayout(buttonPanel, BoxLayout.X_AXIS));</span>
+        
+<span class="fc" id="L291">        JButton mainMenuButton = new JButton(&quot;Main Menu&quot;);</span>
+<span class="fc" id="L292">        mainMenuButton.setFont(new Font(&quot;Arial&quot;, Font.PLAIN, baseFontSize));</span>
+<span class="fc" id="L293">        mainMenuButton.setPreferredSize(new java.awt.Dimension((int)(150 * scaleFactor), (int)(40 * scaleFactor)));</span>
+<span class="fc" id="L294">        mainMenuButton.addActionListener(e -&gt; {</span>
+<span class="nc" id="L295">            dispose();</span>
+<span class="nc" id="L296">            screens.ScreenNavigator.getInstance().clear();</span>
+<span class="nc" id="L297">            new screens.Mainmenu().setVisible(true);</span>
+<span class="nc" id="L298">        });</span>
+        
+<span class="fc" id="L300">        JButton exitButton = new JButton(&quot;Exit&quot;);</span>
+<span class="fc" id="L301">        exitButton.setFont(new Font(&quot;Arial&quot;, Font.PLAIN, baseFontSize));</span>
+<span class="fc" id="L302">        exitButton.setPreferredSize(new java.awt.Dimension((int)(150 * scaleFactor), (int)(40 * scaleFactor)));</span>
+<span class="fc" id="L303">        exitButton.addActionListener(e -&gt; {</span>
+<span class="nc" id="L304">            System.exit(0);</span>
+<span class="nc" id="L305">        });</span>
+        
+        // 버튼 배열 초기화
+<span class="fc" id="L308">        buttons = new JButton[]{mainMenuButton, exitButton};</span>
+        
+<span class="fc" id="L310">        buttonPanel.add(Box.createHorizontalGlue());</span>
+<span class="fc" id="L311">        buttonPanel.add(mainMenuButton);</span>
+<span class="fc" id="L312">        buttonPanel.add(Box.createHorizontalStrut(20));</span>
+<span class="fc" id="L313">        buttonPanel.add(exitButton);</span>
+<span class="fc" id="L314">        buttonPanel.add(Box.createHorizontalGlue());</span>
+        
+<span class="fc" id="L316">        return buttonPanel;</span>
+    }
+    
+    private JPanel createCloseButtonPanel() {
+<span class="fc" id="L320">        int baseFontSize = Settings.getBaseFontSize();</span>
+<span class="fc" id="L321">        double scaleFactor = Settings.getScaleFactor();</span>
+        
+<span class="fc" id="L323">        JPanel buttonPanel = new JPanel();</span>
+<span class="fc" id="L324">        buttonPanel.setBorder(BorderFactory.createEmptyBorder(10, 20, 10, 20));</span>
+<span class="fc" id="L325">        buttonPanel.setLayout(new BoxLayout(buttonPanel, BoxLayout.X_AXIS));</span>
+        
+<span class="fc" id="L327">        JButton closeButton = new JButton(&quot;Close&quot;);</span>
+<span class="fc" id="L328">        closeButton.setFont(new Font(&quot;Arial&quot;, Font.PLAIN, baseFontSize));</span>
+<span class="fc" id="L329">        closeButton.setPreferredSize(new java.awt.Dimension((int)(100 * scaleFactor), (int)(40 * scaleFactor)));</span>
+<span class="pc" id="L330">        closeButton.addActionListener(e -&gt; dispose());</span>
+        
+<span class="fc" id="L332">        buttonPanel.add(Box.createHorizontalGlue());</span>
+<span class="fc" id="L333">        buttonPanel.add(closeButton);</span>
+<span class="fc" id="L334">        buttonPanel.add(Box.createHorizontalGlue());</span>
+        
+<span class="fc" id="L336">        return buttonPanel;</span>
+    }
+    
+    private JPanel createTitlePanel(String title, int baseFontSize) {
+<span class="fc" id="L340">        JPanel titlePanel = new JPanel();</span>
+<span class="fc" id="L341">        titlePanel.setLayout(new BoxLayout(titlePanel, BoxLayout.X_AXIS));</span>
+        
+<span class="fc" id="L343">        JLabel titleLabel = new JLabel(title);</span>
+<span class="fc" id="L344">        titleLabel.setFont(new Font(&quot;Arial&quot;, Font.BOLD, (int)(baseFontSize * 1.33)));</span>
+<span class="fc" id="L345">        titleLabel.setAlignmentX(Component.CENTER_ALIGNMENT);</span>
+        
+<span class="fc" id="L347">        titlePanel.add(Box.createHorizontalGlue());</span>
+<span class="fc" id="L348">        titlePanel.add(titleLabel);</span>
+<span class="fc" id="L349">        titlePanel.add(Box.createHorizontalGlue());</span>
+        
+<span class="fc" id="L351">        return titlePanel;</span>
+    }
+    
+    private void addRankingEntries(JPanel panel, List&lt;RankingEntry&gt; rankings, int baseFontSize, boolean isItemMode) {
+<span class="fc bfc" id="L355" title="All 2 branches covered.">        for (int i = 0; i &lt; rankings.size(); i++) {</span>
+<span class="fc" id="L356">            RankingEntry entry = rankings.get(i);</span>
+            
+            // 방금 입력한 항목인지 확인 (이름과 점수가 모두 일치)
+<span class="pc bpc" id="L359" title="1 of 2 branches missed.">            boolean isHighlighted = highlightPlayerName != null </span>
+<span class="nc bnc" id="L360" title="All 2 branches missed.">                &amp;&amp; entry.getPlayerName().equals(highlightPlayerName)</span>
+<span class="pc bnc" id="L361" title="All 2 branches missed.">                &amp;&amp; entry.getScore() == highlightScore;</span>
+            
+            // 난이도 정보 가져오기 (null이면 기본값 표시)
+<span class="pc bpc" id="L364" title="1 of 2 branches missed.">            String difficultyStr = entry.getDifficulty() != null </span>
+<span class="fc" id="L365">                ? entry.getDifficulty().name() </span>
+<span class="pc" id="L366">                : &quot;NORMAL&quot;;</span>
+            
+<span class="fc" id="L368">            JLabel rankLabel = new JLabel(String.format(&quot;%d. %s - %d [%s] (%s)&quot;,</span>
+<span class="fc" id="L369">                i + 1,</span>
+<span class="fc" id="L370">                entry.getPlayerName(),</span>
+<span class="fc" id="L371">                entry.getScore(),</span>
+                difficultyStr,
+<span class="fc" id="L373">                entry.getTimestamp().format(DATE_FORMATTER)</span>
+            ));
+            
+            // 강조 표시
+<span class="pc bpc" id="L377" title="1 of 2 branches missed.">            if (isHighlighted) {</span>
+<span class="nc" id="L378">                rankLabel.setFont(new Font(&quot;Arial&quot;, Font.BOLD, (int)(baseFontSize * 1.0)));</span>
+<span class="nc" id="L379">                rankLabel.setForeground(new Color(255, 215, 0)); // 골드 색상</span>
+<span class="nc" id="L380">                rankLabel.setOpaque(true);</span>
+<span class="nc" id="L381">                rankLabel.setBackground(new Color(50, 50, 50)); // 어두운 배경</span>
+<span class="nc" id="L382">                rankLabel.setBorder(BorderFactory.createCompoundBorder(</span>
+<span class="nc" id="L383">                    BorderFactory.createLineBorder(new Color(255, 215, 0), 2),</span>
+<span class="nc" id="L384">                    BorderFactory.createEmptyBorder(5, 10, 5, 10)</span>
+                ));
+            } else {
+<span class="fc" id="L387">                rankLabel.setFont(new Font(&quot;Arial&quot;, Font.PLAIN, (int)(baseFontSize * 0.89)));</span>
+            }
+            
+<span class="fc" id="L390">            rankLabel.setAlignmentX(Component.LEFT_ALIGNMENT);</span>
+<span class="fc" id="L391">            panel.add(rankLabel);</span>
+<span class="fc" id="L392">            panel.add(Box.createVerticalStrut(10));</span>
+        }
+<span class="fc" id="L394">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.11.202310140853</span></div></body></html>

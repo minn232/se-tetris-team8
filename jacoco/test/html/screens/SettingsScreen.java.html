@@ -1,0 +1,406 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="ko"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>SettingsScreen.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">se-tetris-team8</a> &gt; <a href="index.source.html" class="el_package">screens</a> &gt; <span class="el_source">SettingsScreen.java</span></div><h1>SettingsScreen.java</h1><pre class="source lang-java linenums">package screens;
+
+import java.awt.BorderLayout;
+import java.awt.Color;
+import java.awt.FlowLayout;
+import java.awt.Font;
+import java.awt.GridLayout;
+import java.awt.HeadlessException;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+import java.awt.event.KeyAdapter;
+import java.awt.event.KeyEvent;
+import java.util.HashMap;
+import java.util.Map;
+
+import javax.swing.BorderFactory;
+import javax.swing.JButton;
+import javax.swing.JCheckBox;
+import javax.swing.JComboBox;
+import javax.swing.JDialog;
+import javax.swing.JFrame;
+import javax.swing.JLabel;
+import javax.swing.JOptionPane;
+import javax.swing.JPanel;
+import javax.swing.SwingConstants;
+
+import core.Settings;
+import ranking.RankingManager;
+
+public class SettingsScreen extends JFrame {
+
+    private static final long serialVersionUID = 1L;
+
+    // Map to store key binding buttons for both players
+<span class="fc" id="L35">    private Map&lt;Settings.KeyBinding, JButton&gt; keyButtonsP1 = new HashMap&lt;&gt;();</span>
+<span class="fc" id="L36">    private Map&lt;Settings.KeyBinding, JButton&gt; keyButtonsP2 = new HashMap&lt;&gt;();</span>
+    private JCheckBox chkColorBlind;
+    private final JButton btnClearScores;
+
+    private final JButton[] buttons;
+<span class="fc" id="L41">    private int selectedIndex = 0;</span>
+
+    public SettingsScreen() {
+<span class="fc" id="L44">        super(&quot;Settings&quot;);</span>
+<span class="fc" id="L45">        setLayout(new BorderLayout());</span>
+
+        // 해상도에 따라 폰트 크기와 창 크기를 동적으로 적용
+<span class="fc" id="L48">        String res = Settings.getResolution();</span>
+        // 허용 해상도 목록
+<span class="fc" id="L50">        String[] resolutions = {&quot;640x360&quot;, &quot;1280x720&quot;, &quot;1920x1080&quot;};</span>
+
+        // 기본값 파싱 (Settings에 저장된 값이 형식에 맞지 않으면 첫 항목 사용)
+<span class="fc" id="L53">        int width = 640, height = 360;</span>
+        try {
+<span class="fc bfc" id="L55" title="All 2 branches covered.">            String[] parts = (res != null ? res : resolutions[0]).split(&quot;x&quot;);</span>
+<span class="fc bfc" id="L56" title="All 2 branches covered.">            if (parts.length == 2) {</span>
+<span class="fc" id="L57">                width = Integer.parseInt(parts[0].trim());</span>
+<span class="fc" id="L58">                height = Integer.parseInt(parts[1].trim());</span>
+            }
+<span class="fc" id="L60">        } catch (NumberFormatException ex) {</span>
+<span class="fc" id="L61">            width = 640; height = 360;</span>
+<span class="fc" id="L62">        }</span>
+
+        // 높이에 따라 폰트 크기 결정 (간단한 기준)
+        int fontSize;
+<span class="fc bfc" id="L66" title="All 2 branches covered.">        if (height &gt;= 1080) fontSize = 28;</span>
+<span class="fc bfc" id="L67" title="All 2 branches covered.">        else if (height &gt;= 720) fontSize = 22;</span>
+<span class="fc" id="L68">        else fontSize = 14;</span>
+
+<span class="fc" id="L70">        setSize(width, height);</span>
+
+        // 음량 패널 (맨 위에 추가)
+<span class="fc" id="L73">        JPanel volumePanel = new JPanel(new GridLayout(2, 2, 10, 10));</span>
+<span class="fc" id="L74">        volumePanel.setBorder(BorderFactory.createEmptyBorder(10, 30, 10, 30));</span>
+        
+<span class="fc" id="L76">        JLabel mainMusicLabel = new JLabel(&quot;Main Music Volume:&quot;);</span>
+<span class="fc" id="L77">        mainMusicLabel.setFont(new Font(Font.SANS_SERIF, Font.BOLD, fontSize));</span>
+        
+<span class="fc" id="L79">        JLabel gameMusicLabel = new JLabel(&quot;Game Music Volume:&quot;);</span>
+<span class="fc" id="L80">        gameMusicLabel.setFont(new Font(Font.SANS_SERIF, Font.BOLD, fontSize));</span>
+        
+<span class="fc" id="L82">        javax.swing.JSlider mainVolumeSlider = new javax.swing.JSlider(0, 100, </span>
+<span class="fc" id="L83">            (int)(Settings.getMainMusicVolume() * 100));</span>
+<span class="fc" id="L84">        mainVolumeSlider.setFont(new Font(Font.MONOSPACED, Font.PLAIN, fontSize));</span>
+<span class="fc" id="L85">        mainVolumeSlider.setMajorTickSpacing(25);</span>
+<span class="fc" id="L86">        mainVolumeSlider.setMinorTickSpacing(5);</span>
+<span class="fc" id="L87">        mainVolumeSlider.setPaintTicks(true);</span>
+<span class="fc" id="L88">        mainVolumeSlider.setPaintLabels(true);</span>
+        
+<span class="fc" id="L90">        javax.swing.JSlider gameVolumeSlider = new javax.swing.JSlider(0, 100, </span>
+<span class="fc" id="L91">            (int)(Settings.getGameMusicVolume() * 100));</span>
+<span class="fc" id="L92">        gameVolumeSlider.setFont(new Font(Font.MONOSPACED, Font.PLAIN, fontSize));</span>
+<span class="fc" id="L93">        gameVolumeSlider.setMajorTickSpacing(25);</span>
+<span class="fc" id="L94">        gameVolumeSlider.setMinorTickSpacing(5);</span>
+<span class="fc" id="L95">        gameVolumeSlider.setPaintTicks(true);</span>
+<span class="fc" id="L96">        gameVolumeSlider.setPaintLabels(true);</span>
+        
+        // 실시간 볼륨 조절
+<span class="fc" id="L99">        mainVolumeSlider.addChangeListener(e -&gt; {</span>
+<span class="nc" id="L100">            float volume = mainVolumeSlider.getValue() / 100f;</span>
+<span class="nc" id="L101">            Settings.setMainMusicVolume(volume);</span>
+<span class="nc" id="L102">            BackgroundMusicPlayer.getInstance().setVolume(volume);</span>
+<span class="nc" id="L103">        });</span>
+        
+<span class="fc" id="L105">        gameVolumeSlider.addChangeListener(e -&gt; {</span>
+<span class="nc" id="L106">            float volume = gameVolumeSlider.getValue() / 100f;</span>
+<span class="nc" id="L107">            Settings.setGameMusicVolume(volume);</span>
+<span class="nc" id="L108">        });</span>
+        
+<span class="fc" id="L110">        volumePanel.add(mainMusicLabel);</span>
+<span class="fc" id="L111">        volumePanel.add(mainVolumeSlider);</span>
+<span class="fc" id="L112">        volumePanel.add(gameMusicLabel);</span>
+<span class="fc" id="L113">        volumePanel.add(gameVolumeSlider);</span>
+
+        // 해상도 패널
+<span class="fc" id="L116">        JPanel resPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));</span>
+<span class="fc" id="L117">        JLabel resLabel = new JLabel(&quot;Window size:&quot;);</span>
+<span class="fc" id="L118">        resLabel.setFont(new Font(Font.SANS_SERIF, Font.BOLD, fontSize));</span>
+<span class="fc" id="L119">        resPanel.add(resLabel);</span>
+<span class="fc" id="L120">        JComboBox&lt;String&gt; resCombo = new JComboBox&lt;&gt;(resolutions);</span>
+<span class="fc" id="L121">        resCombo.setFont(new Font(Font.MONOSPACED, Font.BOLD, fontSize));</span>
+<span class="fc" id="L122">        resCombo.setSelectedItem(Settings.getResolution());</span>
+<span class="fc" id="L123">        resPanel.add(resCombo);</span>
+
+        // 키 매핑 패널 (헤더 + 5개 키 = 6행, 3열: 라벨/1P/2P)
+<span class="fc" id="L126">        JPanel keyPanel = new JPanel(new GridLayout(6, 3, 10, 10));</span>
+<span class="fc" id="L127">        Font small = new Font(Font.MONOSPACED, Font.PLAIN, fontSize);</span>
+<span class="fc" id="L128">        Font headerFont = new Font(Font.SANS_SERIF, Font.BOLD, fontSize);</span>
+
+        // 헤더 행
+<span class="fc" id="L131">        JLabel emptyHeader = new JLabel(&quot;&quot;);</span>
+<span class="fc" id="L132">        JLabel p1Header = new JLabel(&quot;1P&quot;, SwingConstants.CENTER);</span>
+<span class="fc" id="L133">        JLabel p2Header = new JLabel(&quot;2P&quot;, SwingConstants.CENTER);</span>
+<span class="fc" id="L134">        p1Header.setFont(headerFont);</span>
+<span class="fc" id="L135">        p2Header.setFont(headerFont);</span>
+<span class="fc" id="L136">        keyPanel.add(emptyHeader);</span>
+<span class="fc" id="L137">        keyPanel.add(p1Header);</span>
+<span class="fc" id="L138">        keyPanel.add(p2Header);</span>
+
+        // 각 키 바인딩에 대해 라벨과 1P, 2P 버튼 생성
+<span class="fc" id="L141">        addKeyBindingRow(keyPanel, &quot;Down:&quot;, Settings.KeyBinding.DOWN, small);</span>
+<span class="fc" id="L142">        addKeyBindingRow(keyPanel, &quot;Left:&quot;, Settings.KeyBinding.LEFT, small);</span>
+<span class="fc" id="L143">        addKeyBindingRow(keyPanel, &quot;Right:&quot;, Settings.KeyBinding.RIGHT, small);</span>
+<span class="fc" id="L144">        addKeyBindingRow(keyPanel, &quot;Rotate:&quot;, Settings.KeyBinding.ROTATE, small);</span>
+<span class="fc" id="L145">        addKeyBindingRow(keyPanel, &quot;Hard Drop:&quot;, Settings.KeyBinding.HARD_DROP, small);</span>
+
+        // Colorblind 및 점수판 패널 (넓은 레이아웃)
+<span class="fc" id="L148">        JPanel bottom = new JPanel(new GridLayout(1, 2, 40, 0));</span>
+
+<span class="fc" id="L150">        JPanel leftPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));</span>
+<span class="fc" id="L151">        chkColorBlind = new JCheckBox(&quot;Color-blind mode&quot;);</span>
+<span class="fc" id="L152">        chkColorBlind.setFont(new Font(Font.SANS_SERIF, Font.BOLD, fontSize));</span>
+<span class="fc" id="L153">        chkColorBlind.setSelected(Settings.isColorBlind());</span>
+<span class="fc" id="L154">        leftPanel.add(chkColorBlind);</span>
+
+<span class="fc" id="L156">        JPanel rightPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));</span>
+<span class="fc" id="L157">        btnClearScores = new JButton(&quot;Clear Scoreboard&quot;);</span>
+<span class="fc" id="L158">        btnClearScores.setFont(new Font(Font.SANS_SERIF, Font.BOLD, fontSize));</span>
+<span class="fc" id="L159">        rightPanel.add(btnClearScores);</span>
+
+<span class="fc" id="L161">        bottom.add(leftPanel);</span>
+<span class="fc" id="L162">        bottom.add(rightPanel);</span>
+
+        // 버튼 패널
+<span class="fc" id="L165">        JPanel south = new JPanel(new FlowLayout(FlowLayout.RIGHT));</span>
+<span class="fc" id="L166">        JButton btnSave = new JButton(&quot;Save&quot;);</span>
+<span class="fc" id="L167">        JButton btnResetDefaults = new JButton(&quot;Reset to Default&quot;);</span>
+<span class="fc" id="L168">        JButton btnCancel = new JButton(&quot;Cancel&quot;);</span>
+<span class="fc" id="L169">        btnSave.setFont(new Font(Font.SANS_SERIF, Font.BOLD, fontSize));</span>
+<span class="fc" id="L170">        btnResetDefaults.setFont(new Font(Font.SANS_SERIF, Font.BOLD, fontSize));</span>
+<span class="fc" id="L171">        btnCancel.setFont(new Font(Font.SANS_SERIF, Font.BOLD, fontSize));</span>
+<span class="fc" id="L172">        south.add(btnResetDefaults);</span>
+<span class="fc" id="L173">        south.add(btnCancel);</span>
+<span class="fc" id="L174">        south.add(btnSave);</span>
+
+<span class="fc" id="L176">        JPanel mainSouthPanel = new JPanel(new BorderLayout());</span>
+<span class="fc" id="L177">        mainSouthPanel.add(bottom, BorderLayout.CENTER);</span>
+<span class="fc" id="L178">        mainSouthPanel.add(south, BorderLayout.SOUTH);</span>
+
+        // 상단 패널 (음량 + 해상도)
+<span class="fc" id="L181">        JPanel topPanel = new JPanel(new BorderLayout());</span>
+<span class="fc" id="L182">        topPanel.add(volumePanel, BorderLayout.CENTER);</span>
+<span class="fc" id="L183">        topPanel.add(resPanel, BorderLayout.SOUTH);</span>
+
+<span class="fc" id="L185">        add(topPanel, BorderLayout.NORTH);</span>
+<span class="fc" id="L186">        add(keyPanel, BorderLayout.CENTER);</span>
+<span class="fc" id="L187">        add(mainSouthPanel, BorderLayout.SOUTH);</span>
+
+<span class="fc" id="L189">        pack();</span>
+<span class="fc" id="L190">        setLocationRelativeTo(null);</span>
+
+        // 키 변경 핸들러 - 리팩토링된 버전
+<span class="fc" id="L193">        setupKeyBindingListeners();</span>
+
+<span class="fc" id="L195">        btnClearScores.addActionListener((ActionEvent e) -&gt; {</span>
+<span class="nc" id="L196">            int ok = JOptionPane.showConfirmDialog(SettingsScreen.this,</span>
+                    &quot;Are you sure you want to clear the scoreboard? This cannot be undone.&quot;, &quot;Clear Scoreboard&quot;,
+                    JOptionPane.YES_NO_OPTION);
+<span class="nc bnc" id="L199" title="All 2 branches missed.">            if (ok == JOptionPane.YES_OPTION) {</span>
+                try {
+                    // normal_rankings.dat 초기화
+<span class="nc" id="L202">                    RankingManager normalRankings = RankingManager.getInstance(&quot;normal_rankings.dat&quot;);</span>
+<span class="nc" id="L203">                    normalRankings.clearRankings();</span>
+                    
+                    // item_rankings.dat 초기화
+<span class="nc" id="L206">                    RankingManager itemRankings = RankingManager.getInstance(&quot;item_rankings.dat&quot;);</span>
+<span class="nc" id="L207">                    itemRankings.clearRankings();</span>
+                    
+<span class="nc" id="L209">                    JOptionPane.showMessageDialog(SettingsScreen.this, &quot;Scoreboard cleared.&quot;);</span>
+<span class="nc" id="L210">                } catch (HeadlessException ex) {</span>
+<span class="nc" id="L211">                    JOptionPane.showMessageDialog(SettingsScreen.this, &quot;Failed to clear scoreboard: &quot; + ex.getMessage(),</span>
+                            &quot;Error&quot;, JOptionPane.ERROR_MESSAGE);
+<span class="nc" id="L213">                }</span>
+            }
+<span class="nc" id="L215">        });</span>
+
+<span class="fc" id="L217">        btnSave.addActionListener((ActionEvent e) -&gt; {</span>
+<span class="fc" id="L218">            Settings.setResolution((String)resCombo.getSelectedItem());</span>
+<span class="fc" id="L219">            Settings.setColorBlind(chkColorBlind.isSelected());</span>
+<span class="fc" id="L220">            Settings.save();</span>
+<span class="fc" id="L221">            JOptionPane.showMessageDialog(SettingsScreen.this, &quot;Settings saved.&quot;);</span>
+<span class="fc" id="L222">            dispose();</span>
+<span class="fc" id="L223">        });</span>
+
+<span class="fc" id="L225">        btnCancel.addActionListener((ActionEvent e) -&gt; {</span>
+<span class="nc" id="L226">            dispose();</span>
+<span class="nc" id="L227">        });</span>
+
+<span class="fc" id="L229">        btnResetDefaults.addActionListener((ActionEvent e) -&gt; {</span>
+<span class="nc" id="L230">            int confirm = JOptionPane.showConfirmDialog(SettingsScreen.this,</span>
+                    &quot;Reset all settings to default values?&quot;, &quot;Reset to Default&quot;,
+                    JOptionPane.YES_NO_OPTION);
+<span class="nc bnc" id="L233" title="All 2 branches missed.">            if (confirm == JOptionPane.YES_OPTION) {</span>
+<span class="nc" id="L234">                Settings.resetToDefaults();</span>
+                
+                // UI 업데이트
+<span class="nc" id="L237">                resCombo.setSelectedItem(&quot;640x360&quot;);</span>
+<span class="nc" id="L238">                chkColorBlind.setSelected(false);</span>
+                
+                // 키 바인딩 버튼 텍스트 업데이트 (P1, P2)
+<span class="nc bnc" id="L241" title="All 2 branches missed.">                for (Map.Entry&lt;Settings.KeyBinding, JButton&gt; entry : keyButtonsP1.entrySet()) {</span>
+<span class="nc" id="L242">                    Settings.KeyBinding binding = entry.getKey();</span>
+<span class="nc" id="L243">                    JButton button = entry.getValue();</span>
+<span class="nc" id="L244">                    button.setText(KeyEvent.getKeyText(binding.getValue(Settings.Player.P1)));</span>
+<span class="nc" id="L245">                }</span>
+<span class="nc bnc" id="L246" title="All 2 branches missed.">                for (Map.Entry&lt;Settings.KeyBinding, JButton&gt; entry : keyButtonsP2.entrySet()) {</span>
+<span class="nc" id="L247">                    Settings.KeyBinding binding = entry.getKey();</span>
+<span class="nc" id="L248">                    JButton button = entry.getValue();</span>
+<span class="nc" id="L249">                    button.setText(KeyEvent.getKeyText(binding.getValue(Settings.Player.P2)));</span>
+<span class="nc" id="L250">                }</span>
+                
+<span class="nc" id="L252">                JOptionPane.showMessageDialog(SettingsScreen.this,</span>
+                        &quot;All settings have been reset to default values.\nClick 'Save' to apply the changes.&quot;);
+            }
+<span class="nc" id="L255">        });</span>
+
+<span class="fc" id="L257">        chkColorBlind.addActionListener((ActionEvent e) -&gt; {</span>
+<span class="fc" id="L258">            Settings.setColorBlind(chkColorBlind.isSelected());</span>
+<span class="fc" id="L259">        });</span>
+
+        // 키보드 포커스를 받을 수 있도록 설정
+<span class="fc" id="L262">        setFocusable(true);</span>
+
+        // 버튼 배열 초기화
+<span class="fc" id="L265">        buttons = new JButton[]{btnSave, btnCancel, btnResetDefaults, btnClearScores};</span>
+
+        // 키보드 이벤트 리스너 추가
+<span class="fc" id="L268">        addKeyListener(new KeyAdapter() {</span>
+            @Override
+            public void keyPressed(KeyEvent e) {
+<span class="nc" id="L271">                handleKeyPress(e);</span>
+<span class="nc" id="L272">            }</span>
+        });
+
+        // 버튼들이 포커스를 받지 않도록 설정
+<span class="fc bfc" id="L276" title="All 2 branches covered.">        for (JButton button : buttons) {</span>
+<span class="fc" id="L277">            button.setFocusable(false);</span>
+        }
+
+        // 초기 하이라이트 설정
+<span class="fc" id="L281">        updateButtonHighlight();</span>
+<span class="fc" id="L282">    }</span>
+
+    /**
+     * 키 바인딩 행을 추가하는 헬퍼 메서드 (1P, 2P)
+     */
+    private void addKeyBindingRow(JPanel panel, String labelText, Settings.KeyBinding binding, Font font) {
+<span class="fc" id="L288">        JLabel lbl = new JLabel(labelText);</span>
+<span class="fc" id="L289">        lbl.setFont(font);</span>
+<span class="fc" id="L290">        lbl.setForeground(Color.BLACK);</span>
+<span class="fc" id="L291">        lbl.setBorder(BorderFactory.createEmptyBorder(0, 30, 0, 0));</span>
+        
+<span class="fc" id="L293">        JButton btnP1 = new JButton(KeyEvent.getKeyText(binding.getValue(Settings.Player.P1)));</span>
+<span class="fc" id="L294">        btnP1.setFont(font);</span>
+        
+<span class="fc" id="L296">        JButton btnP2 = new JButton(KeyEvent.getKeyText(binding.getValue(Settings.Player.P2)));</span>
+<span class="fc" id="L297">        btnP2.setFont(font);</span>
+        
+<span class="fc" id="L299">        panel.add(lbl);</span>
+<span class="fc" id="L300">        panel.add(btnP1);</span>
+<span class="fc" id="L301">        panel.add(btnP2);</span>
+        
+<span class="fc" id="L303">        keyButtonsP1.put(binding, btnP1);</span>
+<span class="fc" id="L304">        keyButtonsP2.put(binding, btnP2);</span>
+<span class="fc" id="L305">    }</span>
+
+    /**
+     * 모든 키 바인딩 버튼에 리스너 설정 (P1, P2)
+     */
+    private void setupKeyBindingListeners() {
+        // P1 버튼 리스너
+<span class="fc bfc" id="L312" title="All 2 branches covered.">        for (Map.Entry&lt;Settings.KeyBinding, JButton&gt; entry : keyButtonsP1.entrySet()) {</span>
+<span class="fc" id="L313">            Settings.KeyBinding binding = entry.getKey();</span>
+<span class="fc" id="L314">            JButton button = entry.getValue();</span>
+            
+<span class="fc" id="L316">            button.addActionListener(e -&gt; {</span>
+<span class="nc" id="L317">                int baseFontSize = Settings.getBaseFontSize();</span>
+<span class="nc" id="L318">                double scaleFactor = Settings.getScaleFactor();</span>
+                
+<span class="nc" id="L320">                JDialog dlg = new JDialog(SettingsScreen.this, &quot;Press a key (1P)&quot;, true);</span>
+<span class="nc" id="L321">                JLabel msg = new JLabel(&quot;Press the desired key for Player 1&quot;, SwingConstants.CENTER);</span>
+<span class="nc" id="L322">                msg.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, baseFontSize));</span>
+<span class="nc" id="L323">                dlg.add(msg);</span>
+<span class="nc" id="L324">                dlg.setSize((int)(300 * scaleFactor), (int)(100 * scaleFactor));</span>
+<span class="nc" id="L325">                dlg.setLocationRelativeTo(SettingsScreen.this);</span>
+<span class="nc" id="L326">                dlg.addKeyListener(new KeyAdapter() {</span>
+                    @Override
+                    public void keyPressed(KeyEvent ke) {
+<span class="nc" id="L329">                        int newKey = ke.getKeyCode();</span>
+<span class="nc" id="L330">                        binding.setValue(Settings.Player.P1, newKey);</span>
+<span class="nc" id="L331">                        button.setText(KeyEvent.getKeyText(newKey));</span>
+<span class="nc" id="L332">                        dlg.dispose();</span>
+<span class="nc" id="L333">                    }</span>
+                });
+<span class="nc" id="L335">                dlg.setFocusable(true);</span>
+<span class="nc" id="L336">                dlg.setVisible(true);</span>
+<span class="nc" id="L337">            });</span>
+<span class="fc" id="L338">        }</span>
+        
+        // P2 버튼 리스너
+<span class="fc bfc" id="L341" title="All 2 branches covered.">        for (Map.Entry&lt;Settings.KeyBinding, JButton&gt; entry : keyButtonsP2.entrySet()) {</span>
+<span class="fc" id="L342">            Settings.KeyBinding binding = entry.getKey();</span>
+<span class="fc" id="L343">            JButton button = entry.getValue();</span>
+            
+<span class="fc" id="L345">            button.addActionListener(e -&gt; {</span>
+<span class="nc" id="L346">                int baseFontSize = Settings.getBaseFontSize();</span>
+<span class="nc" id="L347">                double scaleFactor = Settings.getScaleFactor();</span>
+                
+<span class="nc" id="L349">                JDialog dlg = new JDialog(SettingsScreen.this, &quot;Press a key (2P)&quot;, true);</span>
+<span class="nc" id="L350">                JLabel msg = new JLabel(&quot;Press the desired key for Player 2&quot;, SwingConstants.CENTER);</span>
+<span class="nc" id="L351">                msg.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, baseFontSize));</span>
+<span class="nc" id="L352">                dlg.add(msg);</span>
+<span class="nc" id="L353">                dlg.setSize((int)(300 * scaleFactor), (int)(100 * scaleFactor));</span>
+<span class="nc" id="L354">                dlg.setLocationRelativeTo(SettingsScreen.this);</span>
+<span class="nc" id="L355">                dlg.addKeyListener(new KeyAdapter() {</span>
+                    @Override
+                    public void keyPressed(KeyEvent ke) {
+<span class="nc" id="L358">                        int newKey = ke.getKeyCode();</span>
+<span class="nc" id="L359">                        binding.setValue(Settings.Player.P2, newKey);</span>
+<span class="nc" id="L360">                        button.setText(KeyEvent.getKeyText(newKey));</span>
+<span class="nc" id="L361">                        dlg.dispose();</span>
+<span class="nc" id="L362">                    }</span>
+                });
+<span class="nc" id="L364">                dlg.setFocusable(true);</span>
+<span class="nc" id="L365">                dlg.setVisible(true);</span>
+<span class="nc" id="L366">            });</span>
+<span class="fc" id="L367">        }</span>
+<span class="fc" id="L368">    }</span>
+
+    // 키보드 입력 처리
+    private void handleKeyPress(KeyEvent e) {
+<span class="fc bfc" id="L372" title="All 5 branches covered.">        switch (e.getKeyCode()) {</span>
+            case KeyEvent.VK_UP:
+<span class="fc" id="L374">                selectedIndex = (selectedIndex - 1 + buttons.length) % buttons.length;</span>
+<span class="fc" id="L375">                updateButtonHighlight();</span>
+<span class="fc" id="L376">                break;</span>
+            case KeyEvent.VK_DOWN:
+<span class="fc" id="L378">                selectedIndex = (selectedIndex + 1) % buttons.length;</span>
+<span class="fc" id="L379">                updateButtonHighlight();</span>
+<span class="fc" id="L380">                break;</span>
+            case KeyEvent.VK_ENTER:
+<span class="fc" id="L382">                buttons[selectedIndex].doClick();</span>
+<span class="fc" id="L383">                break;</span>
+            case KeyEvent.VK_ESCAPE:
+<span class="fc" id="L385">                dispose();</span>
+                break;
+        }
+<span class="fc" id="L388">    }</span>
+
+    // 버튼 하이라이트 업데이트
+    private void updateButtonHighlight() {
+<span class="fc bfc" id="L392" title="All 2 branches covered.">        for (int i = 0; i &lt; buttons.length; i++) {</span>
+<span class="fc bfc" id="L393" title="All 2 branches covered.">            if (i == selectedIndex) {</span>
+<span class="fc" id="L394">                buttons[i].setBackground(new Color(100, 150, 255));</span>
+<span class="fc" id="L395">                buttons[i].setForeground(Color.BLACK);</span>
+<span class="fc" id="L396">                buttons[i].setOpaque(true);</span>
+            } else {
+<span class="fc" id="L398">                buttons[i].setBackground(null);</span>
+<span class="fc" id="L399">                buttons[i].setForeground(Color.BLACK);</span>
+<span class="fc" id="L400">                buttons[i].setOpaque(false);</span>
+            }
+        }
+<span class="fc" id="L403">        repaint();</span>
+<span class="fc" id="L404">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.11.202310140853</span></div></body></html>

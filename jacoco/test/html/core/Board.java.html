@@ -1,0 +1,785 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="ko"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Board.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">se-tetris-team8</a> &gt; <a href="index.source.html" class="el_package">core</a> &gt; <span class="el_source">Board.java</span></div><h1>Board.java</h1><pre class="source lang-java linenums">package core;
+
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Random;
+import java.util.Set;
+
+import items.ItemManager;
+
+public class Board {
+    public static final int ROWS = 20;
+    public static final int COLS = 10;
+
+<span class="fc" id="L15">    private final ShapeType[][] grid = new ShapeType[ROWS][COLS];</span>
+<span class="fc" id="L16">    private final Random random = new Random();</span>
+<span class="fc" id="L17">    private final double[] weights = new double[ShapeType.values().length];</span>
+
+    private final Difficulty difficulty;
+
+    private Tetromino current;
+    private ShapeType nextShape;
+
+<span class="fc" id="L24">    private boolean gameOver = false;</span>
+
+    // 점수/가속
+<span class="fc" id="L27">    private int score = 0;</span>
+<span class="fc" id="L28">    private double scoreMultiplier = 1.0; // 난이도 보너스(클리어/보너스에만 적용)</span>
+<span class="fc" id="L29">    private int totalLinesCleared = 0;    // 누적 삭제 줄 수(속도 가속에 사용)</span>
+
+    // 아이템 모드
+    private final boolean isItemMode;
+    private final ItemManager itemManager;
+    private items.ItemBlock nextItemBlock;
+    private items.ItemBlock currentItemBlock;
+<span class="fc" id="L36">    private boolean shouldGenerateItem = false;</span>
+    
+    // 슬로우 효과 관련
+<span class="fc" id="L39">    private boolean slowEffectActive = false;</span>
+<span class="fc" id="L40">    private long slowEffectStartTime = 0;</span>
+    private static final long SLOW_EFFECT_DURATION = 10000; // 10초
+    
+    // Transform 효과 관련
+<span class="fc" id="L44">    private int transformRemainingBlocks = 0; // 남은 Transform 효과 블록 수</span>
+    
+    // 줄 삭제 애니메이션 관련
+<span class="fc" id="L47">    private int[] pendingClearRows = null;</span>
+    
+    // 대전 모드 관련
+<span class="fc" id="L50">    private int pendingAttackLines = 0; // 받을 예정인 공격 줄 수</span>
+<span class="fc" id="L51">    private final List&lt;ShapeType[]&gt; pendingAttackPattern = new ArrayList&lt;&gt;(); // 공격 줄의 패턴</span>
+<span class="fc" id="L52">    private final List&lt;Position&gt; lastPlacedPositions = new ArrayList&lt;&gt;(); // 마지막으로 배치한 블록의 위치들</span>
+
+    public Board(Difficulty difficulty) {
+<span class="fc" id="L55">        this(difficulty, false); // 기본값: 아이템 모드 비활성화</span>
+<span class="fc" id="L56">    }</span>
+
+<span class="fc" id="L58">    public Board(Difficulty difficulty, boolean isItemMode) {</span>
+<span class="fc" id="L59">        this.difficulty = difficulty;</span>
+<span class="fc" id="L60">        this.isItemMode = isItemMode;</span>
+<span class="fc" id="L61">        this.itemManager = new ItemManager(isItemMode);</span>
+<span class="fc" id="L62">        setWeightsByDifficulty();</span>
+<span class="fc" id="L63">        setScoreMultiplier();</span>
+<span class="fc" id="L64">        this.nextShape = pickByRoulette();</span>
+<span class="fc" id="L65">        spawnNewTetromino();</span>
+<span class="fc" id="L66">    }</span>
+
+    // ===== 난이도별 블록 가중치 =====
+    private void setWeightsByDifficulty() {
+        // 모든 블록을 1.0으로 초기화
+<span class="fc bfc" id="L71" title="All 2 branches covered.">        for (int i = 0; i &lt; weights.length; i++) {</span>
+<span class="fc" id="L72">            weights[i] = 1.0;</span>
+        }
+        // GRAY는 생성 안 됨
+<span class="fc" id="L75">        weights[ShapeType.GRAY.ordinal()] = 0.0;</span>
+        
+<span class="pc bpc" id="L77" title="1 of 4 branches missed.">        switch (difficulty) {</span>
+<span class="fc" id="L78">            case EASY   -&gt; weights[ShapeType.I.ordinal()] = 1.2; // +20%</span>
+<span class="fc" id="L79">            case NORMAL -&gt; weights[ShapeType.I.ordinal()] = 1.0;</span>
+<span class="fc" id="L80">            case HARD   -&gt; weights[ShapeType.I.ordinal()] = 0.8; // -20%</span>
+        }
+<span class="fc" id="L82">    }</span>
+
+    // ===== 난이도별 점수 배율(클리어/보너스 전용) =====
+    private void setScoreMultiplier() {
+<span class="pc bpc" id="L86" title="1 of 3 branches missed.">        switch (difficulty) {</span>
+<span class="fc" id="L87">            case EASY, NORMAL -&gt; scoreMultiplier = 1.0;</span>
+<span class="fc" id="L88">            case HARD         -&gt; scoreMultiplier = 1.1;</span>
+        }
+<span class="fc" id="L90">    }</span>
+
+    // ===== RWS (stochastic acceptance) =====
+    private ShapeType pickByRoulette() {
+        // Transform 효과가 활성화되어 있으면 I 블록 반환
+<span class="pc bpc" id="L95" title="1 of 2 branches missed.">        if (transformRemainingBlocks &gt; 0) {</span>
+<span class="nc" id="L96">            transformRemainingBlocks--;</span>
+<span class="nc" id="L97">            return ShapeType.I;</span>
+        }
+        
+<span class="fc" id="L100">        double max = 0;</span>
+<span class="fc bfc" id="L101" title="All 4 branches covered.">        for (double w : weights) if (w &gt; max) max = w;</span>
+<span class="pc bpc" id="L102" title="1 of 2 branches missed.">        if (max &lt;= 0) max = 1.0;</span>
+
+        while (true) {
+<span class="fc" id="L105">            int i = random.nextInt(weights.length);</span>
+<span class="fc bfc" id="L106" title="All 4 branches covered.">            if (weights[i] &gt; 0 &amp;&amp; random.nextDouble() &lt; (weights[i] / max))</span>
+<span class="fc" id="L107">                return ShapeType.values()[i];</span>
+<span class="fc" id="L108">        }</span>
+    }
+
+    // ===== 스폰/오버 =====
+    private void spawnNewTetromino() {
+<span class="pc bpc" id="L113" title="1 of 2 branches missed.">        if (gameOver) return;</span>
+        
+        // 1. 먼저 현재 미리보기 블록을 스폰
+        ShapeType shape;
+<span class="pc bpc" id="L117" title="1 of 2 branches missed.">        if (nextItemBlock != null) {</span>
+<span class="nc" id="L118">            shape = nextItemBlock.getBaseShape();</span>
+<span class="nc" id="L119">            currentItemBlock = nextItemBlock;</span>
+<span class="nc" id="L120">            nextItemBlock = null;</span>
+        } else {
+<span class="pc bpc" id="L122" title="1 of 2 branches missed.">            shape = (nextShape != null) ? nextShape : pickByRoulette();</span>
+<span class="fc" id="L123">            currentItemBlock = null;</span>
+        }
+        
+<span class="pc bpc" id="L126" title="1 of 2 branches missed.">        if (shape == null) {</span>
+<span class="nc" id="L127">            shape = ShapeType.I;</span>
+        }
+        
+<span class="fc" id="L130">        current = new Tetromino(shape, COLS / 2 - 2, 0);</span>
+        
+        // WeightBlock의 경우 커스텀 블록 설정
+<span class="pc bpc" id="L133" title="1 of 2 branches missed.">        if (currentItemBlock instanceof items.WeightBlock weightBlock) {</span>
+<span class="nc" id="L134">            current.setBlocks(weightBlock.getCustomBlocks());</span>
+        }
+        
+        // 2. 다음 블록 준비
+<span class="fc" id="L138">        nextShape = pickByRoulette();</span>
+        
+        // 3. 아이템 생성 플래그가 설정되어 있으면 이제 아이템 생성
+<span class="pc bpc" id="L141" title="5 of 6 branches missed.">        if (shouldGenerateItem &amp;&amp; isItemMode &amp;&amp; itemManager != null) {</span>
+<span class="nc" id="L142">            items.ItemBlock item = itemManager.generateItem();</span>
+<span class="nc bnc" id="L143" title="All 2 branches missed.">            if (item != null) {</span>
+<span class="nc" id="L144">                nextItemBlock = item; // 다음 블록을 아이템으로 대체</span>
+            }
+<span class="nc" id="L146">            shouldGenerateItem = false; // 플래그 리셋</span>
+        }
+
+<span class="fc bfc" id="L149" title="All 2 branches covered.">        if (!canMove(current, 0, 0)) {</span>
+<span class="fc" id="L150">            gameOver = true;</span>
+        }
+<span class="fc" id="L152">    }</span>
+
+    // ===== 이동/회전 =====
+    public void moveLeft() {
+<span class="pc bpc" id="L156" title="1 of 2 branches missed.">        if (gameOver) return;</span>
+        
+        // WeightBlock 좌우 이동 잠금 체크
+<span class="pc bpc" id="L159" title="1 of 2 branches missed.">        if (currentItemBlock instanceof items.WeightBlock weightBlock) {</span>
+<span class="nc bnc" id="L160" title="All 2 branches missed.">            if (weightBlock.isLockedHorizontal()) {</span>
+<span class="nc" id="L161">                System.out.println(&quot;WeightBlock: 좌우 이동 잠김 (moveLeft 무시)&quot;);</span>
+<span class="nc" id="L162">                return;</span>
+            }
+        }
+        
+<span class="pc bpc" id="L166" title="1 of 2 branches missed.">        if (canMove(current, -1, 0)) current.move(-1, 0);</span>
+<span class="fc" id="L167">    }</span>
+    
+    public void moveRight() {
+<span class="pc bpc" id="L170" title="1 of 2 branches missed.">        if (gameOver) return;</span>
+        
+        // WeightBlock 좌우 이동 잠금 체크
+<span class="pc bpc" id="L173" title="1 of 2 branches missed.">        if (currentItemBlock instanceof items.WeightBlock weightBlock) {</span>
+<span class="nc bnc" id="L174" title="All 2 branches missed.">            if (weightBlock.isLockedHorizontal()) {</span>
+<span class="nc" id="L175">                System.out.println(&quot;WeightBlock: 좌우 이동 잠김 (moveRight 무시)&quot;);</span>
+<span class="nc" id="L176">                return;</span>
+            }
+        }
+        
+<span class="pc bpc" id="L180" title="1 of 2 branches missed.">        if (canMove(current, 1, 0)) current.move(1, 0);</span>
+<span class="fc" id="L181">    }</span>
+
+    /** 한 칸 하강 (자동/수동 동일) */
+    public boolean moveDown() {
+<span class="pc bpc" id="L185" title="1 of 2 branches missed.">        if (gameOver) return false;</span>
+        
+        // WeightBlock 특수 처리: 낙하 중 아래 블록 삭제
+<span class="fc bfc" id="L188" title="All 2 branches covered.">        if (currentItemBlock instanceof items.WeightBlock weightBlock) {</span>
+<span class="fc" id="L189">            weightBlock.eraseBelowBlocks(this, current.getX(), current.getY());</span>
+        }
+
+<span class="fc bfc" id="L192" title="All 2 branches covered.">        if (canMove(current, 0, 1)) {</span>
+<span class="fc" id="L193">            current.move(0, 1);</span>
+<span class="fc" id="L194">            addBaseScore(10);     // 한 칸 떨어질 때마다 +10 (난이도 무관)</span>
+            
+            // WeightBlock이 블록에 닿으면 좌우 이동 잠금
+<span class="fc bfc" id="L197" title="All 2 branches covered.">            if (currentItemBlock instanceof items.WeightBlock weightBlock) {</span>
+<span class="pc bpc" id="L198" title="1 of 2 branches missed.">                if (hasBlockBelow()) {</span>
+<span class="nc" id="L199">                    weightBlock.setLockedHorizontal(true);</span>
+<span class="nc" id="L200">                    System.out.println(&quot;WeightBlock: 블록 접촉, 좌우 이동 잠금&quot;);</span>
+                }
+            }
+            
+<span class="fc" id="L204">            return true;</span>
+        } else {
+            // WeightBlock은 바닥에 도달하면 보드에 고정하지 않고 사라짐
+<span class="pc bpc" id="L207" title="1 of 2 branches missed.">            if (currentItemBlock instanceof items.WeightBlock) {</span>
+<span class="nc" id="L208">                System.out.println(&quot;WeightBlock: 바닥 도달, 사라짐&quot;);</span>
+<span class="nc" id="L209">                spawnNewTetromino();</span>
+<span class="nc" id="L210">                return false;</span>
+            }
+            
+            // 고정 → 라인 삭제 애니메이션 준비
+<span class="fc" id="L214">            fixToBoard();</span>
+<span class="fc" id="L215">            List&lt;Integer&gt; full = scanFullLines();</span>
+<span class="fc bfc" id="L216" title="All 2 branches covered.">            if (!full.isEmpty()) {</span>
+                // 삭제할 줄을 pendingClearRows에 저장 (GamePanel에서 애니메이션 후 clearRows 호출)
+<span class="fc" id="L218">                pendingClearRows = full.stream().mapToInt(Integer::intValue).toArray();</span>
+            } else {
+<span class="fc" id="L220">                spawnNewTetromino();</span>
+            }
+<span class="fc" id="L222">            return false;</span>
+        }
+    }
+
+    /** 즉시 낙하 */
+    public void hardDrop() {
+<span class="pc bpc" id="L228" title="1 of 2 branches missed.">        if (gameOver) return;</span>
+<span class="fc" id="L229">        int dropDist = 0;</span>
+        
+        // WeightBlock 특수 처리: 하드드롭 시 경로상의 모든 블록 삭제
+<span class="fc bfc" id="L232" title="All 2 branches covered.">        if (currentItemBlock instanceof items.WeightBlock) {</span>
+            // 1단계: 아래 방향으로 모든 블록 삭제 (바닥까지)
+<span class="fc bfc" id="L234" title="All 2 branches covered.">            for (Position block : current.getBlocks()) {</span>
+<span class="fc" id="L235">                int blockX = current.getX() + block.x;</span>
+                
+                // 현재 블록 아래부터 바닥까지 모든 블록 삭제
+<span class="fc bfc" id="L238" title="All 2 branches covered.">                for (int y = current.getY() + block.y + 1; y &lt; ROWS; y++) {</span>
+<span class="pc bpc" id="L239" title="2 of 4 branches missed.">                    if (blockX &gt;= 0 &amp;&amp; blockX &lt; COLS) {</span>
+<span class="fc bfc" id="L240" title="All 2 branches covered.">                        if (grid[y][blockX] != null) {</span>
+<span class="fc" id="L241">                            grid[y][blockX] = null;</span>
+                        }
+                    }
+                }
+            }
+            
+            // 2단계: 블록 삭제 후 떨어질 수 있는 만큼 낙하
+<span class="fc" id="L248">            int totalDropDist = 0;</span>
+<span class="fc bfc" id="L249" title="All 2 branches covered.">            while (canMove(current, 0, 1)) {</span>
+<span class="fc" id="L250">                current.move(0, 1);</span>
+<span class="fc" id="L251">                totalDropDist++;</span>
+            }
+            
+<span class="fc" id="L254">            System.out.println(&quot;WeightBlock: 하드드롭으로 경로상 모든 블록 삭제 후 &quot; + totalDropDist + &quot;칸 낙하&quot;);</span>
+<span class="fc" id="L255">            addBaseScore(totalDropDist * 10);</span>
+<span class="fc" id="L256">            spawnNewTetromino(); // WeightBlock은 고정하지 않고 사라짐</span>
+<span class="fc" id="L257">            return;</span>
+        }
+        
+        // 일반 블록 하드드롭
+<span class="fc bfc" id="L261" title="All 2 branches covered.">        while (canMove(current, 0, 1)) {</span>
+<span class="fc" id="L262">            current.move(0, 1);</span>
+<span class="fc" id="L263">            dropDist++;</span>
+        }
+<span class="fc" id="L265">        addBaseScore(dropDist * 10); // 떨어진 칸 수 × 10 (난이도 배율 미적용)</span>
+<span class="fc" id="L266">        moveDown();                  // 고정/클리어/스폰 처리</span>
+<span class="fc" id="L267">    }</span>
+
+    public void rotate() {
+<span class="pc bpc" id="L270" title="1 of 2 branches missed.">        if (gameOver) return;</span>
+        
+        // WeightBlock은 회전 불가
+<span class="pc bpc" id="L273" title="1 of 2 branches missed.">        if (currentItemBlock instanceof items.WeightBlock) {</span>
+<span class="nc" id="L274">            System.out.println(&quot;WeightBlock: 회전 불가&quot;);</span>
+<span class="nc" id="L275">            return;</span>
+        }
+        
+<span class="fc" id="L278">        Tetromino r = current.getRotatedCopy();</span>
+<span class="pc bpc" id="L279" title="1 of 2 branches missed.">        if (canMove(r, 0, 0)) {</span>
+<span class="fc" id="L280">            current.rotate();</span>
+            
+            // LineBlock이나 BombBlock인 경우 회전 상태 업데이트
+<span class="fc" id="L283">            updateItemBlockRotation();</span>
+        }
+<span class="fc" id="L285">    }</span>
+    
+    private void updateItemBlockRotation() {
+<span class="pc bpc" id="L288" title="1 of 2 branches missed.">        if (currentItemBlock instanceof items.LineBlock lineBlock) {</span>
+<span class="nc" id="L289">            lineBlock.setRotation(current.getRotation());</span>
+<span class="pc bpc" id="L290" title="1 of 2 branches missed.">        } else if (currentItemBlock instanceof items.BombBlock bombBlock) {</span>
+<span class="nc" id="L291">            bombBlock.setRotation(current.getRotation());</span>
+        }
+<span class="fc" id="L293">    }</span>
+
+    // ===== 점수 =====
+    private void addBaseScore(int base) {
+<span class="fc" id="L297">        score += base; // 낙하 기본점은 난이도 배율 미적용</span>
+<span class="fc" id="L298">    }</span>
+
+    private void addBonusScore(int base) {
+<span class="fc" id="L301">        score += Math.round(base * scoreMultiplier); // 클리어/보너스만 배율</span>
+<span class="fc" id="L302">    }</span>
+
+    // ===== 충돌/고정/라인 =====
+    private boolean canMove(Tetromino t, int dx, int dy) {
+<span class="pc bpc" id="L306" title="2 of 4 branches missed.">        if (t == null || t.getBlocks() == null) {</span>
+<span class="nc" id="L307">            System.err.println(&quot;canMove: Tetromino 또는 blocks가 null입니다!&quot;);</span>
+<span class="nc" id="L308">            return false;</span>
+        }
+        
+<span class="fc bfc" id="L311" title="All 2 branches covered.">        for (Position p : t.getBlocks()) {</span>
+<span class="fc" id="L312">            int x = t.getX() + p.x + dx;</span>
+<span class="fc" id="L313">            int y = t.getY() + p.y + dy;</span>
+<span class="pc bpc" id="L314" title="3 of 8 branches missed.">            if (x &lt; 0 || x &gt;= COLS || y &lt; 0 || y &gt;= ROWS) return false;</span>
+<span class="fc bfc" id="L315" title="All 2 branches covered.">            if (grid[y][x] != null) return false;</span>
+        }
+<span class="fc" id="L317">        return true;</span>
+    }
+
+    private void fixToBoard() {
+        // 현재 테트리미노가 아이템 블록인지 확인
+<span class="pc bpc" id="L322" title="1 of 2 branches missed.">        boolean isCurrentItemBlock = (currentItemBlock != null);</span>
+<span class="fc" id="L323">        boolean isBombBlock = (currentItemBlock instanceof items.BombBlock);</span>
+        
+<span class="pc bpc" id="L325" title="1 of 2 branches missed.">        if (isCurrentItemBlock) {</span>
+<span class="nc" id="L326">            System.out.println(&quot;아이템 블록 고정: &quot; + currentItemBlock.getName());</span>
+        }
+        
+        // 마지막 배치 위치 저장 (대전 모드용)
+<span class="fc" id="L330">        lastPlacedPositions.clear();</span>
+<span class="fc bfc" id="L331" title="All 2 branches covered.">        for (Position p : current.getBlocks()) {</span>
+<span class="fc" id="L332">            int x = current.getX() + p.x;</span>
+<span class="fc" id="L333">            int y = current.getY() + p.y;</span>
+<span class="pc bpc" id="L334" title="4 of 8 branches missed.">            if (x &gt;= 0 &amp;&amp; x &lt; COLS &amp;&amp; y &gt;= 0 &amp;&amp; y &lt; ROWS) {</span>
+<span class="fc" id="L335">                lastPlacedPositions.add(new Position(x, y));</span>
+            }
+        }
+        
+        // BombBlock이 아닌 경우에만 보드에 고정
+<span class="pc bpc" id="L340" title="1 of 2 branches missed.">        if (!isBombBlock) {</span>
+<span class="fc bfc" id="L341" title="All 2 branches covered.">            for (Position p : current.getBlocks()) {</span>
+<span class="fc" id="L342">                int x = current.getX() + p.x;</span>
+<span class="fc" id="L343">                int y = current.getY() + p.y;</span>
+<span class="pc bpc" id="L344" title="4 of 8 branches missed.">                if (x &gt;= 0 &amp;&amp; x &lt; COLS &amp;&amp; y &gt;= 0 &amp;&amp; y &lt; ROWS) {</span>
+<span class="fc" id="L345">                    grid[y][x] = current.getShape();</span>
+                }
+            }
+        }
+        
+        // 아이템 효과 발동
+<span class="pc bpc" id="L351" title="1 of 2 branches missed.">        if (isCurrentItemBlock) {</span>
+<span class="nc bnc" id="L352" title="All 2 branches missed.">            for (int i = 0; i &lt; current.getBlocks().length; i++) {</span>
+<span class="nc" id="L353">                Position p = current.getBlocks()[i];</span>
+<span class="nc" id="L354">                int x = current.getX() + p.x;</span>
+<span class="nc" id="L355">                int y = current.getY() + p.y;</span>
+<span class="nc bnc" id="L356" title="All 8 branches missed.">                if (x &gt;= 0 &amp;&amp; x &lt; COLS &amp;&amp; y &gt;= 0 &amp;&amp; y &lt; ROWS) {</span>
+<span class="nc bnc" id="L357" title="All 2 branches missed.">                    if (currentItemBlock instanceof items.LineBlock lineBlock) {</span>
+                        // LineBlock은 특별한 처리
+<span class="nc" id="L359">                        System.out.println(&quot;LineBlock 효과 발동 위치: (&quot; + x + &quot;, &quot; + y + &quot;), 블록 인덱스: &quot; + i);</span>
+<span class="nc" id="L360">                        lineBlock.activateEffectAtPosition(this, x, y, i);</span>
+<span class="nc bnc" id="L361" title="All 2 branches missed.">                    } else if (currentItemBlock instanceof items.SlowBlock) {</span>
+                        // SlowBlock은 첫 번째 블록에서만 효과 발동
+<span class="nc bnc" id="L363" title="All 2 branches missed.">                        if (i == 0) {</span>
+<span class="nc" id="L364">                            System.out.println(&quot;SlowBlock 효과 발동&quot;);</span>
+<span class="nc" id="L365">                            currentItemBlock.activateEffect(this, x, y);</span>
+                        }
+<span class="nc bnc" id="L367" title="All 2 branches missed.">                    } else if (currentItemBlock instanceof items.BombBlock bombBlock) {</span>
+                        // BombBlock은 폭탄 블록(B 표시된 블록)에서만 효과 발동 후 사라짐
+<span class="nc bnc" id="L369" title="All 2 branches missed.">                        if (i == bombBlock.getBombIndex()) {</span>
+<span class="nc" id="L370">                            System.out.println(&quot;BombBlock 효과 발동 - 3x3 폭발! 폭탄 위치: (&quot; + x + &quot;, &quot; + y + &quot;)&quot;);</span>
+<span class="nc" id="L371">                            currentItemBlock.activateEffect(this, x, y);</span>
+<span class="nc" id="L372">                            System.out.println(&quot;BombBlock 폭발 완료 - 블록 사라짐&quot;);</span>
+                        }
+<span class="nc bnc" id="L374" title="All 2 branches missed.">                    } else if (currentItemBlock instanceof items.WeightBlock) {</span>
+                        // WeightBlock은 첫 번째 블록에서만 효과 발동
+<span class="nc bnc" id="L376" title="All 2 branches missed.">                        if (i == 0) {</span>
+<span class="nc" id="L377">                            System.out.println(&quot;WeightBlock 효과 발동&quot;);</span>
+<span class="nc" id="L378">                            currentItemBlock.activateEffect(this, x, y);</span>
+                        }
+                    } else {
+                        // 다른 아이템들은 첫 번째 블록에서만 효과 발동
+<span class="nc bnc" id="L382" title="All 2 branches missed.">                        if (i == 0) {</span>
+<span class="nc" id="L383">                            System.out.println(currentItemBlock.getName() + &quot; 효과 발동&quot;);</span>
+<span class="nc" id="L384">                            currentItemBlock.activateEffect(this, x, y);</span>
+                        }
+                    }
+                }
+            }
+        }
+        
+        // 아이템 효과 발동 후 초기화
+<span class="pc bpc" id="L392" title="1 of 2 branches missed.">        if (isCurrentItemBlock) {</span>
+<span class="nc" id="L393">            System.out.println(&quot;아이템 블록 효과 발동 완료, currentItemBlock 초기화&quot;);</span>
+<span class="nc" id="L394">            currentItemBlock = null;</span>
+        }
+<span class="fc" id="L396">    }</span>
+
+    /*
+    ===== 줄 삭제 =====
+    private int clearFullLines() {
+        int cleared = 0;
+        for (int y = ROWS - 1; y &gt;= 0; y--) {
+            boolean full = true;
+            for (int x = 0; x &lt; COLS; x++) {
+                if (grid[y][x] == null) { full = false; break; }
+            }
+            if (full) {
+                cleared++;
+                removeLine(y);
+                y++; // 위에서 내려온 줄 재검사
+            }
+        }
+        
+        if (cleared &gt; 0 &amp;&amp; isItemMode &amp;&amp; itemManager != null) {
+            itemManager.onLinesCleared(cleared);
+            if (itemManager.shouldCreateItem()) {
+                shouldGenerateItem = true;
+            }
+        }
+        
+        return cleared;
+    }
+    */
+
+    private void removeLine(int line) {
+<span class="fc bfc" id="L426" title="All 2 branches covered.">        for (int y = line; y &gt; 0; y--) {</span>
+<span class="fc" id="L427">            System.arraycopy(grid[y - 1], 0, grid[y], 0, COLS);</span>
+        }
+<span class="fc bfc" id="L429" title="All 2 branches covered.">        for (int x = 0; x &lt; COLS; x++) grid[0][x] = null;</span>
+<span class="fc" id="L430">    }</span>
+    
+    // ===== 줄 삭제 애니메이션 관련 메서드 =====
+    
+    /**
+     * 삭제 대상 줄만 스캔 (삭제는 하지 않음)
+     */
+    private List&lt;Integer&gt; scanFullLines() {
+<span class="fc" id="L438">        List&lt;Integer&gt; full = new ArrayList&lt;&gt;();</span>
+<span class="fc bfc" id="L439" title="All 2 branches covered.">        for (int y = ROWS - 1; y &gt;= 0; y--) {</span>
+<span class="fc" id="L440">            boolean isFull = true;</span>
+<span class="fc bfc" id="L441" title="All 2 branches covered.">            for (int x = 0; x &lt; COLS; x++) {</span>
+<span class="fc bfc" id="L442" title="All 2 branches covered.">                if (grid[y][x] == null) {</span>
+<span class="fc" id="L443">                    isFull = false;</span>
+<span class="fc" id="L444">                    break;</span>
+                }
+            }
+<span class="fc bfc" id="L447" title="All 2 branches covered.">            if (isFull) {</span>
+<span class="fc" id="L448">                full.add(y);</span>
+            }
+        }
+<span class="fc" id="L451">        return full;</span>
+    }
+    
+    /**
+     * GamePanel에서 애니메이션 후 호출: 실제 줄 삭제 + 점수/아이템 후처리 + 다음 블록 스폰
+     */
+    public void clearRows(int[] rows) {
+<span class="fc bfc" id="L458" title="All 4 branches covered.">        if (rows == null || rows.length == 0) {</span>
+<span class="fc" id="L459">            return;</span>
+        }
+
+<span class="fc" id="L462">        boolean[] clear = new boolean[ROWS];</span>
+<span class="fc" id="L463">        int cleared = 0;</span>
+        
+        // 삭제될 줄의 패턴을 저장 (마지막 블록 제외)
+<span class="fc" id="L466">        List&lt;ShapeType[]&gt; attackPatterns = new ArrayList&lt;&gt;();</span>
+<span class="fc bfc" id="L467" title="All 2 branches covered.">        for (int r : rows) {</span>
+<span class="pc bpc" id="L468" title="3 of 6 branches missed.">            if (r &gt;= 0 &amp;&amp; r &lt; ROWS &amp;&amp; !clear[r]) {</span>
+<span class="fc" id="L469">                clear[r] = true;</span>
+<span class="fc" id="L470">                cleared++;</span>
+                
+                // 이 줄의 패턴을 복사 (마지막으로 채워진 블록 위치 찾아서 제외)
+<span class="fc" id="L473">                ShapeType[] rowPattern = new ShapeType[COLS];</span>
+<span class="fc" id="L474">                int lastFilledIndex = -1;</span>
+                
+                // 마지막으로 채워진 블록 찾기 (오른쪽에서부터)
+<span class="pc bpc" id="L477" title="1 of 2 branches missed.">                for (int x = COLS - 1; x &gt;= 0; x--) {</span>
+<span class="pc bpc" id="L478" title="1 of 2 branches missed.">                    if (grid[r][x] != null) {</span>
+<span class="fc" id="L479">                        lastFilledIndex = x;</span>
+<span class="fc" id="L480">                        break;</span>
+                    }
+                }
+                
+                // 패턴 복사 (마지막 블록은 null로)
+<span class="fc bfc" id="L485" title="All 2 branches covered.">                for (int x = 0; x &lt; COLS; x++) {</span>
+<span class="fc bfc" id="L486" title="All 2 branches covered.">                    if (x == lastFilledIndex) {</span>
+<span class="fc" id="L487">                        rowPattern[x] = null; // 마지막 블록 위치는 구멍으로</span>
+                    } else {
+<span class="fc" id="L489">                        rowPattern[x] = grid[r][x];</span>
+                    }
+                }
+<span class="fc" id="L492">                attackPatterns.add(rowPattern);</span>
+            }
+        }
+<span class="pc bpc" id="L495" title="1 of 2 branches missed.">        if (cleared == 0) {</span>
+<span class="nc" id="L496">            return;</span>
+        }
+
+<span class="fc" id="L499">        int write = ROWS - 1;</span>
+<span class="fc bfc" id="L500" title="All 2 branches covered.">        for (int read = ROWS - 1; read &gt;= 0; read--) {</span>
+<span class="fc bfc" id="L501" title="All 2 branches covered.">            if (clear[read]) {</span>
+<span class="fc" id="L502">                continue;</span>
+            }
+<span class="pc bpc" id="L504" title="1 of 2 branches missed.">            if (write != read) {</span>
+<span class="fc" id="L505">                System.arraycopy(grid[read], 0, grid[write], 0, COLS);</span>
+            }
+<span class="fc" id="L507">            write--;</span>
+        }
+        // 위쪽 빈 영역 비우기
+<span class="fc bfc" id="L510" title="All 2 branches covered.">        for (int y = write; y &gt;= 0; y--) {</span>
+<span class="fc bfc" id="L511" title="All 2 branches covered.">            for (int x = 0; x &lt; COLS; x++) {</span>
+<span class="fc" id="L512">                grid[y][x] = null;</span>
+            }
+        }
+
+        // 점수/누적
+<span class="fc" id="L517">        addBonusScore(1000 * cleared);</span>
+<span class="fc" id="L518">        totalLinesCleared += cleared;</span>
+
+        // 아이템 후처리
+<span class="pc bpc" id="L521" title="3 of 4 branches missed.">        if (isItemMode &amp;&amp; itemManager != null) {</span>
+<span class="nc" id="L522">            itemManager.onLinesCleared(cleared);</span>
+<span class="nc bnc" id="L523" title="All 2 branches missed.">            if (itemManager.shouldCreateItem()) {</span>
+<span class="nc" id="L524">                shouldGenerateItem = true;</span>
+            }
+        }
+
+        // 애니 상태 정리 + 다음 블록 스폰
+<span class="fc" id="L529">        pendingClearRows = null;</span>
+<span class="fc" id="L530">        spawnNewTetromino();</span>
+<span class="fc" id="L531">    }</span>
+    
+    /**
+     * GamePanel이 1회용으로 읽는 삭제 예정 줄과 공격 패턴
+     */
+    public int[] pollClearingRows() {
+<span class="fc" id="L537">        int[] out = pendingClearRows;</span>
+<span class="fc" id="L538">        pendingClearRows = null;</span>
+<span class="fc" id="L539">        return out;</span>
+    }
+    
+    /**
+     * 삭제될 줄의 패턴을 가져옴 (공격용)
+     */
+    public List&lt;ShapeType[]&gt; getAttackPattern(int[] rows) {
+<span class="pc bpc" id="L546" title="1 of 4 branches missed.">        if (rows == null || rows.length == 0) {</span>
+<span class="fc" id="L547">            return new ArrayList&lt;&gt;();</span>
+        }
+        
+<span class="fc" id="L550">        List&lt;ShapeType[]&gt; patterns = new ArrayList&lt;&gt;();</span>
+<span class="fc bfc" id="L551" title="All 2 branches covered.">        for (int r : rows) {</span>
+<span class="pc bpc" id="L552" title="2 of 4 branches missed.">            if (r &gt;= 0 &amp;&amp; r &lt; ROWS) {</span>
+<span class="fc" id="L553">                ShapeType[] rowPattern = new ShapeType[COLS];</span>
+                
+                // 마지막 배치된 블록의 위치 중 이 행에 있는 것들 찾기
+<span class="fc" id="L556">                Set&lt;Integer&gt; lastPlacedCols = new HashSet&lt;&gt;();</span>
+<span class="pc bpc" id="L557" title="1 of 2 branches missed.">                for (Position pos : lastPlacedPositions) {</span>
+<span class="nc bnc" id="L558" title="All 2 branches missed.">                    if (pos.y == r) {</span>
+<span class="nc" id="L559">                        lastPlacedCols.add(pos.x);</span>
+                    }
+<span class="nc" id="L561">                }</span>
+                
+                // 패턴 생성 (마지막 배치 위치는 구멍)
+<span class="fc bfc" id="L564" title="All 2 branches covered.">                for (int x = 0; x &lt; COLS; x++) {</span>
+<span class="pc bpc" id="L565" title="1 of 2 branches missed.">                    if (lastPlacedCols.contains(x)) {</span>
+<span class="nc" id="L566">                        rowPattern[x] = null; // 마지막 배치 위치는 구멍</span>
+                    } else {
+<span class="fc" id="L568">                        rowPattern[x] = grid[r][x]; // 다른 블록은 그대로</span>
+                    }
+                }
+<span class="fc" id="L571">                patterns.add(rowPattern);</span>
+            }
+        }
+<span class="fc" id="L574">        return patterns;</span>
+    }
+    
+    // ===== 아이템 효과 메서드 =====
+    
+    /**
+     * LineBlock이 특정 줄을 삭제할 때 사용
+     */
+    public void clearLine(int y) {
+<span class="fc bfc" id="L583" title="All 4 branches covered.">        if (y &gt;= 0 &amp;&amp; y &lt; ROWS) {</span>
+<span class="fc" id="L584">            removeLine(y);</span>
+        }
+<span class="fc" id="L586">    }</span>
+    
+    /**
+     * SlowBlock이 슬로우 효과를 활성화할 때 사용
+     */
+    public void activateSlowEffect() {
+<span class="fc" id="L592">        slowEffectActive = true;</span>
+<span class="fc" id="L593">        slowEffectStartTime = System.currentTimeMillis();</span>
+<span class="fc" id="L594">        System.out.println(&quot;슬로우 효과 활성화!&quot;);</span>
+<span class="fc" id="L595">    }</span>
+    
+    /**
+     * 슬로우 효과 상태 업데이트 (매 프레임마다 호출)
+     */
+    public void updateSlowEffect() {
+<span class="fc bfc" id="L601" title="All 2 branches covered.">        if (slowEffectActive) {</span>
+<span class="fc" id="L602">            long elapsed = System.currentTimeMillis() - slowEffectStartTime;</span>
+<span class="pc bpc" id="L603" title="1 of 2 branches missed.">            if (elapsed &gt;= SLOW_EFFECT_DURATION) {</span>
+<span class="nc" id="L604">                slowEffectActive = false;</span>
+<span class="nc" id="L605">                System.out.println(&quot;슬로우 효과 종료!&quot;);</span>
+            }
+        }
+<span class="fc" id="L608">    }</span>
+    
+    /**
+     * 슬로우 효과가 활성화되어 있는지 확인
+     */
+    public boolean isSlowEffectActive() {
+<span class="fc" id="L614">        return slowEffectActive;</span>
+    }
+    
+    /**
+     * 슬로우 효과 남은 시간 (밀리초)
+     */
+    public long getSlowEffectRemainingTime() {
+<span class="pc bpc" id="L621" title="1 of 2 branches missed.">        if (!slowEffectActive) return 0;</span>
+<span class="fc" id="L622">        long elapsed = System.currentTimeMillis() - slowEffectStartTime;</span>
+<span class="fc" id="L623">        return Math.max(0, SLOW_EFFECT_DURATION - elapsed);</span>
+    }
+    
+    // ===== Transform 효과 메서드 =====
+    
+    /**
+     * Transform 효과 활성화 - 다음 5개의 블록을 I 블록으로 변환
+     */
+    public void activateTransformEffect() {
+        // nextShape를 I로 설정하고, 전체 5개 블록을 카운트
+        // nextShape 사용 시와 pickByRoulette() 호출 시 각각 카운터 감소
+<span class="fc" id="L634">        transformRemainingBlocks = 5;</span>
+        // 이미 준비된 nextShape도 I 블록으로 변경 (첫 번째 블록)
+<span class="fc" id="L636">        nextShape = ShapeType.I;</span>
+<span class="fc" id="L637">        System.out.println(&quot;Transform 효과 활성화: 다음 5개의 블록이 I 블록으로 변환됩니다.&quot;);</span>
+<span class="fc" id="L638">    }</span>
+    
+    /**
+     * Transform 효과 남은 블록 수
+     */
+    public int getTransformRemainingBlocks() {
+<span class="fc" id="L644">        return transformRemainingBlocks;</span>
+    }
+    
+    /**
+     * 현재 테트로미노(WeightBlock) 아래에 블록이 있는지 확인
+     */
+    private boolean hasBlockBelow() {
+<span class="pc bpc" id="L651" title="2 of 4 branches missed.">        if (current == null || current.getBlocks() == null) return false;</span>
+        
+<span class="fc" id="L653">        Position[] blocks = current.getBlocks();</span>
+<span class="fc bfc" id="L654" title="All 2 branches covered.">        for (Position block : blocks) {</span>
+<span class="fc" id="L655">            int boardX = current.getX() + block.x;</span>
+<span class="fc" id="L656">            int boardY = current.getY() + block.y + 1; // 바로 아래</span>
+            
+<span class="pc bpc" id="L658" title="1 of 2 branches missed.">            if (boardY &gt;= ROWS) return true; // 바닥에 도달</span>
+<span class="pc bpc" id="L659" title="3 of 6 branches missed.">            if (boardY &gt;= 0 &amp;&amp; boardX &gt;= 0 &amp;&amp; boardX &lt; COLS) {</span>
+<span class="pc bpc" id="L660" title="1 of 2 branches missed.">                if (grid[boardY][boardX] != null) {</span>
+<span class="nc" id="L661">                    return true; // 블록 발견</span>
+                }
+            }
+        }
+<span class="fc" id="L665">        return false;</span>
+    }
+
+    // ===== 게임 상태/게터 =====
+<span class="fc" id="L669">    public boolean isGameOver()          { return gameOver; }</span>
+<span class="fc" id="L670">    public int getScore()                { return score; }</span>
+    public void setScore(int s) {
+<span class="fc" id="L672">    this.score = s;</span>
+<span class="fc" id="L673">}</span>
+<span class="fc" id="L674">    public int getTotalLinesCleared()    { return totalLinesCleared; }</span>
+<span class="fc" id="L675">    public Difficulty getDifficulty()    { return difficulty; }</span>
+<span class="fc" id="L676">    public ShapeType[][] getGrid()       { return grid; }</span>
+<span class="fc" id="L677">    public Tetromino getCurrent()        { return current; }</span>
+<span class="fc" id="L678">    public ShapeType getNextShape()      { return nextShape; }</span>
+    
+    // 아이템 모드 관련 게터
+<span class="fc" id="L681">    public boolean isItemMode()                                  { return isItemMode; }</span>
+<span class="fc" id="L682">    public ItemManager getItemManager()                          { return itemManager; }</span>
+<span class="fc" id="L683">    public items.ItemBlock getNextItemBlock()    { return nextItemBlock; }</span>
+<span class="fc" id="L684">    public items.ItemBlock getCurrentItemBlock() { return currentItemBlock; }</span>
+    
+    // 대전 모드 관련 메서드
+    public void addPendingAttackLines(List&lt;ShapeType[]&gt; patterns) {
+<span class="fc" id="L688">        int incomingLines = patterns.size();</span>
+        
+        // 이미 10줄이면 무시
+<span class="fc bfc" id="L691" title="All 2 branches covered.">        if (this.pendingAttackLines &gt;= 10) {</span>
+<span class="fc" id="L692">            return;</span>
+        }
+        
+        // 기존 + 새로운 줄이 10을 초과하면, 아래쪽(앞쪽)부터 제거
+<span class="fc" id="L696">        int totalLines = this.pendingAttackLines + incomingLines;</span>
+<span class="pc bpc" id="L697" title="1 of 2 branches missed.">        if (totalLines &gt; 10) {</span>
+<span class="nc" id="L698">            int toRemove = totalLines - 10;</span>
+            // 앞쪽(아래쪽)부터 제거
+<span class="nc bnc" id="L700" title="All 4 branches missed.">            for (int i = 0; i &lt; toRemove &amp;&amp; !this.pendingAttackPattern.isEmpty(); i++) {</span>
+<span class="nc" id="L701">                this.pendingAttackPattern.remove(0);</span>
+<span class="nc" id="L702">                this.pendingAttackLines--;</span>
+            }
+        }
+        
+        // 새로운 공격을 리스트 앞에 추가하여 가장 아래쪽에 배치되도록 함
+<span class="fc" id="L707">        this.pendingAttackLines += incomingLines;</span>
+<span class="fc" id="L708">        this.pendingAttackPattern.addAll(0, patterns);</span>
+<span class="fc" id="L709">    }</span>
+    
+    public int getPendingAttackLines() {
+<span class="fc" id="L712">        return pendingAttackLines;</span>
+    }
+    
+    public List&lt;ShapeType[]&gt; getPendingAttackPattern() {
+<span class="fc" id="L716">        return pendingAttackPattern;</span>
+    }
+    
+    public void applyPendingAttackLines() {
+<span class="pc bpc" id="L720" title="1 of 4 branches missed.">        if (pendingAttackLines &lt;= 0 || pendingAttackPattern.isEmpty()) return;</span>
+        
+        // 위로 블록들을 밀어올림
+<span class="fc bfc" id="L723" title="All 2 branches covered.">        for (int i = 0; i &lt; ROWS - pendingAttackLines; i++) {</span>
+<span class="fc" id="L724">            System.arraycopy(grid[i + pendingAttackLines], 0, grid[i], 0, COLS);</span>
+        }
+        
+        // 아래쪽에 공격 줄 추가 (패턴은 그대로, 색상은 모두 회색으로)
+<span class="pc bpc" id="L728" title="1 of 4 branches missed.">        for (int i = 0; i &lt; pendingAttackLines &amp;&amp; i &lt; pendingAttackPattern.size(); i++) {</span>
+<span class="fc" id="L729">            int row = ROWS - pendingAttackLines + i;</span>
+<span class="fc" id="L730">            ShapeType[] pattern = pendingAttackPattern.get(i);</span>
+            
+<span class="fc bfc" id="L732" title="All 2 branches covered.">            for (int j = 0; j &lt; COLS; j++) {</span>
+<span class="fc bfc" id="L733" title="All 2 branches covered.">                if (pattern[j] != null) {</span>
+<span class="fc" id="L734">                    grid[row][j] = ShapeType.GRAY; // 회색 블록으로 변환</span>
+                } else {
+<span class="fc" id="L736">                    grid[row][j] = null; // 구멍은 그대로</span>
+                }
+            }
+        }
+        
+<span class="fc" id="L741">        pendingAttackLines = 0;</span>
+<span class="fc" id="L742">        pendingAttackPattern.clear();</span>
+        
+        // 공격 줄을 추가한 후 현재 블록이 겹치는지 확인
+<span class="pc bpc" id="L745" title="1 of 2 branches missed.">        if (!canMove(current, 0, 0)) {</span>
+<span class="nc" id="L746">            gameOver = true;</span>
+        }
+<span class="fc" id="L748">    }</span>
+
+    // 리셋(재시작용)
+    public void reset() {
+<span class="fc bfc" id="L752" title="All 2 branches covered.">        for (int y = 0; y &lt; ROWS; y++) {</span>
+<span class="fc bfc" id="L753" title="All 2 branches covered.">            for (int x = 0; x &lt; COLS; x++) grid[y][x] = null;</span>
+        }
+<span class="fc" id="L755">        score = 0;</span>
+<span class="fc" id="L756">        totalLinesCleared = 0;</span>
+<span class="fc" id="L757">        gameOver = false;</span>
+<span class="fc" id="L758">        pendingAttackLines = 0;</span>
+<span class="fc" id="L759">        pendingAttackPattern.clear();</span>
+<span class="fc" id="L760">        nextShape = pickByRoulette();</span>
+<span class="fc" id="L761">        nextItemBlock = null; // 아이템 블록 초기화</span>
+<span class="fc" id="L762">        spawnNewTetromino();</span>
+<span class="fc" id="L763">    }</span>
+    /**
+     * 상대 보드(grid)를 업데이트하기 위한 메서드.
+     *
+     * ⚠ Board.grid 가 final 이라 newGrid 를 통째로 대입할 수 없기 때문에
+     *    내부 값만 하나씩 복사해서 덮어쓴다.
+     *
+     * @param newGrid 네트워크로 받은 상대 보드의 20x10 ShapeType 배열
+     */
+    public void setGrid(ShapeType[][] newGrid) {
+<span class="fc bfc" id="L773" title="All 2 branches covered.">        if (newGrid == null) return;</span>
+
+        // final grid 배열 내부 값만 복사해서 반영
+<span class="fc bfc" id="L776" title="All 2 branches covered.">        for (int y = 0; y &lt; ROWS; y++) {</span>
+<span class="fc" id="L777">            System.arraycopy(newGrid[y], 0, this.grid[y], 0, COLS);</span>
+        }
+<span class="fc" id="L779">    }</span>
+    public void overrideCurrent(Tetromino t) {
+<span class="fc" id="L781">        this.current = t;</span>
+<span class="fc" id="L782">    }</span>
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.11.202310140853</span></div></body></html>

@@ -1,0 +1,140 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="ko"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>NameInputScreen.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">se-tetris-team8</a> &gt; <a href="index.source.html" class="el_package">screens</a> &gt; <span class="el_source">NameInputScreen.java</span></div><h1>NameInputScreen.java</h1><pre class="source lang-java linenums">package screens;
+
+import java.awt.Component;
+import java.awt.Dimension;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
+import java.time.LocalDateTime;
+
+import javax.swing.BorderFactory;
+import javax.swing.Box;
+import javax.swing.BoxLayout;
+import javax.swing.JButton;
+import javax.swing.JFrame;
+import javax.swing.JLabel;
+import javax.swing.JOptionPane;
+import javax.swing.JPanel;
+import javax.swing.JTextField;
+import javax.swing.text.AbstractDocument;
+import javax.swing.text.AttributeSet;
+import javax.swing.text.BadLocationException;
+import javax.swing.text.DocumentFilter;
+
+import core.Difficulty;
+import core.Settings;
+import ranking.RankingEntry;
+import ranking.RankingManager;
+
+/**
+ * 랭킹 등록을 위한 이름 입력 화면
+ * 최종 점수가 랭킹에 들었을 때 호출됨
+ * 최대 10글자, 알파벳만 입력 가능
+ */
+public class NameInputScreen extends JFrame {
+
+    private static final int MAX_NAME_LENGTH = 10;
+    private static final String ALPHABET_PATTERN = &quot;[a-zA-Z]+&quot;;
+    private static final String ITEM_RANKING_FILE = &quot;item_rankings.dat&quot;;
+    private static final String TIMEATTACK_RANKING_FILE = &quot;timeattack_rankings.dat&quot;;
+    
+    private final int finalScore;
+    private final Difficulty difficulty;
+    private final boolean isItemMode;
+    private final boolean isTimeAttackMode;
+    private JTextField nameField;
+
+<span class="fc" id="L46">    public NameInputScreen(int finalScore, Difficulty difficulty, boolean isItemMode, boolean isTimeAttackMode) {</span>
+<span class="fc" id="L47">        this.finalScore = finalScore;</span>
+<span class="fc" id="L48">        this.difficulty = difficulty;</span>
+<span class="fc" id="L49">        this.isItemMode = isItemMode;</span>
+<span class="fc" id="L50">        this.isTimeAttackMode = isTimeAttackMode;</span>
+<span class="fc" id="L51">        initializeUI();</span>
+<span class="fc" id="L52">    }</span>
+
+    private void initializeUI() {
+<span class="fc" id="L55">        int width = (int)(Settings.getWindowWidth() * 0.6);</span>
+<span class="fc" id="L56">        int height = (int)(Settings.getWindowHeight() * 0.525);</span>
+<span class="fc" id="L57">        int baseFontSize = Settings.getBaseFontSize();</span>
+<span class="fc" id="L58">        double scaleFactor = Settings.getScaleFactor();</span>
+        
+<span class="fc" id="L60">        setTitle(&quot;New Record!&quot;);</span>
+<span class="fc" id="L61">        setSize(width, height);</span>
+<span class="fc" id="L62">        setLocationRelativeTo(null);</span>
+<span class="fc" id="L63">        setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);</span>
+        
+<span class="fc" id="L65">        addWindowListener(new WindowAdapter() {</span>
+            @Override
+            public void windowClosing(WindowEvent e) {
+<span class="nc" id="L68">                dispose();</span>
+                // 이름 입력 없이 닫은 경우에도 스코어보드 표시 (isItemMode, isTimeAttackMode 전달)
+<span class="nc" id="L70">                new ranking.RankingBoard(null, finalScore, true, isItemMode, isTimeAttackMode).setVisible(true);</span>
+<span class="nc" id="L71">            }</span>
+        });
+
+<span class="fc" id="L74">        JPanel mainPanel = new JPanel();</span>
+<span class="fc" id="L75">        mainPanel.setLayout(new BoxLayout(mainPanel, BoxLayout.Y_AXIS));</span>
+<span class="fc" id="L76">        mainPanel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));</span>
+
+<span class="fc" id="L78">        JLabel messageLabel = new JLabel(&quot;Congratulations! Enter your name!&quot;);</span>
+<span class="fc" id="L79">        messageLabel.setFont(new java.awt.Font(&quot;Arial&quot;, java.awt.Font.BOLD, baseFontSize));</span>
+<span class="fc" id="L80">        messageLabel.setAlignmentX(Component.CENTER_ALIGNMENT);</span>
+
+<span class="fc" id="L82">        nameField = new JTextField(MAX_NAME_LENGTH);</span>
+<span class="fc" id="L83">        nameField.setFont(new java.awt.Font(&quot;Arial&quot;, java.awt.Font.PLAIN, baseFontSize));</span>
+<span class="fc" id="L84">        nameField.setAlignmentX(Component.CENTER_ALIGNMENT);</span>
+<span class="fc" id="L85">        nameField.setMaximumSize(new Dimension((int)(250 * scaleFactor), (int)(35 * scaleFactor)));</span>
+        
+        // 엔터 키로 제출
+<span class="pc" id="L88">        nameField.addActionListener(e -&gt; submitScore());</span>
+        
+<span class="fc" id="L90">        ((AbstractDocument) nameField.getDocument()).setDocumentFilter(new DocumentFilter() {</span>
+            @Override
+            public void replace(FilterBypass fb, int offset, int length, String text, AttributeSet attrs)
+                    throws BadLocationException {
+<span class="fc" id="L94">                String newText = fb.getDocument().getText(0, fb.getDocument().getLength()) + text;</span>
+<span class="pc bpc" id="L95" title="1 of 4 branches missed.">                if (newText.length() &lt;= MAX_NAME_LENGTH &amp;&amp; text.matches(ALPHABET_PATTERN)) {</span>
+<span class="fc" id="L96">                    super.replace(fb, offset, length, text, attrs);</span>
+                }
+<span class="fc" id="L98">            }</span>
+        });
+
+<span class="fc" id="L101">        JButton submitButton = new JButton(&quot;Submit&quot;);</span>
+<span class="fc" id="L102">        submitButton.setFont(new java.awt.Font(&quot;Arial&quot;, java.awt.Font.PLAIN, baseFontSize));</span>
+<span class="fc" id="L103">        submitButton.setAlignmentX(Component.CENTER_ALIGNMENT);</span>
+<span class="fc" id="L104">        submitButton.setMaximumSize(new Dimension((int)(120 * scaleFactor), (int)(40 * scaleFactor)));</span>
+<span class="pc" id="L105">        submitButton.addActionListener(e -&gt; submitScore());</span>
+
+<span class="fc" id="L107">        mainPanel.add(messageLabel);</span>
+<span class="fc" id="L108">        mainPanel.add(Box.createVerticalStrut(15));</span>
+<span class="fc" id="L109">        mainPanel.add(nameField);</span>
+<span class="fc" id="L110">        mainPanel.add(Box.createVerticalStrut(15));</span>
+<span class="fc" id="L111">        mainPanel.add(submitButton);</span>
+
+<span class="fc" id="L113">        add(mainPanel);</span>
+<span class="fc" id="L114">    }</span>
+
+    private void submitScore() {
+<span class="nc" id="L117">        String playerName = nameField.getText().trim();</span>
+        
+<span class="nc bnc" id="L119" title="All 2 branches missed.">        if (!playerName.isEmpty()) {</span>
+            RankingManager manager;
+<span class="nc bnc" id="L121" title="All 2 branches missed.">            if (isItemMode) {</span>
+<span class="nc" id="L122">                manager = RankingManager.getInstance(ITEM_RANKING_FILE);</span>
+<span class="nc bnc" id="L123" title="All 2 branches missed.">            } else if (isTimeAttackMode) {</span>
+<span class="nc" id="L124">                manager = RankingManager.getInstance(TIMEATTACK_RANKING_FILE);</span>
+            } else {
+<span class="nc" id="L126">                manager = RankingManager.getInstance();</span>
+            }
+            
+            // 랭킹에 추가 (난이도 정보 포함)
+<span class="nc" id="L130">            manager.addEntry(new RankingEntry(playerName, finalScore, LocalDateTime.now(), difficulty));</span>
+<span class="nc" id="L131">            dispose();</span>
+            
+            // 스코어보드를 표시하고 새로 입력한 항목 강조 (isItemMode, isTimeAttackMode 전달)
+<span class="nc" id="L134">            new ranking.RankingBoard(playerName, finalScore, true, isItemMode, isTimeAttackMode).setVisible(true);</span>
+<span class="nc" id="L135">        } else {</span>
+<span class="nc" id="L136">            JOptionPane.showMessageDialog(this, &quot;Please enter your name!&quot;);</span>
+        }
+<span class="nc" id="L138">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.11.202310140853</span></div></body></html>

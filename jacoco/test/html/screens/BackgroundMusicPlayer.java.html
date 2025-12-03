@@ -1,0 +1,216 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="ko"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>BackgroundMusicPlayer.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">se-tetris-team8</a> &gt; <a href="index.source.html" class="el_package">screens</a> &gt; <span class="el_source">BackgroundMusicPlayer.java</span></div><h1>BackgroundMusicPlayer.java</h1><pre class="source lang-java linenums">package screens;
+
+import java.io.BufferedInputStream;
+import java.io.IOException;
+import java.io.InputStream;
+
+import javax.sound.sampled.AudioInputStream;
+import javax.sound.sampled.AudioSystem;
+import javax.sound.sampled.Clip;
+import javax.sound.sampled.FloatControl;
+import javax.sound.sampled.LineEvent;
+import javax.sound.sampled.LineUnavailableException;
+import javax.sound.sampled.UnsupportedAudioFileException;
+
+/**
+ * 배경음악 재생 관리 클래스
+ * 싱글톤 패턴으로 구현하여 전역에서 음악 제어 가능
+ */
+public class BackgroundMusicPlayer {
+    
+    private static BackgroundMusicPlayer instance;
+    private Clip clip;
+<span class="fc" id="L23">    private boolean isPlaying = false;</span>
+    
+<span class="fc" id="L25">    private BackgroundMusicPlayer() {</span>
+        // private 생성자로 싱글톤 보장
+<span class="fc" id="L27">    }</span>
+    
+    public static BackgroundMusicPlayer getInstance() {
+<span class="fc bfc" id="L30" title="All 2 branches covered.">        if (instance == null) {</span>
+<span class="fc" id="L31">            instance = new BackgroundMusicPlayer();</span>
+        }
+<span class="fc" id="L33">        return instance;</span>
+    }
+    
+    /**
+     * 음악 파일을 로드하고 반복 재생 시작
+     * @param musicPath 음악 파일 경로 (예: &quot;/music/MainBGM.mp3&quot;)
+     */
+    public void play(String musicPath) {
+<span class="nc" id="L41">        play(musicPath, 0.7f); // 기본 볼륨으로 재생</span>
+<span class="nc" id="L42">    }</span>
+    
+    /**
+     * 음악 파일을 로드하고 지정된 볼륨으로 반복 재생 시작
+     * @param musicPath 음악 파일 경로 (예: &quot;/music/MainBGM.mp3&quot;)
+     * @param volume 초기 볼륨 (0.0 ~ 1.0)
+     */
+    public void play(String musicPath, float volume) {
+<span class="fc bfc" id="L50" title="All 2 branches covered.">        if (isPlaying) {</span>
+<span class="fc" id="L51">            System.out.println(&quot;Music already playing, ignoring request&quot;);</span>
+<span class="fc" id="L52">            return; // 이미 재생 중이면 무시</span>
+        }
+        
+<span class="fc" id="L55">        System.out.println(&quot;Attempting to play music: &quot; + musicPath);</span>
+        
+        try {
+            // 기존 클립이 있으면 정리
+<span class="pc bpc" id="L59" title="1 of 4 branches missed.">            if (clip != null &amp;&amp; clip.isOpen()) {</span>
+<span class="nc" id="L60">                clip.close();</span>
+            }
+                
+                // 음악 파일 로드 - 이미지 로딩과 동일한 방식
+<span class="fc" id="L64">                InputStream audioSrc = null;</span>
+                
+                // 1. getResource() 시도
+<span class="pc bpc" id="L67" title="1 of 2 branches missed.">                String absPath = musicPath.startsWith(&quot;/&quot;) ? musicPath : &quot;/&quot; + musicPath;</span>
+<span class="fc" id="L68">                java.net.URL url = getClass().getResource(absPath);</span>
+<span class="pc bpc" id="L69" title="1 of 2 branches missed.">                if (url != null) {</span>
+<span class="fc" id="L70">                    System.out.println(&quot;✓ Found via getResource(): &quot; + url);</span>
+<span class="fc" id="L71">                    audioSrc = url.openStream();</span>
+                }
+                
+                // 2. ClassLoader.getResourceAsStream() 시도
+<span class="pc bpc" id="L75" title="1 of 2 branches missed.">                if (audioSrc == null) {</span>
+<span class="nc bnc" id="L76" title="All 2 branches missed.">                    String loaderPath = musicPath.startsWith(&quot;/&quot;) ? musicPath.substring(1) : musicPath;</span>
+<span class="nc" id="L77">                    audioSrc = getClass().getClassLoader().getResourceAsStream(loaderPath);</span>
+<span class="nc bnc" id="L78" title="All 2 branches missed.">                    if (audioSrc != null) {</span>
+<span class="nc" id="L79">                        System.out.println(&quot;✓ Found via ClassLoader: &quot; + loaderPath);</span>
+                    }
+                }
+                
+                // 3. 파일 시스템 직접 접근 시도
+<span class="pc bpc" id="L84" title="1 of 2 branches missed.">                if (audioSrc == null) {</span>
+<span class="nc" id="L85">                    String cwd = System.getProperty(&quot;user.dir&quot;);</span>
+<span class="nc" id="L86">                    java.io.File f = new java.io.File(cwd + &quot;/src/main/resources&quot; + absPath);</span>
+<span class="nc bnc" id="L87" title="All 2 branches missed.">                    if (f.exists()) {</span>
+<span class="nc" id="L88">                        System.out.println(&quot;✓ Found via file system: &quot; + f.getAbsolutePath());</span>
+<span class="nc" id="L89">                        audioSrc = new java.io.FileInputStream(f);</span>
+                    }
+                }
+                
+<span class="pc bpc" id="L93" title="1 of 2 branches missed.">                if (audioSrc == null) {</span>
+<span class="nc" id="L94">                    System.err.println(&quot;❌ Music file not found: &quot; + musicPath);</span>
+<span class="nc" id="L95">                    System.err.println(&quot;Tried:&quot;);</span>
+<span class="nc" id="L96">                    System.err.println(&quot;  1. getResource(&quot; + absPath + &quot;)&quot;);</span>
+<span class="nc bnc" id="L97" title="All 2 branches missed.">                    System.err.println(&quot;  2. ClassLoader.getResourceAsStream(&quot; + (musicPath.startsWith(&quot;/&quot;) ? musicPath.substring(1) : musicPath) + &quot;)&quot;);</span>
+<span class="nc" id="L98">                    System.err.println(&quot;  3. File: &quot; + System.getProperty(&quot;user.dir&quot;) + &quot;/src/main/resources&quot; + absPath);</span>
+<span class="nc" id="L99">                    return;</span>
+                }
+                
+<span class="fc" id="L102">                System.out.println(&quot;✓ Music file found, loading...&quot;);</span>
+                
+                // BufferedInputStream으로 감싸기
+<span class="fc" id="L105">                InputStream bufferedIn = new BufferedInputStream(audioSrc);</span>
+                
+                // WAV 파일 로드
+<span class="fc" id="L108">                AudioInputStream audioStream = AudioSystem.getAudioInputStream(bufferedIn);</span>
+                
+<span class="fc" id="L110">                System.out.println(&quot;✓ Audio stream created&quot;);</span>
+                
+                // Clip 생성 및 로드
+<span class="fc" id="L113">                clip = AudioSystem.getClip();</span>
+<span class="fc" id="L114">                System.out.println(&quot;✓ Clip created&quot;);</span>
+                
+<span class="fc" id="L116">                clip.open(audioStream);</span>
+<span class="fc" id="L117">                System.out.println(&quot;✓ Clip opened&quot;);</span>
+                
+                // 볼륨을 재생 전에 먼저 설정
+<span class="fc" id="L120">                setVolume(volume);</span>
+<span class="fc" id="L121">                System.out.println(&quot;✓ Volume set to: &quot; + volume);</span>
+                
+                // Clip 이벤트 리스너 추가 (디버깅용)
+<span class="fc" id="L124">                clip.addLineListener(event -&gt; {</span>
+<span class="fc bfc" id="L125" title="All 2 branches covered.">                    if (event.getType() == LineEvent.Type.STOP) {</span>
+<span class="fc" id="L126">                        System.out.println(&quot;⚠️ Clip stopped! isRunning=&quot; + clip.isRunning());</span>
+<span class="pc bpc" id="L127" title="1 of 2 branches missed.">                        if (!clip.isRunning()) {</span>
+<span class="fc" id="L128">                            isPlaying = false;</span>
+                        }
+                    }
+<span class="fc bfc" id="L131" title="All 2 branches covered.">                    if (event.getType() == LineEvent.Type.CLOSE) {</span>
+<span class="fc" id="L132">                        System.out.println(&quot;⚠️ Clip closed!&quot;);</span>
+<span class="fc" id="L133">                        isPlaying = false;</span>
+                    }
+<span class="fc bfc" id="L135" title="All 2 branches covered.">                    if (event.getType() == LineEvent.Type.START) {</span>
+<span class="fc" id="L136">                        System.out.println(&quot;✓ Clip started playing&quot;);</span>
+                    }
+<span class="fc" id="L138">                });</span>
+                
+                // 무한 반복 설정
+<span class="fc" id="L141">                clip.loop(Clip.LOOP_CONTINUOUSLY);</span>
+<span class="fc" id="L142">                System.out.println(&quot;✓ Clip looping started&quot;);</span>
+                
+                // 재생 시작
+<span class="fc" id="L145">                clip.start();</span>
+<span class="fc" id="L146">                isPlaying = true;</span>
+                
+<span class="fc" id="L148">                System.out.println(&quot;✓ Music playback started successfully!&quot;);</span>
+<span class="fc" id="L149">                System.out.println(&quot;✓ Clip is running: &quot; + clip.isRunning());</span>
+<span class="fc" id="L150">                System.out.println(&quot;✓ Clip is active: &quot; + clip.isActive());</span>
+<span class="fc" id="L151">                System.out.println(&quot;✓ Clip frame length: &quot; + clip.getFrameLength());</span>
+<span class="fc" id="L152">                System.out.println(&quot;✓ Clip microsecond length: &quot; + clip.getMicrosecondLength() / 1000000.0 + &quot; seconds&quot;);</span>
+                
+<span class="nc" id="L154">            } catch (IOException | LineUnavailableException | UnsupportedAudioFileException e) {</span>
+<span class="nc" id="L155">                System.err.println(&quot;❌ Failed to play background music: &quot; + e.getMessage());</span>
+<span class="nc" id="L156">                e.printStackTrace();</span>
+<span class="fc" id="L157">            }</span>
+<span class="fc" id="L158">    }</span>
+    
+    /**
+     * 음악 정지
+     */
+    public void stop() {
+<span class="fc bfc" id="L164" title="All 4 branches covered.">        if (clip != null &amp;&amp; clip.isRunning()) {</span>
+<span class="fc" id="L165">            System.out.println(&quot;Stopping music...&quot;);</span>
+<span class="fc" id="L166">            clip.stop();</span>
+<span class="fc" id="L167">            clip.close();</span>
+<span class="fc" id="L168">            isPlaying = false;</span>
+<span class="fc" id="L169">            System.out.println(&quot;Music stopped&quot;);</span>
+        }
+<span class="fc" id="L171">    }</span>
+    
+    /**
+     * 음악 일시정지
+     */
+    public void pause() {
+<span class="nc bnc" id="L177" title="All 4 branches missed.">        if (clip != null &amp;&amp; clip.isRunning()) {</span>
+<span class="nc" id="L178">            clip.stop();</span>
+<span class="nc" id="L179">            isPlaying = false;</span>
+        }
+<span class="nc" id="L181">    }</span>
+    
+    /**
+     * 음악 재개
+     */
+    public void resume() {
+<span class="nc bnc" id="L187" title="All 4 branches missed.">        if (clip != null &amp;&amp; !clip.isRunning()) {</span>
+<span class="nc" id="L188">            clip.start();</span>
+<span class="nc" id="L189">            isPlaying = true;</span>
+        }
+<span class="nc" id="L191">    }</span>
+    
+    /**
+     * 볼륨 조절
+     * @param volume 0.0 (무음) ~ 1.0 (최대)
+     */
+    public void setVolume(float volume) {
+<span class="pc bpc" id="L198" title="2 of 4 branches missed.">        if (clip != null &amp;&amp; clip.isOpen()) {</span>
+            try {
+<span class="fc" id="L200">                FloatControl gainControl = (FloatControl) clip.getControl(FloatControl.Type.MASTER_GAIN);</span>
+<span class="fc" id="L201">                float dB = (float) (Math.log(volume) / Math.log(10.0) * 20.0);</span>
+<span class="fc" id="L202">                gainControl.setValue(dB);</span>
+<span class="nc" id="L203">            } catch (Exception e) {</span>
+<span class="nc" id="L204">                System.err.println(&quot;Failed to set volume: &quot; + e.getMessage());</span>
+<span class="fc" id="L205">            }</span>
+        }
+<span class="fc" id="L207">    }</span>
+    
+    /**
+     * 현재 재생 중인지 확인
+     */
+    public boolean isPlaying() {
+<span class="nc" id="L213">        return isPlaying;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.11.202310140853</span></div></body></html>

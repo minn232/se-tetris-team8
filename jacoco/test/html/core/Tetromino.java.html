@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="ko"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Tetromino.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">se-tetris-team8</a> &gt; <a href="index.source.html" class="el_package">core</a> &gt; <span class="el_source">Tetromino.java</span></div><h1>Tetromino.java</h1><pre class="source lang-java linenums">package core;
+
+public class Tetromino {
+    private final ShapeType shape;
+    protected int x, y;
+    private int rot; // 0~3
+    protected Position[] blocks; // 현재 회전에 따른 상대 좌표 4개
+
+<span class="fc" id="L9">    public Tetromino(ShapeType shape, int x, int y) {</span>
+<span class="fc" id="L10">        this.shape = shape;</span>
+<span class="fc" id="L11">        this.x = x; this.y = y;</span>
+<span class="fc" id="L12">        this.rot = 0;</span>
+<span class="pc bpc" id="L13" title="1 of 2 branches missed.">        if (shape != null) {</span>
+<span class="fc" id="L14">            this.blocks = shape.getOffsets(rot);</span>
+        }
+<span class="fc" id="L16">    }</span>
+
+<span class="fc" id="L18">    public void move(int dx, int dy) { this.x += dx; this.y += dy; }</span>
+
+    public Tetromino getRotatedCopy() {
+<span class="fc" id="L21">        Tetromino c = new Tetromino(shape, x, y);</span>
+<span class="fc" id="L22">        c.rot = (this.rot + 1) &amp; 3;</span>
+<span class="fc" id="L23">        c.blocks = shape.getOffsets(c.rot);</span>
+<span class="fc" id="L24">        return c;</span>
+    }
+
+    public void rotate() {
+<span class="fc" id="L28">        this.rot = (this.rot + 1) &amp; 3;</span>
+<span class="fc" id="L29">        this.blocks = shape.getOffsets(this.rot);</span>
+<span class="fc" id="L30">    }</span>
+    
+    public void setBlocks(Position[] customBlocks) {
+<span class="fc" id="L33">        this.blocks = customBlocks;</span>
+<span class="fc" id="L34">    }</span>
+
+<span class="fc" id="L36">    public Position[] getBlocks() { return blocks; }</span>
+<span class="fc" id="L37">    public int getX() { return x; }</span>
+<span class="fc" id="L38">    public int getY() { return y; }</span>
+<span class="fc" id="L39">    public ShapeType getShape() { return shape; }</span>
+<span class="fc" id="L40">    public int getRotation() { return rot; }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.11.202310140853</span></div></body></html>

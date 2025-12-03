@@ -1,0 +1,333 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="ko"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>HostJoinScreen.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">se-tetris-team8</a> &gt; <a href="index.source.html" class="el_package">screens</a> &gt; <span class="el_source">HostJoinScreen.java</span></div><h1>HostJoinScreen.java</h1><pre class="source lang-java linenums">package screens;
+
+import java.awt.BorderLayout;
+import java.awt.Font;
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileReader;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.net.InetAddress;
+import java.net.ServerSocket;
+
+import javax.swing.JButton;
+import javax.swing.JDialog;
+import javax.swing.JFrame;
+import javax.swing.JOptionPane;
+import javax.swing.JPanel;
+import javax.swing.JTextField;
+import javax.swing.UIManager;
+
+import core.Settings;
+import network.NetworkManager;
+
+/**
+ * 네트워크 배틀 - Host/Join 선택 화면
+ */
+public class HostJoinScreen extends JFrame {
+    
+    // JOptionPane 폰트 설정 (시스템 호환성)
+    static {
+<span class="fc" id="L31">        Font font = new Font(&quot;Dialog&quot;, Font.PLAIN, 14);</span>
+<span class="fc" id="L32">        UIManager.put(&quot;OptionPane.messageFont&quot;, font);</span>
+<span class="fc" id="L33">        UIManager.put(&quot;OptionPane.buttonFont&quot;, font);</span>
+<span class="fc" id="L34">    }</span>
+
+    private final JButton[] buttons;
+<span class="fc" id="L37">    private int selectedIndex = 0;</span>
+
+<span class="fc" id="L39">    public HostJoinScreen() {</span>
+        // 네비게이션 히스토리에 추가
+<span class="fc" id="L41">        ScreenNavigator.getInstance().push(&quot;HostJoin&quot;);</span>
+        
+<span class="fc" id="L43">        int width = Settings.getWindowWidth();</span>
+<span class="fc" id="L44">        int height = Settings.getWindowHeight();</span>
+<span class="fc" id="L45">        double scale = Settings.getScaleFactor();</span>
+
+<span class="fc" id="L47">        setTitle(&quot;Host or Join&quot;);</span>
+<span class="fc" id="L48">        setSize(width, height);</span>
+<span class="fc" id="L49">        setResizable(false);</span>
+<span class="fc" id="L50">        setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);</span>
+<span class="fc" id="L51">        setLocationRelativeTo(null);</span>
+
+<span class="fc" id="L53">        JPanel mainPanel = new JPanel();</span>
+<span class="fc" id="L54">        mainPanel.setOpaque(false);</span>
+<span class="fc" id="L55">        mainPanel.setLayout(null);</span>
+
+<span class="fc" id="L57">        int btnWidth = (int)(120 * scale);</span>
+<span class="fc" id="L58">        int btnHeight = (int)(120 * scale);</span>
+        
+        // 버튼 간격 (scale에 비례)
+<span class="fc" id="L61">        int buttonGap = (int)(20 * scale);</span>
+<span class="fc" id="L62">        int centerX = width / 2;</span>
+<span class="fc" id="L63">        int centerY = (int)(height / 2.0 - 30 * scale);</span>
+<span class="fc" id="L64">        int offsetX = (int)(90 * scale); // 오른쪽으로 이동할 거리</span>
+
+        // HOST
+<span class="fc" id="L67">        int hostBtnWidth = (int)(70 * scale); // btnWidth - 50 대신 scale 비례</span>
+<span class="fc" id="L68">        JButton hostButton = addButton(</span>
+            mainPanel,
+            &quot;/images/HostButton.png&quot;,
+            hostBtnWidth, btnHeight,
+            centerX - hostBtnWidth - buttonGap / 2 + offsetX,
+            centerY
+        );
+<span class="fc" id="L75">        hostButton.addActionListener(e -&gt; startAsHost());</span>
+
+        // JOIN
+<span class="fc" id="L78">        int joinBtnWidth = (int)(150 * scale); // btnWidth + 30 대신 scale 비례</span>
+<span class="fc" id="L79">        JButton joinButton = addButton(</span>
+            mainPanel,
+            &quot;/images/HostingButton.png&quot;,
+            joinBtnWidth, btnHeight,
+            centerX + buttonGap / 2 + offsetX,
+            centerY
+        );
+<span class="fc" id="L86">        joinButton.addActionListener(e -&gt; startAsClient());</span>
+        
+        // 뒤로가기 버튼 추가
+<span class="fc" id="L89">        int backBtnSize = (int)(40 * scale);</span>
+<span class="fc" id="L90">        int backBtnX = width - backBtnSize - (int)(10 * scale);</span>
+<span class="fc" id="L91">        int backBtnY = height - backBtnSize - (int)(40 * scale);</span>
+        
+<span class="fc" id="L93">        JButton backButton = addButton(mainPanel, &quot;/images/BackButton.png&quot;, </span>
+            backBtnSize, backBtnSize, backBtnX, backBtnY);
+<span class="fc" id="L95">        backButton.addActionListener(e -&gt; {</span>
+<span class="nc" id="L96">            System.out.println(&quot;[HostJoin] Back button clicked&quot;);</span>
+<span class="nc" id="L97">            ScreenNavigator.getInstance().goBack(this);</span>
+<span class="nc" id="L98">        });</span>
+<span class="fc" id="L99">        backButton.setFocusable(false);</span>
+
+<span class="fc" id="L101">        BackgroundPanel bg = new BackgroundPanel(&quot;/images/MainScreen.png&quot;);</span>
+<span class="fc" id="L102">        bg.setLayout(new BorderLayout());</span>
+<span class="fc" id="L103">        bg.add(mainPanel, BorderLayout.CENTER);</span>
+<span class="fc" id="L104">        setContentPane(bg);</span>
+
+<span class="fc" id="L106">        buttons = new JButton[]{hostButton, joinButton};</span>
+<span class="fc bfc" id="L107" title="All 2 branches covered.">        for (JButton btn : buttons) btn.setFocusable(false);</span>
+
+<span class="fc" id="L109">        updateButtonFocus();</span>
+
+<span class="fc" id="L111">        addKeyListener(new java.awt.event.KeyAdapter() {</span>
+            @Override
+            public void keyPressed(java.awt.event.KeyEvent e) {
+<span class="nc" id="L114">                handleKeyPress(e.getKeyCode());</span>
+<span class="nc" id="L115">            }</span>
+        });
+
+<span class="fc" id="L118">        setFocusable(true);</span>
+<span class="fc" id="L119">        requestFocusInWindow();</span>
+<span class="fc" id="L120">    }</span>
+
+    // =========================
+    // 최근 접속 IP 저장 / 로드
+    // =========================
+    private String loadLastIP() {
+        try {
+<span class="fc" id="L127">            File file = new File(&quot;last_ip.txt&quot;);</span>
+<span class="fc bfc" id="L128" title="All 2 branches covered.">            if (!file.exists()) return &quot;&quot;;</span>
+<span class="fc" id="L129">            BufferedReader br = new BufferedReader(new FileReader(file));</span>
+<span class="fc" id="L130">            String ip = br.readLine();</span>
+<span class="fc" id="L131">            br.close();</span>
+<span class="fc bfc" id="L132" title="All 2 branches covered.">            return ip == null ? &quot;&quot; : ip.trim();</span>
+<span class="nc" id="L133">        } catch (IOException e) {</span>
+<span class="nc" id="L134">            return &quot;&quot;;</span>
+        }
+    }
+
+    private void saveLastIP(String ip) {
+        try {
+<span class="fc" id="L140">            FileWriter fw = new FileWriter(&quot;last_ip.txt&quot;);</span>
+<span class="fc" id="L141">            fw.write(ip);</span>
+<span class="fc" id="L142">            fw.close();</span>
+<span class="pc" id="L143">        } catch (IOException ignored) {}</span>
+<span class="fc" id="L144">    }</span>
+
+    // =========================
+    // HOST START
+    // =========================
+    private void startAsHost() {
+<span class="fc" id="L150">        dispose();</span>
+
+        try {
+<span class="fc" id="L153">            ServerSocket tempSocket = new ServerSocket(0);</span>
+<span class="fc" id="L154">            int port = tempSocket.getLocalPort();</span>
+<span class="fc" id="L155">            tempSocket.close();</span>
+
+<span class="fc" id="L157">            String hostIP = InetAddress.getLocalHost().getHostAddress();</span>
+<span class="fc" id="L158">            NetworkManager.getInstance().startServer(port);</span>
+
+<span class="fc" id="L160">            final boolean[] cancelled = {false};</span>
+
+            // HOST 대기 팝업
+<span class="fc" id="L163">            JDialog waitingDialog = new JDialog();</span>
+<span class="fc" id="L164">            waitingDialog.setTitle(&quot;Server Waiting&quot;);</span>
+<span class="fc" id="L165">            waitingDialog.setModal(false);</span>
+<span class="fc" id="L166">            waitingDialog.setSize(300, 200);</span>
+<span class="fc" id="L167">            waitingDialog.setLocationRelativeTo(null);</span>
+
+<span class="fc" id="L169">            JOptionPane pane = new JOptionPane(</span>
+                &quot;Waiting for client...\n\nIP: &quot; + hostIP + &quot;\nPort: &quot; + port,
+                JOptionPane.INFORMATION_MESSAGE,
+                JOptionPane.DEFAULT_OPTION,
+                null,
+                new Object[]{&quot;Close&quot;}
+            );
+<span class="fc" id="L176">            waitingDialog.setContentPane(pane);</span>
+
+<span class="fc" id="L178">            pane.addPropertyChangeListener(evt -&gt; {</span>
+<span class="fc bfc" id="L179" title="All 2 branches covered.">                if (JOptionPane.VALUE_PROPERTY.equals(evt.getPropertyName())) {</span>
+<span class="fc" id="L180">                    cancelled[0] = true;</span>
+<span class="fc" id="L181">                    waitingDialog.dispose();</span>
+<span class="fc" id="L182">                    NetworkManager.getInstance().close();</span>
+                    
+                    // 히스토리 초기화하고 메인 메뉴로
+<span class="fc" id="L185">                    ScreenNavigator.getInstance().clear();</span>
+<span class="fc" id="L186">                    new Mainmenu().setVisible(true);</span>
+                }
+<span class="fc" id="L188">            });</span>
+
+<span class="fc" id="L190">            waitingDialog.setVisible(true);</span>
+
+            // Client 접속 대기 스레드
+<span class="fc" id="L193">            new Thread(() -&gt; {</span>
+<span class="pc bpc" id="L194" title="1 of 4 branches missed.">                while (!NetworkManager.getInstance().isConnected() &amp;&amp; !cancelled[0]) {</span>
+<span class="pc" id="L195">                    try { Thread.sleep(100); } catch (InterruptedException ignored) {}</span>
+                }
+
+<span class="pc bpc" id="L198" title="3 of 4 branches missed.">                if (!cancelled[0] &amp;&amp; NetworkManager.getInstance().isConnected()) {</span>
+<span class="nc" id="L199">                    javax.swing.SwingUtilities.invokeLater(() -&gt; {</span>
+<span class="nc" id="L200">                        waitingDialog.dispose();</span>
+<span class="nc" id="L201">                        JOptionPane.showMessageDialog(null, &quot;Client connected!&quot;);</span>
+
+<span class="nc" id="L203">                        new WaitingRoomScreen(true).setVisible(true);</span>
+<span class="nc" id="L204">                    });</span>
+                }
+<span class="fc" id="L206">            }).start();</span>
+
+<span class="nc" id="L208">        } catch (IOException ex) {</span>
+<span class="nc" id="L209">            JOptionPane.showMessageDialog(null,</span>
+<span class="nc" id="L210">                &quot;Failed to start server: &quot; + ex.getMessage());</span>
+            // 히스토리 초기화하고 메인 메뉴로
+<span class="nc" id="L212">            ScreenNavigator.getInstance().clear();</span>
+<span class="nc" id="L213">            new Mainmenu().setVisible(true);</span>
+<span class="fc" id="L214">        }</span>
+<span class="fc" id="L215">    }</span>
+
+    // =========================
+    // CLIENT START
+    // =========================
+    private void startAsClient() {
+<span class="fc" id="L221">        dispose();</span>
+
+<span class="pc bpc" id="L223" title="1 of 2 branches missed.">        JTextField ipField = new JTextField(loadLastIP().isEmpty() ? &quot;localhost&quot; : loadLastIP());</span>
+<span class="fc" id="L224">        JTextField portField = new JTextField(&quot;12345&quot;);</span>
+
+<span class="fc" id="L226">        Object[] message = {</span>
+            &quot;Enter Server IP:&quot;, ipField,
+            &quot;Enter Server Port:&quot;, portField
+        };
+
+<span class="fc" id="L231">        int option = JOptionPane.showConfirmDialog(</span>
+            null, message, &quot;Connect to Server&quot;, JOptionPane.OK_CANCEL_OPTION
+        );
+
+<span class="pc bpc" id="L235" title="1 of 2 branches missed.">        if (option != JOptionPane.OK_OPTION) {</span>
+            // 히스토리 초기화하고 메인 메뉴로
+<span class="nc" id="L237">            ScreenNavigator.getInstance().clear();</span>
+<span class="nc" id="L238">            new Mainmenu().setVisible(true);</span>
+<span class="nc" id="L239">            return;</span>
+        }
+
+<span class="fc" id="L242">        String ip = ipField.getText().trim();</span>
+<span class="fc" id="L243">        String portStr = portField.getText().trim();</span>
+
+<span class="pc bpc" id="L245" title="1 of 2 branches missed.">        if (!isValidIP(ip)) {</span>
+<span class="nc" id="L246">            JOptionPane.showMessageDialog(null, &quot;Invalid IP format.&quot;);</span>
+            // 히스토리 초기화하고 메인 메뉴로
+<span class="nc" id="L248">            ScreenNavigator.getInstance().clear();</span>
+<span class="nc" id="L249">            new Mainmenu().setVisible(true);</span>
+<span class="nc" id="L250">            return;</span>
+        }
+
+<span class="fc" id="L253">        int port = Integer.parseInt(portStr);</span>
+
+<span class="fc" id="L255">        JOptionPane.showMessageDialog(null, &quot;Connecting to server...\n&quot; + ip + &quot;:&quot; + port);</span>
+
+<span class="fc" id="L257">        NetworkManager.getInstance().startClient(ip, port);</span>
+
+<span class="fc" id="L259">        new Thread(() -&gt; {</span>
+<span class="fc" id="L260">            int attempts = 0;</span>
+
+<span class="pc bpc" id="L262" title="1 of 4 branches missed.">            while (!NetworkManager.getInstance().isConnected() &amp;&amp; attempts &lt; 50) {</span>
+<span class="pc" id="L263">                try { Thread.sleep(100); } catch (InterruptedException ignored) {}</span>
+<span class="fc" id="L264">                attempts++;</span>
+            }
+
+<span class="pc bpc" id="L267" title="1 of 2 branches missed.">            if (NetworkManager.getInstance().isConnected()) {</span>
+<span class="nc" id="L268">                saveLastIP(ip); // 최근 IP 저장</span>
+
+<span class="nc" id="L270">                javax.swing.SwingUtilities.invokeLater(() -&gt; {</span>
+<span class="nc" id="L271">                    JOptionPane.showMessageDialog(null, &quot;Connected to server!&quot;);</span>
+<span class="nc" id="L272">                    new WaitingRoomScreen(false).setVisible(true);</span>
+<span class="nc" id="L273">                });</span>
+            } else {
+<span class="fc" id="L275">                javax.swing.SwingUtilities.invokeLater(() -&gt; {</span>
+<span class="fc" id="L276">                    JOptionPane.showMessageDialog(null, &quot;Failed to connect.&quot;);</span>
+                    // 히스토리 초기화하고 메인 메뉴로
+<span class="fc" id="L278">                    ScreenNavigator.getInstance().clear();</span>
+<span class="fc" id="L279">                    new Mainmenu().setVisible(true);</span>
+<span class="fc" id="L280">                });</span>
+            }
+<span class="fc" id="L282">        }).start();</span>
+<span class="fc" id="L283">    }</span>
+
+    private boolean isValidIP(String ip) {
+<span class="fc bfc" id="L286" title="All 2 branches covered.">        if (&quot;localhost&quot;.equalsIgnoreCase(ip)) return true;</span>
+
+<span class="fc" id="L288">        String ipv4Pattern =</span>
+            &quot;^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}&quot; +
+            &quot;(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$&quot;;
+
+<span class="fc" id="L292">        return ip.matches(ipv4Pattern);</span>
+    }
+
+    private void handleKeyPress(int keyCode) {
+<span class="fc bfc" id="L296" title="All 5 branches covered.">        switch (keyCode) {</span>
+            case java.awt.event.KeyEvent.VK_LEFT -&gt; {
+<span class="fc bfc" id="L298" title="All 2 branches covered.">                if (selectedIndex &gt; 0) {</span>
+<span class="fc" id="L299">                    selectedIndex--;</span>
+<span class="fc" id="L300">                    updateButtonFocus();</span>
+                }
+            }
+            case java.awt.event.KeyEvent.VK_RIGHT -&gt; {
+<span class="fc bfc" id="L304" title="All 2 branches covered.">                if (selectedIndex &lt; buttons.length - 1) {</span>
+<span class="fc" id="L305">                    selectedIndex++;</span>
+<span class="fc" id="L306">                    updateButtonFocus();</span>
+                }
+            }
+            case java.awt.event.KeyEvent.VK_SPACE, java.awt.event.KeyEvent.VK_ENTER -&gt;
+<span class="fc" id="L310">                buttons[selectedIndex].doClick();</span>
+            case java.awt.event.KeyEvent.VK_ESCAPE -&gt; 
+<span class="fc" id="L312">                ScreenNavigator.getInstance().goBack(this);</span>
+        }
+<span class="fc" id="L314">    }</span>
+
+    private void updateButtonFocus() {
+<span class="fc bfc" id="L317" title="All 2 branches covered.">        for (int i = 0; i &lt; buttons.length; i++) {</span>
+<span class="fc bfc" id="L318" title="All 2 branches covered.">            if (i == selectedIndex)</span>
+<span class="fc" id="L319">                buttons[i].putClientProperty(&quot;opacity&quot;, 0.75f);</span>
+            else
+<span class="fc" id="L321">                buttons[i].putClientProperty(&quot;opacity&quot;, 1.0f);</span>
+<span class="fc" id="L322">            buttons[i].repaint();</span>
+        }
+<span class="fc" id="L324">    }</span>
+
+    private JButton addButton(JPanel panel, String imagePath, int buttonWidth, int buttonHeight, int x, int y) {
+<span class="fc" id="L327">        JButton btn = ImageButtonUtils.createImageButton(imagePath, buttonWidth, buttonHeight);</span>
+<span class="fc" id="L328">        btn.setBounds(x, y, buttonWidth, buttonHeight);</span>
+<span class="fc" id="L329">        panel.add(btn);</span>
+<span class="fc" id="L330">        return btn;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.11.202310140853</span></div></body></html>

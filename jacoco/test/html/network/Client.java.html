@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="ko"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Client.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">se-tetris-team8</a> &gt; <a href="index.source.html" class="el_package">network</a> &gt; <span class="el_source">Client.java</span></div><h1>Client.java</h1><pre class="source lang-java linenums">package network;
+
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+import java.net.Socket;
+
+<span class="fc" id="L8">public class Client {</span>
+
+    private Socket socket;
+    private ObjectInputStream in;
+    private ObjectOutputStream out;
+
+<span class="fc" id="L14">    private boolean connected = false;</span>
+
+    public boolean isConnected() {
+<span class="fc" id="L17">        return connected;</span>
+    }
+
+    public void connect(String ip, int port) {
+<span class="fc" id="L21">        new Thread(() -&gt; {</span>
+            try {
+<span class="fc" id="L23">                System.out.println(&quot;[CLIENT] 서버 접속 시도: &quot; + ip + &quot;:&quot; + port);</span>
+<span class="fc" id="L24">                socket = new Socket(ip, port);</span>
+<span class="fc" id="L25">                System.out.println(&quot;[CLIENT] 서버 연결 성공!&quot;);</span>
+
+<span class="fc" id="L27">                out = new ObjectOutputStream(socket.getOutputStream());</span>
+<span class="fc" id="L28">                in = new ObjectInputStream(socket.getInputStream());</span>
+
+<span class="fc" id="L30">                connected = true;</span>
+
+<span class="fc" id="L32">                send(&quot;CLIENT_CONNECTED&quot;);</span>
+
+                while (true) {
+<span class="fc" id="L35">                    Object msg = in.readObject();</span>
+<span class="fc" id="L36">                    System.out.println(&quot;[CLIENT RECEIVED] &quot; + msg);</span>
+<span class="fc" id="L37">                }</span>
+
+<span class="fc" id="L39">            } catch (IOException | ClassNotFoundException e) {</span>
+<span class="fc" id="L40">                System.out.println(&quot;[CLIENT] ERROR&quot;);</span>
+<span class="fc" id="L41">                e.printStackTrace();</span>
+<span class="fc" id="L42">                connected = false;</span>
+<span class="fc" id="L43">                close();</span>
+            }
+<span class="fc" id="L45">        }).start();</span>
+<span class="fc" id="L46">    }</span>
+
+    public void send(String msg) {
+<span class="pc bpc" id="L49" title="1 of 4 branches missed.">        if (!connected || out == null) return;</span>
+        try {
+<span class="fc" id="L51">            out.writeObject(msg);</span>
+<span class="fc" id="L52">            out.flush();</span>
+<span class="nc" id="L53">        } catch (IOException e) {</span>
+<span class="nc" id="L54">            System.out.println(&quot;[CLIENT] 메시지 전송 실패&quot;);</span>
+<span class="fc" id="L55">        }</span>
+<span class="fc" id="L56">    }</span>
+
+    public void close() {
+        try {
+<span class="fc bfc" id="L60" title="All 2 branches covered.">            if (in != null) in.close();</span>
+<span class="fc bfc" id="L61" title="All 2 branches covered.">            if (out != null) out.close();</span>
+<span class="fc bfc" id="L62" title="All 2 branches covered.">            if (socket != null) socket.close();</span>
+<span class="pc" id="L63">        } catch (IOException ignored) {}</span>
+<span class="fc" id="L64">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.11.202310140853</span></div></body></html>

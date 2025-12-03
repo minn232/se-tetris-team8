@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="ko"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ShapeType.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">se-tetris-team8</a> &gt; <a href="index.source.html" class="el_package">core</a> &gt; <span class="el_source">ShapeType.java</span></div><h1>ShapeType.java</h1><pre class="source lang-java linenums">package core;
+
+import java.awt.Color;
+
+<span class="fc" id="L5">public enum ShapeType {</span>
+<span class="fc" id="L6">    I(new int[][][]{</span>
+            {{0,1},{1,1},{2,1},{3,1}},
+            {{2,0},{2,1},{2,2},{2,3}},
+            {{0,2},{1,2},{2,2},{3,2}},
+            {{1,0},{1,1},{1,2},{1,3}}
+    }, new Color(0,255,255), new Color(255,140,0),
+       new int[][]{{0,1,2,3}, {0,1,2,3}, {3,2,1,0}, {3,2,1,0}}),  // CYAN -&gt; ORANGE
+<span class="fc" id="L13">    O(new int[][][]{</span>
+            {{1,0},{2,0},{1,1},{2,1}},
+            {{1,0},{2,0},{1,1},{2,1}},
+            {{1,0},{2,0},{1,1},{2,1}},
+            {{1,0},{2,0},{1,1},{2,1}}
+    }, new Color(255,255,0), new Color(255,255,0),
+       new int[][]{{0,1,2,3}, {0,1,2,3}, {0,1,2,3}, {0,1,2,3}}),  // YELLOW -&gt; YELLOW
+<span class="fc" id="L20">    T(new int[][][]{</span>
+            {{1,0},{0,1},{1,1},{2,1}},
+            {{1,0},{1,1},{2,1},{1,2}},
+            {{0,1},{1,1},{2,1},{1,2}},
+            {{1,0},{0,1},{1,1},{1,2}}
+    }, new Color(128,0,128), new Color(213,94,0),
+       new int[][]{{0,1,2,3}, {1,2,0,3}, {3,2,1,0}, {3,0,2,1}}),  // MAGENTA -&gt; VERMILION
+<span class="fc" id="L27">    S(new int[][][]{</span>
+            {{1,0},{2,0},{0,1},{1,1}},
+            {{1,0},{1,1},{2,1},{2,2}},
+            {{1,1},{2,1},{0,2},{1,2}},
+            {{0,0},{0,1},{1,1},{1,2}}
+    }, new Color(0,255,0), new Color(0,180,180),
+       new int[][]{{0,1,2,3}, {2,3,0,1}, {3,2,1,0}, {1,0,3,2}}),  // GREEN -&gt; BLUISH GREEN
+<span class="fc" id="L34">    Z(new int[][][]{</span>
+            {{0,0},{1,0},{1,1},{2,1}},
+            {{2,0},{1,1},{2,1},{1,2}},
+            {{0,1},{1,1},{1,2},{2,2}},
+            {{1,0},{0,1},{1,1},{0,2}}
+    }, new Color(255,0,0), new Color(204,121,167),
+       new int[][]{{0,1,2,3}, {0,2,1,3}, {3,2,1,0}, {3,1,2,0}}),  // RED -&gt; REDDISH PURPLE
+<span class="fc" id="L41">    J(new int[][][]{</span>
+            {{0,0},{0,1},{1,1},{2,1}},
+            {{1,0},{2,0},{1,1},{1,2}},
+            {{0,1},{1,1},{2,1},{2,2}},
+            {{1,0},{1,1},{0,2},{1,2}}
+    }, new Color(0,0,255), new Color(135,206,235),
+       new int[][]{{0,1,2,3}, {1,3,2,0}, {3,0,1,2}, {2,0,1,3}}),  // BLUE -&gt; SKY BLUE
+<span class="fc" id="L48">    L(new int[][][]{</span>
+            {{2,0},{0,1},{1,1},{2,1}},
+            {{1,0},{1,1},{1,2},{2,2}},
+            {{0,1},{1,1},{2,1},{0,2}},
+            {{0,0},{1,0},{1,1},{1,2}}
+    }, new Color(255,165,0), new Color(0,114,178),
+       new int[][]{{0,1,2,3}, {3,0,1,2}, {3,0,1,2}, {0,1,2,3}}),  // ORANGE -&gt; BLUE
+<span class="fc" id="L55">    GRAY(new int[][][]{</span>
+            {{1,0},{2,0},{1,1},{2,1}},
+            {{1,0},{2,0},{1,1},{2,1}},
+            {{1,0},{2,0},{1,1},{2,1}},
+            {{1,0},{2,0},{1,1},{2,1}}
+    }, new Color(128,128,128), new Color(128,128,128),
+       new int[][]{{0,1,2,3}, {0,1,2,3}, {0,1,2,3}, {0,1,2,3}});  // GRAY -&gt; GRAY (공격 줄 전용)
+
+    private final int[][][] rotations; // [rot][4][2]
+    private final Color normalColor;    // 일반 모드 색상
+    private final Color colorBlindColor; // 색맹 모드 색상
+    // blockMapping[currentRotation][indexInRotation0] = indexInCurrentRotation
+    private final int[][] blockMapping;
+
+<span class="fc" id="L69">    ShapeType(int[][][] rotations, Color normalColor, Color colorBlindColor, int[][] blockMapping) {</span>
+<span class="fc" id="L70">        this.rotations = rotations;</span>
+<span class="fc" id="L71">        this.normalColor = normalColor;</span>
+<span class="fc" id="L72">        this.colorBlindColor = colorBlindColor;</span>
+<span class="fc" id="L73">        this.blockMapping = blockMapping;</span>
+<span class="fc" id="L74">    }</span>
+
+    public Position[] getOffsets(int rot) {
+<span class="fc" id="L77">        int[][] raw = rotations[rot &amp; 3];</span>
+<span class="fc" id="L78">        Position[] out = new Position[raw.length];</span>
+<span class="fc bfc" id="L79" title="All 2 branches covered.">        for (int i = 0; i &lt; raw.length; i++) out[i] = new Position(raw[i][0], raw[i][1]);</span>
+<span class="fc" id="L80">        return out;</span>
+    }
+
+    /**
+     * 현재 설정에 따라 적절한 색상 반환
+     */
+    public Color getColor() {
+<span class="pc bpc" id="L87" title="1 of 2 branches missed.">        return Settings.isColorBlind() ? colorBlindColor : normalColor;</span>
+    }
+
+    /**
+     * 일반 모드 색상 반환
+     */
+    public Color getNormalColor() {
+<span class="nc" id="L94">        return normalColor;</span>
+    }
+
+    /**
+     * 색맹 모드 색상 반환
+     */
+    public Color getColorBlindColor() {
+<span class="nc" id="L101">        return colorBlindColor;</span>
+    }
+
+    /**
+     * rotation 0의 블록 인덱스가 특정 rotation에서 어떤 인덱스가 되는지 반환
+     * @param rotation 현재 회전 상태 (0~3)
+     * @param indexInRotation0 rotation 0에서의 블록 인덱스
+     * @return 현재 rotation에서의 블록 인덱스
+     */
+    public int getMappedIndex(int rotation, int indexInRotation0) {
+<span class="fc" id="L111">        return blockMapping[rotation &amp; 3][indexInRotation0];</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.11.202310140853</span></div></body></html>

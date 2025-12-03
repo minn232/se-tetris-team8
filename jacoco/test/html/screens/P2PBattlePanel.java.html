@@ -1,0 +1,1357 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="ko"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>P2PBattlePanel.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">se-tetris-team8</a> &gt; <a href="index.source.html" class="el_package">screens</a> &gt; <span class="el_source">P2PBattlePanel.java</span></div><h1>P2PBattlePanel.java</h1><pre class="source lang-java linenums">package screens;
+
+import java.awt.Color;
+import java.awt.Dimension;
+import java.awt.Font;
+import java.awt.Graphics;
+import java.awt.Graphics2D;
+import java.awt.event.KeyAdapter;
+import java.awt.event.KeyEvent;
+import java.util.List;
+
+import javax.swing.JOptionPane;
+import javax.swing.JPanel;
+import javax.swing.SwingUtilities;
+import javax.swing.Timer;
+
+import core.Board;
+import core.Difficulty;
+import core.Position;
+import core.Settings;
+import core.ShapeType;
+import core.Tetromino;
+import network.NetworkManager;
+
+/**
+ * P2P 네트워크 대전 모드 게임 패널 - 두 개의 보드를 좌우로 배치
+ */
+public class P2PBattlePanel extends JPanel {
+
+<span class="fc" id="L30">    private long lastRTT = 0;</span>
+<span class="fc" id="L31">    private boolean isLagging = false;</span>
+    private final boolean isHost;
+
+    private final Board myBoard;      // 내 보드
+    private final Board enemyBoard;   // 상대 보드 (렌더링 전용)
+
+    private final Timer timer;
+    private Timer networkTimer;
+    private final int CELL;
+    private final int BOARD_W;
+    private final int BOARD_H;
+    private final int SIDE_W;
+    private final int GAP;  // 보드 사이 간격
+
+<span class="fc" id="L45">    private boolean paused = false;</span>
+<span class="fc" id="L46">    private final int baseDelay = 800;  // 대전모드 기본 속도</span>
+
+    // 시간제한 모드
+    private final boolean isTimeAttack;
+<span class="fc" id="L50">    private long timeLimit = 180000;  // 3분 (밀리초)</span>
+    private long gameStartTime;
+<span class="fc" id="L52">    private long pausedTime = 0;</span>
+<span class="fc" id="L53">    private long pauseStartTime = 0;</span>
+
+    // 각 보드별 플래시 애니메이션
+<span class="fc" id="L56">    private int[] flashingRowsMy = null;</span>
+<span class="fc" id="L57">    private int[] flashingRowsEnemy = null;</span>
+<span class="fc" id="L58">    private long flashUntilMy = 0;</span>
+<span class="fc" id="L59">    private long flashUntilEnemy = 0;</span>
+    private static final long FLASH_MS = 150;
+
+    // 승자 표시
+<span class="fc" id="L63">    private String winner = null;</span>
+
+    // 블록 배치 감지용
+<span class="fc" id="L66">    private Tetromino lastCurrentMy = null;</span>
+
+    // 내가 보낸 공격 패턴 (UI 표시용)
+<span class="fc" id="L69">    private List&lt;ShapeType[]&gt; outgoingAttackPattern = new java.util.ArrayList&lt;&gt;();</span>
+
+    // ===== CHAT UI =====
+    private javax.swing.JTextArea chatArea;
+    private javax.swing.JTextField chatInput;
+    private javax.swing.JButton chatSendBtn;
+
+    // ===== 네트워크 상태 체크용 =====
+<span class="fc" id="L77">    private long lastAliveTime = System.currentTimeMillis();</span>
+<span class="fc" id="L78">    private boolean connectionLost = false;</span>
+    
+    // ===== 게임 오버 버튼 네비게이션 =====
+<span class="fc" id="L81">    private int selectedButtonIndex = 0;</span>
+    private javax.swing.JButton restartButton;
+    private javax.swing.JButton menuButton;
+
+        public P2PBattlePanel(
+        Difficulty difficulty, 
+        boolean isItemMode, 
+        boolean isTimeAttack,
+        boolean isHost
+<span class="fc" id="L90">    ) {</span>
+<span class="fc" id="L91">        this.isTimeAttack = isTimeAttack;</span>
+<span class="fc" id="L92">        this.isHost = isHost; </span>
+        
+<span class="fc" id="L94">        this.myBoard = new Board(difficulty, isItemMode);</span>
+<span class="fc" id="L95">        this.enemyBoard = new Board(difficulty, isItemMode);  // 렌더링 전용</span>
+<span class="fc" id="L96">        this.gameStartTime = System.currentTimeMillis();</span>
+
+        // 메인 메뉴 음악 끄고 게임 음악 켜기 (설정된 볼륨으로)
+<span class="fc" id="L99">        BackgroundMusicPlayer.getInstance().stop();</span>
+<span class="fc" id="L100">        BackgroundMusicPlayer.getInstance().play(&quot;/music/InGameBGM.wav&quot;, Settings.getGameMusicVolume());</span>
+
+        // Settings에서 셀 크기 및 화면 크기 계산
+<span class="fc" id="L103">        this.CELL = Settings.getCellSize();</span>
+<span class="fc" id="L104">        this.BOARD_W = Board.COLS * CELL;</span>
+<span class="fc" id="L105">        this.BOARD_H = Board.ROWS * CELL;</span>
+<span class="fc" id="L106">        this.SIDE_W = (int) (200 * Settings.getScaleFactor());</span>
+<span class="fc" id="L107">        this.GAP = (int) (50 * Settings.getScaleFactor());</span>
+
+        // 전체 패널 크기: SIDE + BOARD + GAP + BOARD + SIDE
+<span class="fc" id="L110">        int totalWidth = SIDE_W + BOARD_W + GAP + BOARD_W + SIDE_W;</span>
+
+        // ★ 수정된 부분
+<span class="fc" id="L113">        setPreferredSize(new Dimension(totalWidth, BOARD_H + 200));</span>
+
+<span class="fc" id="L115">        setBackground(Color.BLACK);</span>
+<span class="fc" id="L116">        setFocusable(true);</span>
+
+
+        // 키 입력 처리
+<span class="fc" id="L120">        addKeyListener(new KeyAdapter() {</span>
+            @Override
+            public void keyPressed(KeyEvent e) {
+<span class="nc" id="L123">                handleKeyPress(e);</span>
+<span class="nc" id="L124">            }</span>
+        });
+
+// 게임 타이머
+<span class="fc" id="L128">        timer = new Timer(baseDelay, e -&gt; {</span>
+<span class="nc bnc" id="L129" title="All 4 branches missed.">            if (!paused &amp;&amp; winner == null) {</span>
+<span class="nc bnc" id="L130" title="All 2 branches missed.">                if (!myBoard.isGameOver()) {</span>
+                    // 블록 고정 후 새 블록이 떴는지 체크 + 공격줄 적용
+<span class="nc" id="L132">                    checkBlockPlacement();</span>
+
+                    // 자동 한 칸 낙하
+<span class="nc" id="L135">                    boolean moved = myBoard.moveDown();</span>
+
+<span class="nc bnc" id="L137" title="All 2 branches missed.">                    if (moved) {</span>
+<span class="nc" id="L138">                        checkFlashing(myBoard, true);</span>
+<span class="nc" id="L139">                        sendBoardState(); // 낙하 상태도 상대에게 전송</span>
+                    }
+                }
+
+                // 승자 확인
+<span class="nc" id="L144">                checkWinner();</span>
+<span class="nc" id="L145">                repaint();</span>
+            }
+<span class="nc" id="L147">        });</span>
+<span class="fc" id="L148">        timer.start();</span>
+
+        // 네트워크 상태 체크 타이머 추가
+<span class="pc" id="L151">        networkTimer = new Timer(100, ev -&gt; checkNetworkStatus());</span>
+<span class="fc" id="L152">        networkTimer.start();</span>
+
+        // 초기 현재 블록 저장
+<span class="fc" id="L155">        lastCurrentMy = myBoard.getCurrent();</span>
+
+        // 네트워크 메시지 수신 핸들러
+<span class="fc" id="L158">        NetworkManager.getInstance().setMessageListener(msg -&gt; {</span>
+<span class="nc" id="L159">            handleNetworkMessage(msg);</span>
+<span class="nc" id="L160">        });</span>
+// ===== CHAT UI INIT =====
+<span class="fc" id="L162">        setLayout(null);</span>
+
+// 채팅 화면
+<span class="fc" id="L165">        chatArea = new javax.swing.JTextArea();</span>
+<span class="fc" id="L166">        chatArea.setEditable(false);</span>
+<span class="fc" id="L167">        chatArea.setLineWrap(true);</span>
+<span class="fc" id="L168">        chatArea.setWrapStyleWord(true);</span>
+
+// ★ 배경 검정, 글씨 흰색
+<span class="fc" id="L171">        chatArea.setBackground(Color.BLACK);</span>
+<span class="fc" id="L172">        chatArea.setForeground(Color.WHITE);</span>
+<span class="fc" id="L173">        chatArea.setFont(new Font(&quot;맑은 고딕&quot;, Font.PLAIN, 14));</span>
+
+<span class="fc" id="L175">        javax.swing.JScrollPane scroll = new javax.swing.JScrollPane(chatArea);</span>
+<span class="fc" id="L176">        scroll.setBounds(10, BOARD_H + 10, 400, 90);</span>
+
+// 스크롤도 검정 테마
+<span class="fc" id="L179">        scroll.getViewport().setBackground(Color.BLACK);</span>
+<span class="fc" id="L180">        scroll.setBorder(javax.swing.BorderFactory.createLineBorder(Color.WHITE));</span>
+
+// 입력창
+<span class="fc" id="L183">        chatInput = new javax.swing.JTextField();</span>
+<span class="fc" id="L184">        chatInput.setBounds(10, BOARD_H + 110, 300, 30);</span>
+
+// ★ 입력창도 배경 검정 + 흰 글씨
+<span class="fc" id="L187">        chatInput.setBackground(Color.BLACK);</span>
+<span class="fc" id="L188">        chatInput.setForeground(Color.WHITE);</span>
+<span class="fc" id="L189">        chatInput.setCaretColor(Color.WHITE);</span>
+<span class="fc" id="L190">        chatInput.setBorder(javax.swing.BorderFactory.createLineBorder(Color.WHITE));</span>
+
+// Send 버튼
+<span class="fc" id="L193">        chatSendBtn = new javax.swing.JButton(&quot;Send&quot;);</span>
+<span class="fc" id="L194">        chatSendBtn.setBounds(320, BOARD_H + 110, 90, 30);</span>
+
+// ★ 버튼도 검정 스타일
+<span class="fc" id="L197">        chatSendBtn.setBackground(new Color(30, 30, 30));</span>
+<span class="fc" id="L198">        chatSendBtn.setForeground(Color.WHITE);</span>
+<span class="fc" id="L199">        chatSendBtn.setBorder(javax.swing.BorderFactory.createLineBorder(Color.WHITE));</span>
+
+<span class="pc" id="L201">        chatSendBtn.addActionListener(e -&gt; sendChat());</span>
+<span class="pc" id="L202">        chatInput.addActionListener(e -&gt; sendChat());</span>
+
+<span class="fc" id="L204">        add(scroll);</span>
+<span class="fc" id="L205">        add(chatInput);</span>
+<span class="fc" id="L206">        add(chatSendBtn);</span>
+
+<span class="fc" id="L208">    }</span>
+
+    // 네트워크 지연/끊김 상태 체크
+    private void checkNetworkStatus() {
+
+<span class="fc" id="L213">        long now = System.currentTimeMillis();</span>
+
+        // RTT 업데이트
+<span class="fc" id="L216">        lastRTT = NetworkManager.getInstance().getRTT();</span>
+
+        // 상대방 최신 PONG 시각 가져오기
+<span class="fc" id="L219">        long pongTime = NetworkManager.getInstance().getLastPingTime();</span>
+<span class="pc bpc" id="L220" title="1 of 2 branches missed.">        if (pongTime &gt; 0) {</span>
+<span class="fc" id="L221">            lastAliveTime = pongTime;</span>
+        }
+
+        // 1) RTT 기반 랙 여부 판단
+<span class="pc bpc" id="L225" title="1 of 2 branches missed.">        isLagging = lastRTT &gt; 200;</span>
+
+        // 2) 5초 이상 응답 없음 = 연결 끊김
+<span class="pc bpc" id="L228" title="1 of 2 branches missed.">        if (now - lastAliveTime &gt; 5000) {</span>
+<span class="fc" id="L229">            timer.stop();</span>
+<span class="nc" id="L230">            JOptionPane.showMessageDialog(</span>
+                    this,
+                    &quot;네트워크 연결이 끊어졌습니다.&quot;,
+                    &quot;Connection Lost&quot;,
+                    JOptionPane.ERROR_MESSAGE
+            );
+<span class="nc" id="L236">            returnToMenu();</span>
+        }
+
+<span class="nc" id="L239">        repaint();</span>
+<span class="nc" id="L240">    }</span>
+
+    private void checkBlockPlacement() {
+<span class="fc" id="L243">        Tetromino current = myBoard.getCurrent();</span>
+
+        // 새로운 블록이 생성되었을 때 (블록이 배치된 직후)
+<span class="pc bpc" id="L246" title="3 of 4 branches missed.">        if (current != lastCurrentMy &amp;&amp; lastCurrentMy != null) {</span>
+            // 대기 중인 공격 줄을 적용
+<span class="nc" id="L248">            myBoard.applyPendingAttackLines();</span>
+
+            // 내가 보낸 공격 패턴 UI 초기화
+<span class="nc" id="L251">            outgoingAttackPattern.clear();</span>
+
+            // 내 보드 상태를 네트워크로 전송
+<span class="nc" id="L254">            sendBoardState();</span>
+        }
+
+        // 현재 블록 저장
+<span class="fc" id="L258">        lastCurrentMy = current;</span>
+<span class="fc" id="L259">    }</span>
+
+    private void handleKeyPress(KeyEvent e) {
+<span class="nc" id="L262">        int code = e.getKeyCode();</span>
+
+        // ENTER → 채팅창 포커스 이동 (추가 옵션)
+<span class="nc bnc" id="L265" title="All 2 branches missed.">        if (code == KeyEvent.VK_ENTER) {</span>
+<span class="nc" id="L266">            chatInput.requestFocusInWindow();</span>
+<span class="nc" id="L267">            return;</span>
+        }
+
+        // 일시정지 (호스트만, 항상 처리)
+<span class="nc bnc" id="L271" title="All 2 branches missed.">        if (code == KeyEvent.VK_P) {</span>
+<span class="nc bnc" id="L272" title="All 2 branches missed.">            if (isHost) {</span>
+<span class="nc" id="L273">                togglePause();</span>
+            }
+<span class="nc" id="L275">            return;</span>
+        }
+
+        // 승자가 있거나 pause 상태면 게임 조작 무시
+<span class="nc bnc" id="L279" title="All 4 branches missed.">        if (winner != null || paused) {</span>
+<span class="nc" id="L280">            return;</span>
+        }
+
+        // 내 보드 조작
+<span class="nc bnc" id="L284" title="All 2 branches missed.">        if (!myBoard.isGameOver()) {</span>
+<span class="nc bnc" id="L285" title="All 2 branches missed.">            if (code == Settings.getKeyLeft(Settings.Player.P1)) {</span>
+<span class="nc" id="L286">                myBoard.moveLeft();</span>
+<span class="nc" id="L287">                checkFlashing(myBoard, true);</span>
+<span class="nc bnc" id="L288" title="All 2 branches missed.">            } else if (code == Settings.getKeyRight(Settings.Player.P1)) {</span>
+<span class="nc" id="L289">                myBoard.moveRight();</span>
+<span class="nc" id="L290">                checkFlashing(myBoard, true);</span>
+<span class="nc bnc" id="L291" title="All 2 branches missed.">            } else if (code == Settings.getKeyDown(Settings.Player.P1)) {</span>
+<span class="nc" id="L292">                myBoard.moveDown();</span>
+<span class="nc" id="L293">                checkFlashing(myBoard, true);</span>
+<span class="nc bnc" id="L294" title="All 2 branches missed.">            } else if (code == Settings.getKeyRotate(Settings.Player.P1)) {</span>
+<span class="nc" id="L295">                myBoard.rotate();</span>
+<span class="nc" id="L296">                checkFlashing(myBoard, true);</span>
+<span class="nc bnc" id="L297" title="All 2 branches missed.">            } else if (code == Settings.getKeyHardDrop(Settings.Player.P1)) {</span>
+<span class="nc" id="L298">                myBoard.hardDrop();</span>
+<span class="nc" id="L299">                checkFlashing(myBoard, true);</span>
+            }
+        }
+
+<span class="nc" id="L303">        repaint();</span>
+<span class="nc" id="L304">    }</span>
+
+
+    private void checkFlashing(Board board, boolean isMine) {
+<span class="fc" id="L308">        int[] rows = board.pollClearingRows();</span>
+<span class="pc bpc" id="L309" title="3 of 4 branches missed.">        if (rows != null &amp;&amp; rows.length &gt; 0) {</span>
+<span class="nc bnc" id="L310" title="All 2 branches missed.">            if (isMine) {</span>
+<span class="nc" id="L311">                flashingRowsMy = rows;</span>
+<span class="nc" id="L312">                flashUntilMy = System.currentTimeMillis() + FLASH_MS;</span>
+
+                // 2줄 이상 클리어 시 상대에게 공격 전송
+<span class="nc bnc" id="L315" title="All 2 branches missed.">            if (rows.length &gt;= 2) {</span>
+<span class="nc" id="L316">                List&lt;ShapeType[]&gt; attackPattern = myBoard.getAttackPattern(rows);</span>
+
+                // 상대에게 전송
+<span class="nc" id="L319">                sendAttackPattern(attackPattern);</span>
+<span class="nc" id="L320">            }</span>
+            } else {
+<span class="nc" id="L322">                flashingRowsEnemy = rows;</span>
+<span class="nc" id="L323">                flashUntilEnemy = System.currentTimeMillis() + FLASH_MS;</span>
+            }
+
+            // 플래시 애니메이션 타이머
+<span class="nc bnc" id="L327" title="All 4 branches missed.">            if (isMine &amp;&amp; flashingRowsMy != null) {</span>
+<span class="nc" id="L328">                Timer flashTimer = new Timer(20, null);</span>
+<span class="nc" id="L329">                flashTimer.addActionListener(ev -&gt; {</span>
+<span class="nc bnc" id="L330" title="All 2 branches missed.">                    if (System.currentTimeMillis() &gt;= flashUntilMy) {</span>
+<span class="nc" id="L331">                        myBoard.clearRows(flashingRowsMy);</span>
+<span class="nc" id="L332">                        flashingRowsMy = null;</span>
+<span class="nc" id="L333">                        ((Timer) ev.getSource()).stop();</span>
+                    }
+<span class="nc" id="L335">                    repaint();</span>
+<span class="nc" id="L336">                });</span>
+<span class="nc" id="L337">                flashTimer.setRepeats(true);</span>
+<span class="nc" id="L338">                flashTimer.start();</span>
+<span class="nc bnc" id="L339" title="All 4 branches missed.">            } else if (!isMine &amp;&amp; flashingRowsEnemy != null) {</span>
+<span class="nc" id="L340">                Timer flashTimer = new Timer(20, null);</span>
+<span class="nc" id="L341">                flashTimer.addActionListener(ev -&gt; {</span>
+<span class="nc bnc" id="L342" title="All 2 branches missed.">                    if (System.currentTimeMillis() &gt;= flashUntilEnemy) {</span>
+<span class="nc" id="L343">                        enemyBoard.clearRows(flashingRowsEnemy);</span>
+<span class="nc" id="L344">                        flashingRowsEnemy = null;</span>
+<span class="nc" id="L345">                        ((Timer) ev.getSource()).stop();</span>
+                    }
+<span class="nc" id="L347">                    repaint();</span>
+<span class="nc" id="L348">                });</span>
+<span class="nc" id="L349">                flashTimer.setRepeats(true);</span>
+<span class="nc" id="L350">                flashTimer.start();</span>
+            }
+        }
+<span class="fc" id="L353">    }</span>
+
+    private void togglePause() {
+<span class="nc bnc" id="L356" title="All 2 branches missed.">        paused = !paused;</span>
+<span class="nc bnc" id="L357" title="All 2 branches missed.">        if (paused) {</span>
+<span class="nc bnc" id="L358" title="All 2 branches missed.">            if (isTimeAttack) {</span>
+<span class="nc" id="L359">                pauseStartTime = System.currentTimeMillis();</span>
+            }
+            // 상대에게 PAUSE 알림
+<span class="nc" id="L362">            NetworkManager.getInstance().send(&quot;PAUSE&quot;);</span>
+<span class="nc" id="L363">            showPauseMenu();</span>
+        } else {
+<span class="nc bnc" id="L365" title="All 4 branches missed.">            if (isTimeAttack &amp;&amp; pauseStartTime &gt; 0) {</span>
+<span class="nc" id="L366">                pausedTime += System.currentTimeMillis() - pauseStartTime;</span>
+<span class="nc" id="L367">                pauseStartTime = 0;</span>
+            }
+            // 상대에게 RESUME 알림
+<span class="nc" id="L370">            NetworkManager.getInstance().send(&quot;RESUME&quot;);</span>
+        }
+<span class="nc" id="L372">        repaint();</span>
+<span class="nc" id="L373">    }</span>
+
+<span class="fc" id="L375">    private javax.swing.JDialog pauseDialog = null;</span>
+<span class="fc" id="L376">    private javax.swing.JButton[] pauseButtons = null;</span>
+<span class="fc" id="L377">    private int selectedPauseButton = 0;</span>
+    
+    private void showPauseMenu() {
+<span class="nc" id="L380">        int baseFontSize = Settings.getBaseFontSize();</span>
+<span class="nc" id="L381">        double scale = Settings.getScaleFactor();</span>
+        
+<span class="nc" id="L383">        pauseDialog = new javax.swing.JDialog((java.awt.Frame) null, &quot;Pause&quot;, true);</span>
+<span class="nc" id="L384">        pauseDialog.setLayout(new java.awt.BorderLayout());</span>
+<span class="nc" id="L385">        pauseDialog.setSize((int)(400 * scale), (int)(250 * scale));</span>
+<span class="nc" id="L386">        pauseDialog.setLocationRelativeTo(this);</span>
+<span class="nc" id="L387">        pauseDialog.setDefaultCloseOperation(javax.swing.JDialog.DO_NOTHING_ON_CLOSE);</span>
+        
+        // 메시지 패널
+<span class="nc" id="L390">        javax.swing.JPanel messagePanel = new javax.swing.JPanel();</span>
+<span class="nc" id="L391">        javax.swing.JLabel messageLabel = new javax.swing.JLabel(&quot;Game Paused&quot;);</span>
+<span class="nc" id="L392">        messageLabel.setFont(new Font(&quot;Arial&quot;, Font.BOLD, (int)(baseFontSize * 1.33)));</span>
+<span class="nc" id="L393">        messagePanel.add(messageLabel);</span>
+<span class="nc" id="L394">        pauseDialog.add(messagePanel, java.awt.BorderLayout.CENTER);</span>
+        
+        // 버튼 패널
+<span class="nc" id="L397">        javax.swing.JPanel buttonPanel = new javax.swing.JPanel();</span>
+<span class="nc" id="L398">        buttonPanel.setLayout(new java.awt.GridLayout(4, 1, 10, 10));</span>
+<span class="nc" id="L399">        buttonPanel.setBorder(javax.swing.BorderFactory.createEmptyBorder(10, 40, 20, 40));</span>
+        
+<span class="nc" id="L401">        javax.swing.JButton resumeButton = new javax.swing.JButton(&quot;Resume&quot;);</span>
+<span class="nc" id="L402">        javax.swing.JButton restartButton = new javax.swing.JButton(&quot;Restart&quot;);</span>
+<span class="nc" id="L403">        javax.swing.JButton menuButton = new javax.swing.JButton(&quot;Main Menu&quot;);</span>
+<span class="nc" id="L404">        javax.swing.JButton exitButton = new javax.swing.JButton(&quot;Exit&quot;);</span>
+        
+<span class="nc bnc" id="L406" title="All 2 branches missed.">        for (javax.swing.JButton btn : new javax.swing.JButton[]{resumeButton, restartButton, menuButton, exitButton}) {</span>
+<span class="nc" id="L407">            btn.setFont(new Font(&quot;Arial&quot;, Font.PLAIN, baseFontSize));</span>
+<span class="nc" id="L408">            btn.setFocusable(false);</span>
+        }
+        
+<span class="nc" id="L411">        resumeButton.addActionListener(e -&gt; {</span>
+<span class="nc" id="L412">            pauseDialog.dispose();</span>
+<span class="nc" id="L413">            paused = false;</span>
+<span class="nc bnc" id="L414" title="All 4 branches missed.">            if (isTimeAttack &amp;&amp; pauseStartTime &gt; 0) {</span>
+<span class="nc" id="L415">                pausedTime += System.currentTimeMillis() - pauseStartTime;</span>
+<span class="nc" id="L416">                pauseStartTime = 0;</span>
+            }
+<span class="nc" id="L418">            NetworkManager.getInstance().send(&quot;RESUME&quot;);</span>
+<span class="nc" id="L419">            requestFocusInWindow();</span>
+<span class="nc" id="L420">        });</span>
+        
+<span class="nc" id="L422">        restartButton.addActionListener(e -&gt; {</span>
+<span class="nc" id="L423">            pauseDialog.dispose();</span>
+            // 네트워크 대전에서는 재시작 불가
+<span class="nc" id="L425">            javax.swing.JOptionPane.showMessageDialog(this, </span>
+                &quot;Restart is not available in network mode.&quot;, 
+                &quot;Info&quot;, 
+                javax.swing.JOptionPane.INFORMATION_MESSAGE);
+<span class="nc" id="L429">            paused = false;</span>
+<span class="nc bnc" id="L430" title="All 4 branches missed.">            if (isTimeAttack &amp;&amp; pauseStartTime &gt; 0) {</span>
+<span class="nc" id="L431">                pausedTime += System.currentTimeMillis() - pauseStartTime;</span>
+<span class="nc" id="L432">                pauseStartTime = 0;</span>
+            }
+<span class="nc" id="L434">            NetworkManager.getInstance().send(&quot;RESUME&quot;);</span>
+<span class="nc" id="L435">            requestFocusInWindow();</span>
+<span class="nc" id="L436">        });</span>
+        
+<span class="nc" id="L438">        menuButton.addActionListener(e -&gt; {</span>
+<span class="nc" id="L439">            pauseDialog.dispose();</span>
+<span class="nc" id="L440">            timer.stop();</span>
+<span class="nc" id="L441">            returnToMenu();</span>
+<span class="nc" id="L442">        });</span>
+        
+<span class="nc" id="L444">        exitButton.addActionListener(e -&gt; {</span>
+<span class="nc" id="L445">            pauseDialog.dispose();</span>
+<span class="nc" id="L446">            timer.stop();</span>
+<span class="nc" id="L447">            System.exit(0);</span>
+<span class="nc" id="L448">        });</span>
+        
+<span class="nc" id="L450">        buttonPanel.add(resumeButton);</span>
+<span class="nc" id="L451">        buttonPanel.add(restartButton);</span>
+<span class="nc" id="L452">        buttonPanel.add(menuButton);</span>
+<span class="nc" id="L453">        buttonPanel.add(exitButton);</span>
+<span class="nc" id="L454">        pauseDialog.add(buttonPanel, java.awt.BorderLayout.SOUTH);</span>
+        
+<span class="nc" id="L456">        pauseButtons = new javax.swing.JButton[]{resumeButton, restartButton, menuButton, exitButton};</span>
+<span class="nc" id="L457">        selectedPauseButton = 0;</span>
+<span class="nc" id="L458">        updatePauseButtonHighlight();</span>
+        
+<span class="nc" id="L460">        pauseDialog.addKeyListener(new KeyAdapter() {</span>
+            @Override
+            public void keyPressed(KeyEvent e) {
+<span class="nc" id="L463">                handlePauseKeyPress(e);</span>
+<span class="nc" id="L464">            }</span>
+        });
+        
+<span class="nc" id="L467">        pauseDialog.setFocusable(true);</span>
+<span class="nc" id="L468">        pauseDialog.setVisible(true);</span>
+<span class="nc" id="L469">    }</span>
+    
+    private void handlePauseKeyPress(KeyEvent e) {
+<span class="nc bnc" id="L472" title="All 4 branches missed.">        switch (e.getKeyCode()) {</span>
+            case KeyEvent.VK_UP:
+<span class="nc bnc" id="L474" title="All 2 branches missed.">                if (selectedPauseButton &gt; 0) {</span>
+<span class="nc" id="L475">                    selectedPauseButton--;</span>
+<span class="nc" id="L476">                    updatePauseButtonHighlight();</span>
+                }
+                break;
+            case KeyEvent.VK_DOWN:
+<span class="nc bnc" id="L480" title="All 2 branches missed.">                if (selectedPauseButton &lt; pauseButtons.length - 1) {</span>
+<span class="nc" id="L481">                    selectedPauseButton++;</span>
+<span class="nc" id="L482">                    updatePauseButtonHighlight();</span>
+                }
+                break;
+            case KeyEvent.VK_ENTER:
+            case KeyEvent.VK_SPACE:
+<span class="nc" id="L487">                pauseButtons[selectedPauseButton].doClick();</span>
+                break;
+        }
+<span class="nc" id="L490">    }</span>
+    
+    private void updatePauseButtonHighlight() {
+<span class="nc bnc" id="L493" title="All 2 branches missed.">        for (int i = 0; i &lt; pauseButtons.length; i++) {</span>
+<span class="nc bnc" id="L494" title="All 2 branches missed.">            if (i == selectedPauseButton) {</span>
+<span class="nc" id="L495">                pauseButtons[i].setBackground(new Color(100, 150, 255));</span>
+<span class="nc" id="L496">                pauseButtons[i].setOpaque(true);</span>
+            } else {
+<span class="nc" id="L498">                pauseButtons[i].setBackground(null);</span>
+<span class="nc" id="L499">                pauseButtons[i].setOpaque(false);</span>
+            }
+        }
+<span class="nc" id="L502">    }</span>
+
+    private void checkWinner() {
+<span class="nc" id="L505">        boolean myOver = myBoard.isGameOver();</span>
+<span class="nc" id="L506">        boolean enemyOver = enemyBoard.isGameOver();</span>
+
+        // 시간제한 모드: 시간이 다 되면 점수로 승부 판정
+<span class="nc bnc" id="L509" title="All 4 branches missed.">        if (isTimeAttack &amp;&amp; winner == null) {</span>
+<span class="nc" id="L510">            long elapsedTime = System.currentTimeMillis() - gameStartTime - pausedTime;</span>
+<span class="nc bnc" id="L511" title="All 2 branches missed.">            if (elapsedTime &gt;= timeLimit) {</span>
+<span class="nc" id="L512">                int myScore = myBoard.getScore();</span>
+<span class="nc" id="L513">                int enemyScore = enemyBoard.getScore();</span>
+
+<span class="nc bnc" id="L515" title="All 2 branches missed.">                if (myScore &gt; enemyScore) {</span>
+<span class="nc" id="L516">                    winner = &quot;YOU WIN&quot;;</span>
+<span class="nc bnc" id="L517" title="All 2 branches missed.">                } else if (enemyScore &gt; myScore) {</span>
+<span class="nc" id="L518">                    winner = &quot;YOU LOSE&quot;;</span>
+                } else {
+<span class="nc" id="L520">                    winner = &quot;DRAW&quot;;</span>
+                }
+<span class="nc" id="L522">                timer.stop();</span>
+<span class="nc" id="L523">                showGameOver();</span>
+<span class="nc" id="L524">                return;</span>
+            }
+        }
+
+<span class="nc bnc" id="L528" title="All 4 branches missed.">        if (myOver &amp;&amp; enemyOver) {</span>
+<span class="nc" id="L529">            winner = &quot;DRAW&quot;;</span>
+<span class="nc" id="L530">            timer.stop();</span>
+<span class="nc" id="L531">            networkTimer.stop();</span>
+<span class="nc" id="L532">            showGameOver();</span>
+<span class="nc bnc" id="L533" title="All 2 branches missed.">        } else if (myOver) {</span>
+            // 내가 먼저 죽었다 → 상대에게 GAMEOVER 알림 보내기
+<span class="nc" id="L535">            NetworkManager.getInstance().send(&quot;GAMEOVER&quot;);</span>
+
+<span class="nc" id="L537">            winner = &quot;YOU LOSE&quot;;</span>
+<span class="nc" id="L538">            timer.stop();</span>
+<span class="nc" id="L539">            networkTimer.stop();</span>
+<span class="nc" id="L540">            showGameOver();</span>
+<span class="nc bnc" id="L541" title="All 2 branches missed.">        } else if (enemyOver) {</span>
+<span class="nc" id="L542">            winner = &quot;YOU WIN&quot;;</span>
+<span class="nc" id="L543">            timer.stop();</span>
+<span class="nc" id="L544">            networkTimer.stop();</span>
+<span class="nc" id="L545">            showGameOver();</span>
+        }
+<span class="nc" id="L547">    }</span>
+
+    private void showGameOver() {
+<span class="fc" id="L550">        SwingUtilities.invokeLater(() -&gt; {</span>
+<span class="fc" id="L551">            String message = winner;</span>
+<span class="fc" id="L552">            int baseFontSize = Settings.getBaseFontSize();</span>
+<span class="fc" id="L553">            double scale = Settings.getScaleFactor();</span>
+
+            // 커스텀 패널 생성
+<span class="fc" id="L556">            javax.swing.JPanel panel = new javax.swing.JPanel();</span>
+<span class="fc" id="L557">            panel.setLayout(new java.awt.BorderLayout(10, 10));</span>
+<span class="fc" id="L558">            panel.setBorder(javax.swing.BorderFactory.createEmptyBorder(20, 20, 20, 20));</span>
+            
+<span class="fc" id="L560">            javax.swing.JLabel messageLabel = new javax.swing.JLabel(message);</span>
+<span class="fc" id="L561">            messageLabel.setHorizontalAlignment(javax.swing.SwingConstants.CENTER);</span>
+<span class="fc" id="L562">            messageLabel.setFont(new Font(&quot;Arial&quot;, Font.BOLD, (int)(baseFontSize * 1.5)));</span>
+<span class="fc" id="L563">            panel.add(messageLabel, java.awt.BorderLayout.CENTER);</span>
+            
+            // 버튼 패널
+<span class="fc" id="L566">            javax.swing.JPanel buttonPanel = new javax.swing.JPanel();</span>
+<span class="fc" id="L567">            buttonPanel.setLayout(new java.awt.FlowLayout(java.awt.FlowLayout.CENTER, 20, 10));</span>
+            
+<span class="fc" id="L569">            restartButton = new javax.swing.JButton(&quot;Restart&quot;);</span>
+<span class="fc" id="L570">            menuButton = new javax.swing.JButton(&quot;Return to Menu&quot;);</span>
+            
+<span class="fc" id="L572">            restartButton.setFont(new Font(&quot;Arial&quot;, Font.PLAIN, baseFontSize));</span>
+<span class="fc" id="L573">            menuButton.setFont(new Font(&quot;Arial&quot;, Font.PLAIN, baseFontSize));</span>
+            
+<span class="fc" id="L575">            restartButton.setPreferredSize(new Dimension((int)(120 * scale), (int)(40 * scale)));</span>
+<span class="fc" id="L576">            menuButton.setPreferredSize(new Dimension((int)(150 * scale), (int)(40 * scale)));</span>
+            
+<span class="fc" id="L578">            restartButton.setFocusable(false);</span>
+<span class="fc" id="L579">            menuButton.setFocusable(false);</span>
+            
+<span class="fc" id="L581">            buttonPanel.add(restartButton);</span>
+<span class="fc" id="L582">            buttonPanel.add(menuButton);</span>
+            
+<span class="fc" id="L584">            panel.add(buttonPanel, java.awt.BorderLayout.SOUTH);</span>
+            
+            // 초기 하이라이트
+<span class="fc" id="L587">            selectedButtonIndex = 0;</span>
+<span class="fc" id="L588">            updateGameOverButtonHighlight();</span>
+            
+            // 다이얼로그 생성
+<span class="fc" id="L591">            javax.swing.JDialog dialog = new javax.swing.JDialog((java.awt.Frame) null, &quot;Game Over&quot;, true);</span>
+<span class="fc" id="L592">            dialog.setContentPane(panel);</span>
+<span class="fc" id="L593">            dialog.setSize((int)(400 * scale), (int)(200 * scale));</span>
+<span class="fc" id="L594">            dialog.setLocationRelativeTo(this);</span>
+<span class="fc" id="L595">            dialog.setDefaultCloseOperation(javax.swing.JDialog.DO_NOTHING_ON_CLOSE);</span>
+            
+            // 키 리스너 추가
+<span class="fc" id="L598">            dialog.addKeyListener(new java.awt.event.KeyAdapter() {</span>
+                @Override
+                public void keyPressed(java.awt.event.KeyEvent e) {
+<span class="nc" id="L601">                    int code = e.getKeyCode();</span>
+                    
+<span class="nc bnc" id="L603" title="All 2 branches missed.">                    if (code == java.awt.event.KeyEvent.VK_LEFT) {</span>
+<span class="nc bnc" id="L604" title="All 2 branches missed.">                        if (selectedButtonIndex &gt; 0) {</span>
+<span class="nc" id="L605">                            selectedButtonIndex--;</span>
+<span class="nc" id="L606">                            updateGameOverButtonHighlight();</span>
+                        }
+<span class="nc bnc" id="L608" title="All 2 branches missed.">                    } else if (code == java.awt.event.KeyEvent.VK_RIGHT) {</span>
+<span class="nc bnc" id="L609" title="All 2 branches missed.">                        if (selectedButtonIndex &lt; 1) {</span>
+<span class="nc" id="L610">                            selectedButtonIndex++;</span>
+<span class="nc" id="L611">                            updateGameOverButtonHighlight();</span>
+                        }
+<span class="nc bnc" id="L613" title="All 4 branches missed.">                    } else if (code == java.awt.event.KeyEvent.VK_ENTER || code == java.awt.event.KeyEvent.VK_SPACE) {</span>
+<span class="nc" id="L614">                        dialog.dispose();</span>
+<span class="nc" id="L615">                        returnToMenu();</span>
+                    }
+<span class="nc" id="L617">                }</span>
+            });
+            
+            // 버튼 액션 리스너
+<span class="fc" id="L621">            restartButton.addActionListener(e -&gt; {</span>
+<span class="nc" id="L622">                dialog.dispose();</span>
+<span class="nc" id="L623">                returnToMenu();</span>
+<span class="nc" id="L624">            });</span>
+            
+<span class="fc" id="L626">            menuButton.addActionListener(e -&gt; {</span>
+<span class="nc" id="L627">                dialog.dispose();</span>
+<span class="nc" id="L628">                returnToMenu();</span>
+<span class="nc" id="L629">            });</span>
+            
+<span class="fc" id="L631">            dialog.setFocusable(true);</span>
+<span class="fc" id="L632">            dialog.requestFocusInWindow();</span>
+<span class="nc" id="L633">            dialog.setVisible(true);</span>
+<span class="nc" id="L634">        });</span>
+<span class="fc" id="L635">    }</span>
+    
+    private void updateGameOverButtonHighlight() {
+<span class="pc bpc" id="L638" title="2 of 4 branches missed.">        if (restartButton != null &amp;&amp; menuButton != null) {</span>
+<span class="pc bpc" id="L639" title="1 of 2 branches missed.">            if (selectedButtonIndex == 0) {</span>
+<span class="fc" id="L640">                restartButton.setBackground(new Color(100, 150, 255));</span>
+<span class="fc" id="L641">                restartButton.setForeground(Color.WHITE);</span>
+<span class="fc" id="L642">                restartButton.setOpaque(true);</span>
+<span class="fc" id="L643">                menuButton.setBackground(null);</span>
+<span class="fc" id="L644">                menuButton.setForeground(Color.BLACK);</span>
+<span class="fc" id="L645">                menuButton.setOpaque(false);</span>
+            } else {
+<span class="nc" id="L647">                menuButton.setBackground(new Color(100, 150, 255));</span>
+<span class="nc" id="L648">                menuButton.setForeground(Color.WHITE);</span>
+<span class="nc" id="L649">                menuButton.setOpaque(true);</span>
+<span class="nc" id="L650">                restartButton.setBackground(null);</span>
+<span class="nc" id="L651">                restartButton.setForeground(Color.BLACK);</span>
+<span class="nc" id="L652">                restartButton.setOpaque(false);</span>
+            }
+        }
+<span class="fc" id="L655">    }</span>
+
+    private void returnToMenu() {
+
+<span class="nc" id="L659">        NetworkManager.getInstance().setMessageListener(null);</span>
+<span class="nc" id="L660">        NetworkManager.getInstance().close();</span>
+
+<span class="nc" id="L662">        timer.stop();</span>
+<span class="nc" id="L663">        networkTimer.stop();</span>
+<span class="nc" id="L664">        BackgroundMusicPlayer.getInstance().stop();</span>
+
+<span class="nc" id="L666">        java.awt.Window w = SwingUtilities.getWindowAncestor(this);</span>
+<span class="nc bnc" id="L667" title="All 2 branches missed.">        if (w != null) {</span>
+<span class="nc" id="L668">            w.dispose();</span>
+        }
+
+<span class="nc" id="L671">        SwingUtilities.invokeLater(() -&gt; {</span>
+<span class="nc" id="L672">            Mainmenu menu = new Mainmenu();</span>
+<span class="nc" id="L673">            menu.setVisible(true);</span>
+<span class="nc" id="L674">        });</span>
+<span class="nc" id="L675">    }</span>
+
+    // ===== 네트워크 관련 메서드 =====
+    // 내 보드 상태 전송 (grid + current + score)
+    private void sendBoardState() {
+<span class="fc" id="L680">        ShapeType[][] grid = myBoard.getGrid();</span>
+<span class="fc" id="L681">        Tetromino cur = myBoard.getCurrent();</span>
+
+<span class="fc" id="L683">        StringBuilder sb = new StringBuilder();</span>
+<span class="fc" id="L684">        sb.append(&quot;BOARD:{&quot;);</span>
+
+        // ===== GRID =====
+<span class="fc" id="L687">        sb.append(&quot;\&quot;grid\&quot;:[&quot;);</span>
+<span class="fc bfc" id="L688" title="All 2 branches covered.">        for (int y = 0; y &lt; Board.ROWS; y++) {</span>
+<span class="fc" id="L689">            sb.append(&quot;[&quot;);</span>
+<span class="fc bfc" id="L690" title="All 2 branches covered.">            for (int x = 0; x &lt; Board.COLS; x++) {</span>
+<span class="fc" id="L691">                ShapeType s = grid[y][x];</span>
+<span class="pc bpc" id="L692" title="1 of 2 branches missed.">                sb.append(s == null ? &quot;\&quot;0\&quot;&quot; : &quot;\&quot;&quot; + s.name() + &quot;\&quot;&quot;);</span>
+<span class="fc bfc" id="L693" title="All 2 branches covered.">                if (x &lt; Board.COLS - 1) {</span>
+<span class="fc" id="L694">                    sb.append(&quot;,&quot;);</span>
+                }
+            }
+<span class="fc" id="L697">            sb.append(&quot;]&quot;);</span>
+<span class="fc bfc" id="L698" title="All 2 branches covered.">            if (y &lt; Board.ROWS - 1) {</span>
+<span class="fc" id="L699">                sb.append(&quot;,&quot;);</span>
+            }
+        }
+<span class="fc" id="L702">        sb.append(&quot;],&quot;);</span>
+
+        // ===== CURRENT BLOCK =====
+<span class="pc bpc" id="L705" title="1 of 2 branches missed.">        if (cur != null) {</span>
+<span class="fc" id="L706">            sb.append(&quot;\&quot;cur\&quot;:{&quot;);</span>
+<span class="fc" id="L707">            sb.append(&quot;\&quot;shape\&quot;:\&quot;&quot;).append(cur.getShape().name()).append(&quot;\&quot;,&quot;);</span>
+<span class="fc" id="L708">            sb.append(&quot;\&quot;x\&quot;:&quot;).append(cur.getX()).append(&quot;,&quot;);</span>
+<span class="fc" id="L709">            sb.append(&quot;\&quot;y\&quot;:&quot;).append(cur.getY()).append(&quot;,&quot;);</span>
+<span class="fc" id="L710">            sb.append(&quot;\&quot;rot\&quot;:&quot;).append(cur.getRotation());</span>
+<span class="fc" id="L711">            sb.append(&quot;},&quot;);</span>
+        } else {
+<span class="nc" id="L713">            sb.append(&quot;\&quot;cur\&quot;:null,&quot;);</span>
+        }
+
+<span class="fc" id="L716">        sb.append(&quot;\&quot;score\&quot;:&quot;).append(myBoard.getScore());</span>
+<span class="fc" id="L717">        sb.append(&quot;}&quot;);</span>
+
+<span class="fc" id="L719">        NetworkManager.getInstance().send(sb.toString());</span>
+<span class="fc" id="L720">    }</span>
+
+    // 공격 패턴 전송
+    private void sendAttackPattern(List&lt;ShapeType[]&gt; pattern) {
+        // 내가 보낸 공격 패턴을 저장 (UI 표시용)
+<span class="fc" id="L725">        outgoingAttackPattern = new java.util.ArrayList&lt;&gt;(pattern);</span>
+
+<span class="fc" id="L727">        StringBuilder sb = new StringBuilder();</span>
+<span class="fc" id="L728">        sb.append(&quot;ATTACK:{\&quot;rows\&quot;:[&quot;);</span>
+
+<span class="fc bfc" id="L730" title="All 2 branches covered.">        for (int i = 0; i &lt; pattern.size(); i++) {</span>
+<span class="fc" id="L731">            ShapeType[] row = pattern.get(i);</span>
+<span class="fc" id="L732">            sb.append(&quot;[&quot;);</span>
+<span class="fc bfc" id="L733" title="All 2 branches covered.">            for (int j = 0; j &lt; row.length; j++) {</span>
+<span class="fc" id="L734">                ShapeType s = row[j];</span>
+<span class="fc bfc" id="L735" title="All 2 branches covered.">                sb.append(s == null ? &quot;\&quot;0\&quot;&quot; : &quot;\&quot;&quot; + s.name() + &quot;\&quot;&quot;);</span>
+<span class="fc bfc" id="L736" title="All 2 branches covered.">                if (j &lt; row.length - 1) {</span>
+<span class="fc" id="L737">                    sb.append(&quot;,&quot;);</span>
+                }
+            }
+<span class="fc" id="L740">            sb.append(&quot;]&quot;);</span>
+<span class="pc bpc" id="L741" title="1 of 2 branches missed.">            if (i &lt; pattern.size() - 1) {</span>
+<span class="nc" id="L742">                sb.append(&quot;,&quot;);</span>
+            }
+        }
+
+<span class="fc" id="L746">        sb.append(&quot;]}&quot;);</span>
+<span class="pc bpc" id="L747" title="1 of 2 branches missed.">        NetworkManager.getInstance().send(&quot;ATTACK:&quot; + (isHost ? &quot;HOST&quot; : &quot;CLIENT&quot;) + &quot;:&quot; + sb.toString());</span>
+<span class="fc" id="L748">    }</span>
+
+    // 네트워크 메시지 수신
+    private void handleNetworkMessage(String msg) {
+
+        // 🔥 상대 alive 처리: 반드시 제일 위에 넣어야 함
+<span class="fc" id="L754">        lastAliveTime = System.currentTimeMillis();</span>
+
+        // ===== CHAT =====
+<span class="fc bfc" id="L757" title="All 2 branches covered.">        if (msg.startsWith(&quot;CHAT:&quot;)) {</span>
+<span class="fc" id="L758">            String text = msg.substring(5);</span>
+<span class="fc" id="L759">            chatArea.append(&quot;ENEMY: &quot; + text + &quot;\n&quot;);</span>
+<span class="fc" id="L760">            return;</span>
+        }
+
+        // ===== 상대 보드 상태 갱신 (grid + current) =====
+<span class="pc bpc" id="L764" title="1 of 2 branches missed.">        if (msg.startsWith(&quot;BOARD:&quot;)) {</span>
+<span class="nc" id="L765">            String json = msg.substring(6);</span>
+
+            // 네트워크 스레드 → EDT 로 넘기기
+<span class="nc" id="L768">            javax.swing.SwingUtilities.invokeLater(() -&gt; {</span>
+                try {
+<span class="nc" id="L770">                    updateEnemyBoard(json);</span>
+<span class="nc" id="L771">                } catch (Exception ex) {</span>
+<span class="nc" id="L772">                    ex.printStackTrace();</span>
+<span class="nc" id="L773">                }</span>
+<span class="nc" id="L774">                repaint();</span>
+<span class="nc" id="L775">            });</span>
+<span class="nc" id="L776">            return;</span>
+        }
+
+        // ===== 일시정지/재개 =====
+<span class="pc bpc" id="L780" title="1 of 2 branches missed.">        if (msg.equals(&quot;PAUSE&quot;)) {</span>
+<span class="nc" id="L781">            paused = true;</span>
+<span class="nc bnc" id="L782" title="All 2 branches missed.">            if (isTimeAttack) {</span>
+<span class="nc" id="L783">                pauseStartTime = System.currentTimeMillis();</span>
+            }
+<span class="nc" id="L785">            repaint();</span>
+<span class="nc" id="L786">            return;</span>
+        }
+
+<span class="pc bpc" id="L789" title="1 of 2 branches missed.">        if (msg.equals(&quot;RESUME&quot;)) {</span>
+<span class="nc" id="L790">            paused = false;</span>
+<span class="nc bnc" id="L791" title="All 4 branches missed.">            if (isTimeAttack &amp;&amp; pauseStartTime &gt; 0) {</span>
+<span class="nc" id="L792">                pausedTime += System.currentTimeMillis() - pauseStartTime;</span>
+<span class="nc" id="L793">                pauseStartTime = 0;</span>
+            }
+<span class="nc" id="L795">            repaint();</span>
+<span class="nc" id="L796">            return;</span>
+        }
+
+        // ===== 공격 패턴 수신 =====
+<span class="pc bpc" id="L800" title="1 of 2 branches missed.">        if (msg.startsWith(&quot;ATTACK:&quot;)) {</span>
+<span class="nc" id="L801">            String body = msg.substring(7); // HOST:{&quot;rows&quot;:[...}</span>
+<span class="nc" id="L802">            int p = body.indexOf(&quot;:&quot;);</span>
+<span class="nc bnc" id="L803" title="All 2 branches missed.">            if (p &lt; 0) return;</span>
+
+<span class="nc" id="L805">            String sender = body.substring(0, p);   // HOST or CLIENT</span>
+<span class="nc" id="L806">            String json = body.substring(p + 1);</span>
+
+            // 🔥 내가 보낸 공격이면 무시
+<span class="nc bnc" id="L809" title="All 4 branches missed.">            if ((sender.equals(&quot;HOST&quot;) &amp;&amp; isHost) ||</span>
+<span class="nc bnc" id="L810" title="All 4 branches missed.">                (sender.equals(&quot;CLIENT&quot;) &amp;&amp; !isHost)) {</span>
+<span class="nc" id="L811">                return;</span>
+            }
+
+            // 🔥 상대 공격은 적용
+<span class="nc" id="L815">            List&lt;ShapeType[]&gt; patterns = parseAttackPattern(json);</span>
+<span class="nc" id="L816">            SwingUtilities.invokeLater(() -&gt; {</span>
+<span class="nc" id="L817">                myBoard.addPendingAttackLines(patterns);</span>
+<span class="nc" id="L818">                repaint();</span>
+<span class="nc" id="L819">            });</span>
+
+<span class="nc" id="L821">            return;</span>
+        }
+
+
+        // ===== 상대 게임 오버 =====
+<span class="pc bpc" id="L826" title="1 of 2 branches missed.">        if (msg.equals(&quot;GAMEOVER&quot;)) {</span>
+<span class="pc bpc" id="L827" title="1 of 2 branches missed.">            if (winner == null) {</span>
+<span class="fc" id="L828">                winner = &quot;YOU WIN&quot;;</span>
+<span class="fc" id="L829">                timer.stop();</span>
+<span class="fc" id="L830">                showGameOver();</span>
+            }
+        }
+<span class="fc" id="L833">    }</span>
+
+    // 상대 보드(grid) 상태 갱신
+    // 상대 보드(grid + current) 상태 갱신
+    private void updateEnemyBoard(String json) {
+        try {
+            // ----- 1) GRID 파싱 -----
+<span class="fc" id="L840">            int gridStart = json.indexOf(&quot;\&quot;grid\&quot;:&quot;) + 7;</span>
+<span class="fc" id="L841">            int gridEnd = json.indexOf(&quot;],\&quot;cur\&quot;&quot;);</span>
+<span class="pc bpc" id="L842" title="2 of 4 branches missed.">            if (gridStart &lt; 7 || gridEnd &lt; 0) {</span>
+<span class="nc" id="L843">                return;</span>
+            }
+
+<span class="fc" id="L846">            String gridJson = json.substring(gridStart, gridEnd + 1);</span>
+<span class="fc" id="L847">            String[] rowStrs = gridJson.substring(1, gridJson.length() - 1).split(&quot;\\],\\[&quot;);</span>
+
+<span class="fc" id="L849">            ShapeType[][] newGrid = new ShapeType[Board.ROWS][Board.COLS];</span>
+
+<span class="pc bpc" id="L851" title="1 of 4 branches missed.">            for (int y = 0; y &lt; rowStrs.length &amp;&amp; y &lt; Board.ROWS; y++) {</span>
+<span class="fc" id="L852">                String row = rowStrs[y].replace(&quot;[&quot;, &quot;&quot;).replace(&quot;]&quot;, &quot;&quot;);</span>
+<span class="fc" id="L853">                String[] cols = row.split(&quot;,&quot;);</span>
+
+<span class="pc bpc" id="L855" title="1 of 4 branches missed.">                for (int x = 0; x &lt; cols.length &amp;&amp; x &lt; Board.COLS; x++) {</span>
+<span class="fc" id="L856">                    String v = cols[x].replace(&quot;\&quot;&quot;, &quot;&quot;);</span>
+<span class="pc bpc" id="L857" title="1 of 2 branches missed.">                    newGrid[y][x] = v.equals(&quot;0&quot;) ? null : ShapeType.valueOf(v);</span>
+                }
+            }
+
+            // Board.grid 내부 값만 복사
+<span class="fc" id="L862">            enemyBoard.setGrid(newGrid);</span>
+
+            // ----- 2) CURRENT 파싱 -----
+<span class="fc" id="L865">            int curIndex = json.indexOf(&quot;\&quot;cur\&quot;:&quot;);</span>
+<span class="pc bpc" id="L866" title="1 of 2 branches missed.">            if (curIndex == -1) {</span>
+                // cur 필드가 아예 없으면 current 제거
+<span class="nc" id="L868">                enemyBoard.overrideCurrent(null);</span>
+<span class="nc" id="L869">                return;</span>
+            }
+
+<span class="fc" id="L872">            int valueStart = curIndex + 6; // &quot;cur&quot;: 뒤</span>
+<span class="pc bpc" id="L873" title="1 of 2 branches missed.">            if (json.startsWith(&quot;null&quot;, valueStart)) {</span>
+                // &quot;cur&quot;:null 인 경우
+<span class="fc" id="L875">                enemyBoard.overrideCurrent(null);</span>
+<span class="fc" id="L876">                return;</span>
+            }
+
+            // &quot;cur&quot;:{ ... } 영역 추출
+<span class="nc" id="L880">            int braceStart = json.indexOf('{', curIndex);</span>
+<span class="nc" id="L881">            int braceEnd = json.indexOf('}', braceStart);</span>
+<span class="nc bnc" id="L882" title="All 4 branches missed.">            if (braceStart == -1 || braceEnd == -1) {</span>
+<span class="nc" id="L883">                enemyBoard.overrideCurrent(null);</span>
+<span class="nc" id="L884">                return;</span>
+            }
+
+<span class="nc" id="L887">            String curJson = json.substring(braceStart + 1, braceEnd);</span>
+<span class="nc" id="L888">            String[] fields = curJson.split(&quot;,&quot;);</span>
+
+<span class="nc" id="L890">            ShapeType type = null;</span>
+<span class="nc" id="L891">            int cx = 0;</span>
+<span class="nc" id="L892">            int cy = 0;</span>
+<span class="nc" id="L893">            int rot = 0;</span>
+
+<span class="nc bnc" id="L895" title="All 2 branches missed.">            for (String f : fields) {</span>
+<span class="nc" id="L896">                String[] kv = f.split(&quot;:&quot;);</span>
+<span class="nc bnc" id="L897" title="All 2 branches missed.">                if (kv.length != 2) {</span>
+<span class="nc" id="L898">                    continue;</span>
+                }
+
+<span class="nc" id="L901">                String key = kv[0].replace(&quot;\&quot;&quot;, &quot;&quot;).trim();</span>
+<span class="nc" id="L902">                String val = kv[1].replace(&quot;\&quot;&quot;, &quot;&quot;).trim();</span>
+
+<span class="nc bnc" id="L904" title="All 5 branches missed.">                switch (key) {</span>
+                    case &quot;shape&quot; -&gt;
+<span class="nc" id="L906">                        type = ShapeType.valueOf(val);</span>
+                    case &quot;x&quot; -&gt;
+<span class="nc" id="L908">                        cx = Integer.parseInt(val);</span>
+                    case &quot;y&quot; -&gt;
+<span class="nc" id="L910">                        cy = Integer.parseInt(val);</span>
+                    case &quot;rot&quot; -&gt;
+<span class="nc" id="L912">                        rot = Integer.parseInt(val);</span>
+                }
+            }
+
+<span class="nc bnc" id="L916" title="All 2 branches missed.">            if (type != null) {</span>
+<span class="nc" id="L917">                Tetromino enemyCur = new Tetromino(type, cx, cy);</span>
+                // Tetromino.rotate() 는 보드 충돌 검사 안 하니까 여기서 여러 번 돌려도 됨
+<span class="nc bnc" id="L919" title="All 2 branches missed.">                for (int i = 0; i &lt; rot; i++) {</span>
+<span class="nc" id="L920">                    enemyCur.rotate();</span>
+                }
+<span class="nc" id="L922">                enemyBoard.overrideCurrent(enemyCur);</span>
+<span class="nc" id="L923">            } else {</span>
+<span class="nc" id="L924">                enemyBoard.overrideCurrent(null);</span>
+            }
+<span class="nc bnc" id="L926" title="All 2 branches missed.">            if (type != null) {</span>
+<span class="nc" id="L927">                Tetromino enemyCur = new Tetromino(type, cx, cy);</span>
+<span class="nc bnc" id="L928" title="All 2 branches missed.">                for (int i = 0; i &lt; rot; i++) {</span>
+<span class="nc" id="L929">                    enemyCur.rotate();</span>
+                }
+<span class="nc" id="L931">                enemyBoard.overrideCurrent(enemyCur);</span>
+<span class="nc" id="L932">            } else {</span>
+<span class="nc" id="L933">                enemyBoard.overrideCurrent(null);</span>
+            }
+
+            // ===== SCORE 파싱 =====
+<span class="nc" id="L937">            int scoreIndex = json.indexOf(&quot;\&quot;score\&quot;:&quot;);</span>
+<span class="nc bnc" id="L938" title="All 2 branches missed.">            if (scoreIndex != -1) {</span>
+<span class="nc" id="L939">                int end = json.indexOf(&quot;}&quot;, scoreIndex);</span>
+<span class="nc bnc" id="L940" title="All 2 branches missed.">                if (end == -1) {</span>
+<span class="nc" id="L941">                    end = json.length();</span>
+                }
+<span class="nc" id="L943">                String val = json.substring(scoreIndex + 8, end).trim();</span>
+                try {
+<span class="nc" id="L945">                    int enemyScore = Integer.parseInt(val);</span>
+<span class="nc" id="L946">                    enemyBoard.setScore(enemyScore);   // ★ 상대 점수 갱신</span>
+<span class="nc" id="L947">                } catch (Exception ignored) {</span>
+<span class="nc" id="L948">                }</span>
+            }
+
+<span class="nc" id="L951">        } catch (Exception ex) {</span>
+<span class="nc" id="L952">            ex.printStackTrace();</span>
+<span class="nc" id="L953">         }</span>
+<span class="nc" id="L954">    }</span>
+
+    private void sendChat() {
+<span class="fc" id="L957">        String msg = chatInput.getText().trim();</span>
+<span class="fc bfc" id="L958" title="All 2 branches covered.">        if (msg.isEmpty()) {</span>
+<span class="fc" id="L959">            return;</span>
+        }
+
+<span class="fc" id="L962">        NetworkManager.getInstance().send(&quot;CHAT:&quot; + msg);</span>
+<span class="fc" id="L963">        chatArea.append(&quot;ME: &quot; + msg + &quot;\n&quot;);</span>
+<span class="fc" id="L964">        chatInput.setText(&quot;&quot;);</span>
+
+            
+        // ★ 게임 패널로 포커스 되돌리기
+<span class="fc" id="L968">        requestFocusInWindow();</span>
+<span class="fc" id="L969">    }</span>
+
+    // ATTACK 패턴 JSON 문자열 -&gt; List&lt;ShapeType[]&gt; 변환
+    private List&lt;ShapeType[]&gt; parseAttackPattern(String json) {
+<span class="fc" id="L973">        List&lt;ShapeType[]&gt; list = new java.util.ArrayList&lt;&gt;();</span>
+
+<span class="fc" id="L975">        int start = json.indexOf(&quot;[[&quot;) + 2;</span>
+<span class="fc" id="L976">        int end = json.lastIndexOf(&quot;]]&quot;);</span>
+<span class="pc bpc" id="L977" title="3 of 6 branches missed.">        if (start &lt; 2 || end &lt; 0 || start &gt;= end) {</span>
+<span class="nc" id="L978">            return list;</span>
+        }
+
+<span class="fc" id="L981">        String content = json.substring(start, end);</span>
+<span class="fc" id="L982">        String[] rowStrs = content.split(&quot;\\],\\[&quot;);</span>
+
+<span class="fc bfc" id="L984" title="All 2 branches covered.">        for (String row : rowStrs) {</span>
+<span class="fc" id="L985">            String cleaned = row.replace(&quot;[&quot;, &quot;&quot;).replace(&quot;]&quot;, &quot;&quot;);</span>
+<span class="fc" id="L986">            String[] cols = cleaned.split(&quot;,&quot;);</span>
+<span class="fc" id="L987">            ShapeType[] line = new ShapeType[cols.length];</span>
+
+<span class="fc bfc" id="L989" title="All 2 branches covered.">            for (int i = 0; i &lt; cols.length; i++) {</span>
+<span class="fc" id="L990">                String v = cols[i].replace(&quot;\&quot;&quot;, &quot;&quot;);</span>
+<span class="fc bfc" id="L991" title="All 2 branches covered.">                line[i] = v.equals(&quot;0&quot;) ? null : ShapeType.valueOf(v);</span>
+            }
+
+<span class="fc" id="L994">            list.add(line);</span>
+        }
+
+<span class="fc" id="L997">        return list;</span>
+    }
+
+    @Override
+protected void paintComponent(Graphics g) {
+<span class="fc" id="L1002">        super.paintComponent(g);</span>
+<span class="fc" id="L1003">        Graphics2D g2 = (Graphics2D) g.create();</span>
+
+<span class="fc" id="L1005">        int startX1 = SIDE_W;</span>
+<span class="fc" id="L1006">        int startX2 = SIDE_W + BOARD_W + GAP;</span>
+
+        // 내 보드 사이드바
+<span class="fc" id="L1009">        drawSidebar(g2, myBoard, 0, &quot;YOU&quot;);</span>
+
+        // 내 보드 영역
+<span class="fc" id="L1012">        g2.translate(startX1, 0);</span>
+<span class="fc" id="L1013">        drawBoard(g2, myBoard, flashingRowsMy);</span>
+<span class="fc" id="L1014">        drawCurrent(g2, myBoard);</span>
+<span class="fc" id="L1015">        drawGrid(g2);</span>
+<span class="fc" id="L1016">        g2.translate(-startX1, 0);</span>
+
+        // 보드 사이 간격
+<span class="fc" id="L1019">        g2.setColor(new Color(20, 20, 20));</span>
+<span class="fc" id="L1020">        g2.fillRect(SIDE_W + BOARD_W, 0, GAP, BOARD_H);</span>
+
+        // 상대 보드 영역
+<span class="fc" id="L1023">        g2.translate(startX2, 0);</span>
+<span class="fc" id="L1024">        drawBoard(g2, enemyBoard, flashingRowsEnemy);</span>
+<span class="fc" id="L1025">        drawCurrent(g2, enemyBoard);</span>
+<span class="fc" id="L1026">        drawGrid(g2);</span>
+<span class="fc" id="L1027">        g2.translate(-startX2, 0);</span>
+
+        // 상대 보드 사이드바
+<span class="fc" id="L1030">        drawSidebar(g2, enemyBoard, SIDE_W + BOARD_W + GAP + BOARD_W, &quot;ENEMY&quot;);</span>
+
+<span class="pc bpc" id="L1032" title="1 of 2 branches missed.">        if (paused) {</span>
+<span class="nc" id="L1033">            drawPaused(g2);</span>
+        }
+<span class="pc bpc" id="L1035" title="1 of 2 branches missed.">        if (winner != null) {</span>
+<span class="nc" id="L1036">            drawWinner(g2);</span>
+        }
+
+        // 네트워크 지연 표시
+<span class="fc" id="L1040">        g2.setFont(new Font(&quot;맑은 고딕&quot;, Font.BOLD, 16));</span>
+<span class="pc bpc" id="L1041" title="1 of 2 branches missed.">        g2.setColor(isLagging ? Color.RED : Color.GREEN);</span>
+<span class="fc" id="L1042">        String lagText = &quot;RTT: &quot; + lastRTT + &quot;ms&quot;;</span>
+<span class="fc" id="L1043">        g2.drawString(lagText, 20, 40);</span>
+
+<span class="fc" id="L1045">        g2.dispose();</span>
+
+<span class="fc" id="L1047">    }</span>
+
+    private void fillCell(Graphics2D g, int x, int y, Color c) {
+<span class="fc" id="L1050">        int px = x * CELL;</span>
+<span class="fc" id="L1051">        int py = y * CELL;</span>
+<span class="fc" id="L1052">        g.setColor(c);</span>
+<span class="fc" id="L1053">        g.fillRect(px, py, CELL, CELL);</span>
+<span class="fc" id="L1054">        g.setColor(c.darker());</span>
+<span class="fc" id="L1055">        g.drawRect(px, py, CELL, CELL);</span>
+<span class="fc" id="L1056">    }</span>
+
+    private void drawBoard(Graphics2D g, Board board, int[] flashRows) {
+<span class="fc" id="L1059">        ShapeType[][] grid = board.getGrid();</span>
+<span class="fc bfc" id="L1060" title="All 2 branches covered.">        for (int y = 0; y &lt; Board.ROWS; y++) {</span>
+<span class="fc" id="L1061">            boolean isFlashing = false;</span>
+<span class="pc bpc" id="L1062" title="1 of 2 branches missed.">            if (flashRows != null) {</span>
+<span class="nc bnc" id="L1063" title="All 2 branches missed.">                for (int fr : flashRows) {</span>
+<span class="nc bnc" id="L1064" title="All 2 branches missed.">                    if (fr == y) {</span>
+<span class="nc" id="L1065">                        isFlashing = true;</span>
+<span class="nc" id="L1066">                        break;</span>
+                    }
+                }
+            }
+
+<span class="fc bfc" id="L1071" title="All 2 branches covered.">            for (int x = 0; x &lt; Board.COLS; x++) {</span>
+<span class="fc" id="L1072">                ShapeType s = grid[y][x];</span>
+<span class="pc bpc" id="L1073" title="1 of 2 branches missed.">                if (s != null) {</span>
+<span class="nc bnc" id="L1074" title="All 2 branches missed.">                    Color color = isFlashing ? Color.WHITE : s.getColor();</span>
+<span class="nc" id="L1075">                    fillCell(g, x, y, color);</span>
+                }
+            }
+        }
+<span class="fc" id="L1079">    }</span>
+
+    private void drawCurrent(Graphics2D g, Board board) {
+<span class="fc" id="L1082">        Tetromino cur = board.getCurrent();</span>
+<span class="pc bpc" id="L1083" title="2 of 4 branches missed.">        if (cur == null || board.isGameOver()) {</span>
+<span class="nc" id="L1084">            return;</span>
+        }
+
+        // 현재 아이템 블록인지 확인
+<span class="fc" id="L1088">        items.ItemBlock currentItem = board.getCurrentItemBlock();</span>
+
+<span class="pc bpc" id="L1090" title="1 of 2 branches missed.">        if (currentItem != null) {</span>
+<span class="nc" id="L1091">            Position[] blocks = cur.getBlocks();</span>
+<span class="nc" id="L1092">            Color blockColor = Color.WHITE;</span>
+
+<span class="nc bnc" id="L1094" title="All 2 branches missed.">            for (int i = 0; i &lt; blocks.length; i++) {</span>
+<span class="nc" id="L1095">                Position p = blocks[i];</span>
+<span class="nc" id="L1096">                int px = cur.getX() + p.x;</span>
+<span class="nc" id="L1097">                int py = cur.getY() + p.y;</span>
+<span class="nc bnc" id="L1098" title="All 8 branches missed.">                if (px &gt;= 0 &amp;&amp; px &lt; Board.COLS &amp;&amp; py &gt;= 0 &amp;&amp; py &lt; Board.ROWS) {</span>
+<span class="nc" id="L1099">                    fillCell(g, px, py, blockColor);</span>
+
+                    char symbol;
+<span class="nc bnc" id="L1102" title="All 2 branches missed.">                    if (currentItem instanceof items.SlowBlock slowBlock) {</span>
+<span class="nc" id="L1103">                        symbol = slowBlock.getBlockSymbol(i);</span>
+<span class="nc bnc" id="L1104" title="All 2 branches missed.">                    } else if (currentItem instanceof items.LineBlock lineBlock) {</span>
+<span class="nc" id="L1105">                        symbol = lineBlock.getBlockSymbol(i);</span>
+<span class="nc bnc" id="L1106" title="All 2 branches missed.">                    } else if (currentItem instanceof items.BombBlock bombBlock) {</span>
+<span class="nc" id="L1107">                        symbol = bombBlock.getBlockSymbol(i);</span>
+<span class="nc bnc" id="L1108" title="All 2 branches missed.">                    } else if (currentItem instanceof items.WeightBlock weightBlock) {</span>
+<span class="nc" id="L1109">                        symbol = weightBlock.getBlockSymbol(i);</span>
+                    } else {
+<span class="nc" id="L1111">                        symbol = currentItem.getSymbol();</span>
+                    }
+
+<span class="nc" id="L1114">                    g.setColor(Color.BLACK);</span>
+<span class="nc" id="L1115">                    g.setFont(g.getFont().deriveFont(Font.BOLD, CELL * 0.8f));</span>
+<span class="nc" id="L1116">                    int symbolX = px * CELL + CELL / 4;</span>
+<span class="nc" id="L1117">                    int symbolY = py * CELL + CELL * 3 / 4;</span>
+<span class="nc" id="L1118">                    g.drawString(String.valueOf(symbol), symbolX, symbolY);</span>
+                }
+            }
+<span class="nc" id="L1121">        } else {</span>
+<span class="fc" id="L1122">            Color c = cur.getShape().getColor();</span>
+<span class="fc bfc" id="L1123" title="All 2 branches covered.">            for (Position p : cur.getBlocks()) {</span>
+<span class="fc" id="L1124">                int px = cur.getX() + p.x;</span>
+<span class="fc" id="L1125">                int py = cur.getY() + p.y;</span>
+<span class="pc bpc" id="L1126" title="4 of 8 branches missed.">                if (px &gt;= 0 &amp;&amp; px &lt; Board.COLS &amp;&amp; py &gt;= 0 &amp;&amp; py &lt; Board.ROWS) {</span>
+<span class="fc" id="L1127">                    fillCell(g, px, py, c);</span>
+                }
+            }
+        }
+<span class="fc" id="L1131">    }</span>
+
+    private void drawGrid(Graphics2D g) {
+<span class="fc" id="L1134">        g.setColor(new Color(20, 20, 20));</span>
+<span class="fc bfc" id="L1135" title="All 2 branches covered.">        for (int x = 0; x &lt;= Board.COLS; x++) {</span>
+<span class="fc" id="L1136">            g.drawLine(x * CELL, 0, x * CELL, BOARD_H);</span>
+        }
+<span class="fc bfc" id="L1138" title="All 2 branches covered.">        for (int y = 0; y &lt;= Board.ROWS; y++) {</span>
+<span class="fc" id="L1139">            g.drawLine(0, y * CELL, BOARD_W, y * CELL);</span>
+        }
+<span class="fc" id="L1141">    }</span>
+
+    private void drawSidebar(Graphics2D g, Board board, int sx, String playerName) {
+<span class="fc" id="L1144">        g.setColor(new Color(20, 20, 20));</span>
+<span class="fc" id="L1145">        g.fillRect(sx, 0, SIDE_W, BOARD_H);</span>
+
+<span class="fc" id="L1147">        g.setColor(Color.WHITE);</span>
+<span class="fc" id="L1148">        int baseFontSize = Settings.getBaseFontSize();</span>
+
+        // Player name
+<span class="fc" id="L1151">        g.setFont(g.getFont().deriveFont(Font.BOLD, (float) (baseFontSize * 0.89)));</span>
+<span class="fc" id="L1152">        g.drawString(playerName, sx + 20, 25);</span>
+
+        // NEXT
+<span class="fc" id="L1155">        g.setFont(g.getFont().deriveFont(Font.BOLD, (float) baseFontSize));</span>
+<span class="fc" id="L1156">        g.drawString(&quot;NEXT&quot;, sx + 20, 60);</span>
+<span class="fc" id="L1157">        drawNextPreview(g, sx + 20, 80, board);</span>
+
+        // ITEM (아이템 모드일 때만 표시)
+<span class="fc" id="L1160">        int yOffset = 0;</span>
+<span class="pc bpc" id="L1161" title="1 of 2 branches missed.">        if (board.isItemMode()) {</span>
+<span class="nc" id="L1162">            items.ItemBlock nextItem = board.getNextItemBlock();</span>
+<span class="nc bnc" id="L1163" title="All 2 branches missed.">            if (nextItem != null) {</span>
+<span class="nc" id="L1164">                g.setColor(Color.WHITE);</span>
+<span class="nc" id="L1165">                g.setFont(g.getFont().deriveFont(Font.BOLD, (float) (baseFontSize * 0.78)));</span>
+<span class="nc" id="L1166">                g.drawString(&quot;ITEM&quot;, sx + 20, 150);</span>
+<span class="nc" id="L1167">                drawItemPreview(g, sx + 20, 165, nextItem);</span>
+<span class="nc" id="L1168">                yOffset = 50;</span>
+            }
+        }
+
+        // SCORE
+<span class="fc" id="L1173">        g.setColor(Color.WHITE);</span>
+<span class="fc" id="L1174">        g.setFont(g.getFont().deriveFont(Font.BOLD, (float) baseFontSize));</span>
+<span class="fc" id="L1175">        g.drawString(&quot;SCORE&quot;, sx + 20, 190 + yOffset);</span>
+<span class="fc" id="L1176">        g.setFont(g.getFont().deriveFont(Font.PLAIN, (float) baseFontSize));</span>
+<span class="fc" id="L1177">        g.drawString(String.valueOf(board.getScore()), sx + 20, 218 + yOffset);</span>
+
+        // TIME (시간제한 모드일 때만 표시)
+<span class="pc bpc" id="L1180" title="1 of 2 branches missed.">        if (isTimeAttack) {</span>
+<span class="nc" id="L1181">            long elapsedTime = System.currentTimeMillis() - gameStartTime - pausedTime;</span>
+<span class="nc" id="L1182">            long remainingTime = Math.max(0, timeLimit - elapsedTime);</span>
+<span class="nc" id="L1183">            int seconds = (int) (remainingTime / 1000);</span>
+<span class="nc" id="L1184">            int minutes = seconds / 60;</span>
+<span class="nc" id="L1185">            seconds = seconds % 60;</span>
+
+<span class="nc bnc" id="L1187" title="All 2 branches missed.">            g.setColor(remainingTime &lt; 30000 ? Color.RED : Color.YELLOW);</span>
+<span class="nc" id="L1188">            g.setFont(g.getFont().deriveFont(Font.BOLD, (float) baseFontSize));</span>
+<span class="nc" id="L1189">            g.drawString(&quot;TIME&quot;, sx + 20, 240 + yOffset);</span>
+<span class="nc" id="L1190">            g.setFont(g.getFont().deriveFont(Font.PLAIN, (float) baseFontSize));</span>
+<span class="nc" id="L1191">            g.drawString(String.format(&quot;%d:%02d&quot;, minutes, seconds), sx + 20, 268 + yOffset);</span>
+<span class="nc" id="L1192">            yOffset += 50;</span>
+        }
+
+        // 대기 중인 공격 줄 표시
+        List&lt;ShapeType[]&gt; pendingPatterns;
+<span class="fc bfc" id="L1197" title="All 2 branches covered.">        if (board == myBoard) {</span>
+            // 내 보드: 내가 보낸 공격 패턴 표시
+<span class="fc" id="L1199">            pendingPatterns = outgoingAttackPattern;</span>
+        } else {
+            // 상대 보드: 상대가 받은 공격 패턴 표시
+<span class="fc" id="L1202">            pendingPatterns = board.getPendingAttackPattern();</span>
+        }
+<span class="fc" id="L1204">        int pendingLines = pendingPatterns.size();</span>
+<span class="fc" id="L1205">        int displayLines = 10;</span>
+<span class="fc" id="L1206">        int miniCellSize = 8;</span>
+<span class="fc" id="L1207">        int miniCols = 10;</span>
+<span class="fc" id="L1208">        int startX = sx + 20;</span>
+<span class="fc" id="L1209">        int startY = 250 + yOffset;</span>
+
+<span class="fc" id="L1211">        g.setColor(new Color(40, 40, 40));</span>
+<span class="fc" id="L1212">        g.fillRect(startX - 2, startY - 2, miniCols * miniCellSize + 4, displayLines * miniCellSize + 4);</span>
+
+<span class="fc bfc" id="L1214" title="All 2 branches covered.">        for (int row = 0; row &lt; displayLines; row++) {</span>
+<span class="fc bfc" id="L1215" title="All 2 branches covered.">            for (int col = 0; col &lt; miniCols; col++) {</span>
+<span class="fc" id="L1216">                int x = startX + col * miniCellSize;</span>
+<span class="fc" id="L1217">                int y = startY + row * miniCellSize;</span>
+
+<span class="fc" id="L1219">                int reverseRow = displayLines - 1 - row;</span>
+<span class="pc bpc" id="L1220" title="1 of 2 branches missed.">                if (reverseRow &lt; pendingLines) {</span>
+<span class="nc" id="L1221">                    ShapeType[] pattern = pendingPatterns.get(reverseRow);</span>
+<span class="nc bnc" id="L1222" title="All 2 branches missed.">                    if (pattern[col] != null) {</span>
+<span class="nc" id="L1223">                        g.setColor(new Color(128, 128, 128));</span>
+<span class="nc" id="L1224">                        g.fillRect(x, y, miniCellSize, miniCellSize);</span>
+<span class="nc" id="L1225">                        g.setColor(new Color(80, 80, 80));</span>
+<span class="nc" id="L1226">                        g.drawRect(x, y, miniCellSize, miniCellSize);</span>
+                    } else {
+<span class="nc" id="L1228">                        g.setColor(new Color(30, 30, 30));</span>
+<span class="nc" id="L1229">                        g.fillRect(x, y, miniCellSize, miniCellSize);</span>
+                    }
+<span class="nc" id="L1231">                } else {</span>
+<span class="fc" id="L1232">                    g.setColor(new Color(60, 60, 60));</span>
+<span class="fc" id="L1233">                    g.drawRect(x, y, miniCellSize, miniCellSize);</span>
+                }
+            }
+        }
+
+<span class="pc bpc" id="L1238" title="1 of 2 branches missed.">        if (pendingLines &gt; 10) {</span>
+<span class="nc" id="L1239">            g.setColor(Color.RED);</span>
+<span class="nc" id="L1240">            g.setFont(g.getFont().deriveFont(Font.BOLD, (float) (baseFontSize * 0.75)));</span>
+<span class="nc" id="L1241">            g.drawString(&quot;+&quot; + (pendingLines - 10), startX + miniCols * miniCellSize + 5, startY + displayLines * miniCellSize / 2);</span>
+        }
+<span class="fc" id="L1243">    }</span>
+
+    private void drawNextPreview(Graphics2D g, int px, int py, Board board) {
+<span class="fc" id="L1246">        g.setColor(new Color(60, 60, 60));</span>
+<span class="fc" id="L1247">        g.fillRoundRect(px - 10, py - 10, 80, 80, 8, 8);</span>
+
+<span class="fc" id="L1249">        ShapeType next = board.getNextShape();</span>
+<span class="pc bpc" id="L1250" title="1 of 2 branches missed.">        if (next != null) {</span>
+<span class="fc" id="L1251">            Position[] offs = next.getOffsets(0);</span>
+<span class="fc" id="L1252">            int minx = 99, miny = 99, maxx = -99, maxy = -99;</span>
+<span class="fc bfc" id="L1253" title="All 2 branches covered.">            for (Position p : offs) {</span>
+<span class="fc" id="L1254">                minx = Math.min(minx, p.x);</span>
+<span class="fc" id="L1255">                maxx = Math.max(maxx, p.x);</span>
+<span class="fc" id="L1256">                miny = Math.min(miny, p.y);</span>
+<span class="fc" id="L1257">                maxy = Math.max(maxy, p.y);</span>
+            }
+
+<span class="fc" id="L1260">            int cell = CELL / 2;</span>
+<span class="fc" id="L1261">            int w = (maxx - minx + 1) * cell;</span>
+<span class="fc" id="L1262">            int h = (maxy - miny + 1) * cell;</span>
+<span class="fc" id="L1263">            int cx = px + (80 - w) / 2 - 10;</span>
+<span class="fc" id="L1264">            int cy = py + (80 - h) / 2 - 10;</span>
+
+<span class="fc bfc" id="L1266" title="All 2 branches covered.">            for (Position p : offs) {</span>
+<span class="fc" id="L1267">                int cxp = cx + (p.x - minx) * cell;</span>
+<span class="fc" id="L1268">                int cyp = cy + (p.y - miny) * cell;</span>
+<span class="fc" id="L1269">                g.setColor(next.getColor());</span>
+<span class="fc" id="L1270">                g.fillRect(cxp, cyp, cell, cell);</span>
+<span class="fc" id="L1271">                g.setColor(next.getColor().darker());</span>
+<span class="fc" id="L1272">                g.drawRect(cxp, cyp, cell, cell);</span>
+            }
+        }
+<span class="fc" id="L1275">    }</span>
+
+    private void drawItemPreview(Graphics2D g, int px, int py, items.ItemBlock item) {
+<span class="nc" id="L1278">        ShapeType baseShape = item.getBaseShape();</span>
+<span class="nc" id="L1279">        Position[] offs = baseShape.getOffsets(0);</span>
+
+<span class="nc" id="L1281">        int minx = 99, miny = 99, maxx = -99, maxy = -99;</span>
+<span class="nc bnc" id="L1282" title="All 2 branches missed.">        for (Position p : offs) {</span>
+<span class="nc" id="L1283">            minx = Math.min(minx, p.x);</span>
+<span class="nc" id="L1284">            maxx = Math.max(maxx, p.x);</span>
+<span class="nc" id="L1285">            miny = Math.min(miny, p.y);</span>
+<span class="nc" id="L1286">            maxy = Math.max(maxy, p.y);</span>
+        }
+
+<span class="nc" id="L1289">        int cell = CELL / 2;</span>
+<span class="nc" id="L1290">        int previewSize = 80;</span>
+<span class="nc" id="L1291">        int padding = 10;</span>
+<span class="nc" id="L1292">        int w = (maxx - minx + 1) * cell;</span>
+<span class="nc" id="L1293">        int h = (maxy - miny + 1) * cell;</span>
+<span class="nc" id="L1294">        int cx = px + (previewSize - w) / 2 - padding;</span>
+<span class="nc" id="L1295">        int cy = py + (previewSize - h) / 2 - padding;</span>
+
+<span class="nc" id="L1297">        g.setColor(new Color(60, 60, 60));</span>
+<span class="nc" id="L1298">        g.fillRoundRect(px - padding, py - padding, previewSize, previewSize, 8, 8);</span>
+
+<span class="nc bnc" id="L1300" title="All 2 branches missed.">        for (int i = 0; i &lt; offs.length; i++) {</span>
+<span class="nc" id="L1301">            Position p = offs[i];</span>
+<span class="nc" id="L1302">            int cxp = cx + (p.x - minx) * cell;</span>
+<span class="nc" id="L1303">            int cyp = cy + (p.y - miny) * cell;</span>
+
+<span class="nc" id="L1305">            g.setColor(Color.WHITE);</span>
+<span class="nc" id="L1306">            g.fillRect(cxp, cyp, cell, cell);</span>
+<span class="nc" id="L1307">            g.setColor(Color.LIGHT_GRAY);</span>
+<span class="nc" id="L1308">            g.drawRect(cxp, cyp, cell, cell);</span>
+
+            char symbol;
+<span class="nc bnc" id="L1311" title="All 2 branches missed.">            if (item instanceof items.SlowBlock slowBlock) {</span>
+<span class="nc" id="L1312">                symbol = slowBlock.getBlockSymbol(i);</span>
+<span class="nc bnc" id="L1313" title="All 2 branches missed.">            } else if (item instanceof items.LineBlock lineBlock) {</span>
+<span class="nc" id="L1314">                symbol = lineBlock.getBlockSymbol(i);</span>
+            } else {
+<span class="nc" id="L1316">                symbol = item.getSymbol();</span>
+            }
+
+<span class="nc" id="L1319">            g.setColor(Color.BLACK);</span>
+<span class="nc" id="L1320">            g.setFont(g.getFont().deriveFont(Font.BOLD, cell * 0.8f));</span>
+<span class="nc" id="L1321">            int symbolX = cxp + cell / 4;</span>
+<span class="nc" id="L1322">            int symbolY = cyp + cell * 3 / 4;</span>
+<span class="nc" id="L1323">            g.drawString(String.valueOf(symbol), symbolX, symbolY);</span>
+        }
+<span class="nc" id="L1325">    }</span>
+
+    private void drawPaused(Graphics2D g) {
+<span class="fc" id="L1328">        g.setColor(new Color(0, 0, 0, 140));</span>
+<span class="fc" id="L1329">        g.fillRect(0, 0, getWidth(), getHeight());</span>
+<span class="fc" id="L1330">        g.setColor(Color.WHITE);</span>
+<span class="fc" id="L1331">        g.setFont(g.getFont().deriveFont(Font.BOLD, 48f));</span>
+<span class="fc" id="L1332">        String pauseText = &quot;PAUSED&quot;;</span>
+<span class="fc" id="L1333">        int textWidth = g.getFontMetrics().stringWidth(pauseText);</span>
+<span class="fc" id="L1334">        g.drawString(pauseText, (getWidth() - textWidth) / 2, getHeight() / 2);</span>
+<span class="fc" id="L1335">    }</span>
+
+    private void drawWinner(Graphics2D g) {
+<span class="fc" id="L1338">        g.setColor(new Color(0, 0, 0, 200));</span>
+<span class="fc" id="L1339">        g.fillRect(0, 0, getWidth(), getHeight());</span>
+
+<span class="pc bpc" id="L1341" title="1 of 2 branches missed.">        if (winner.equals(&quot;YOU WIN&quot;)) {</span>
+<span class="fc" id="L1342">            g.setColor(Color.YELLOW);</span>
+<span class="nc bnc" id="L1343" title="All 2 branches missed.">        } else if (winner.equals(&quot;YOU LOSE&quot;)) {</span>
+<span class="nc" id="L1344">            g.setColor(Color.RED);</span>
+        } else {
+<span class="nc" id="L1346">            g.setColor(Color.WHITE);</span>
+        }
+
+<span class="fc" id="L1349">        g.setFont(g.getFont().deriveFont(Font.BOLD, 56f));</span>
+<span class="fc" id="L1350">        String winText = winner;</span>
+<span class="fc" id="L1351">        int textWidth = g.getFontMetrics().stringWidth(winText);</span>
+<span class="fc" id="L1352">        g.drawString(winText, (getWidth() - textWidth) / 2, getHeight() / 2);</span>
+<span class="fc" id="L1353">    }</span>
+
+    
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.11.202310140853</span></div></body></html>

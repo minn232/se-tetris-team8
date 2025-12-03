@@ -1,0 +1,152 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="ko"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>WaitingRoomScreen.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">se-tetris-team8</a> &gt; <a href="index.source.html" class="el_package">screens</a> &gt; <span class="el_source">WaitingRoomScreen.java</span></div><h1>WaitingRoomScreen.java</h1><pre class="source lang-java linenums">package screens;
+
+import java.awt.Font;
+
+import javax.swing.JButton;
+import javax.swing.JFrame;
+import javax.swing.JLabel;
+import javax.swing.JPanel;
+import javax.swing.SwingUtilities;
+
+import core.Difficulty;
+import network.NetworkManager;
+
+public class WaitingRoomScreen extends JFrame {
+
+    private final boolean isHost;
+<span class="fc" id="L17">    private boolean myReady = false;</span>
+<span class="fc" id="L18">    private boolean enemyReady = false;</span>
+
+    private JLabel myStatusLabel;
+    private JLabel enemyStatusLabel;
+    private JButton readyButton;
+    private JButton startButton;
+
+<span class="fc" id="L25">    public WaitingRoomScreen(boolean isHost) {</span>
+<span class="fc" id="L26">        this.isHost = isHost;</span>
+
+<span class="fc" id="L28">        setTitle(&quot;P2P Waiting Room&quot;);</span>
+<span class="fc" id="L29">        setSize(400, 300);</span>
+<span class="fc" id="L30">        setResizable(false);</span>
+<span class="fc" id="L31">        setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);</span>
+<span class="fc" id="L32">        setLocationRelativeTo(null);</span>
+
+<span class="fc" id="L34">        initUI();</span>
+<span class="fc" id="L35">        initNetworkListener();</span>
+<span class="fc" id="L36">    }</span>
+
+    private void initUI() {
+<span class="fc" id="L39">        JPanel panel = new JPanel();</span>
+<span class="fc" id="L40">        panel.setLayout(null);</span>
+<span class="fc" id="L41">        setContentPane(panel);</span>
+
+<span class="fc bfc" id="L43" title="All 2 branches covered.">        JLabel title = new JLabel(isHost ? &quot;HOST Waiting Room&quot; : &quot;CLIENT Waiting Room&quot;);</span>
+<span class="fc" id="L44">        title.setBounds(90, 20, 250, 30);</span>
+<span class="fc" id="L45">        title.setFont(new Font(&quot;Arial&quot;, Font.BOLD, 20));</span>
+<span class="fc" id="L46">        panel.add(title);</span>
+
+<span class="fc" id="L48">        myStatusLabel = new JLabel(&quot;Me: Not Ready&quot;);</span>
+<span class="fc" id="L49">        myStatusLabel.setBounds(50, 70, 300, 30);</span>
+<span class="fc" id="L50">        panel.add(myStatusLabel);</span>
+
+<span class="fc" id="L52">        enemyStatusLabel = new JLabel(&quot;Enemy: Not Ready&quot;);</span>
+<span class="fc" id="L53">        enemyStatusLabel.setBounds(50, 110, 300, 30);</span>
+<span class="fc" id="L54">        panel.add(enemyStatusLabel);</span>
+
+<span class="fc" id="L56">        readyButton = new JButton(&quot;READY&quot;);</span>
+<span class="fc" id="L57">        readyButton.setBounds(50, 160, 120, 40);</span>
+<span class="pc" id="L58">        readyButton.addActionListener(e -&gt; toggleReady());</span>
+<span class="fc" id="L59">        panel.add(readyButton);</span>
+
+<span class="fc" id="L61">        startButton = new JButton(&quot;START&quot;);</span>
+<span class="fc" id="L62">        startButton.setBounds(200, 160, 120, 40);</span>
+<span class="fc" id="L63">        startButton.setEnabled(false);</span>
+<span class="fc" id="L64">        panel.add(startButton);</span>
+
+<span class="fc bfc" id="L66" title="All 2 branches covered.">        if (!isHost) {</span>
+<span class="fc" id="L67">            startButton.setVisible(false);</span>
+        }
+
+<span class="pc" id="L70">        startButton.addActionListener(e -&gt; startGameAsHost());</span>
+<span class="fc" id="L71">    }</span>
+
+    private void toggleReady() {
+<span class="fc bfc" id="L74" title="All 2 branches covered.">        myReady = !myReady;</span>
+
+<span class="fc bfc" id="L76" title="All 2 branches covered.">        if (myReady) {</span>
+<span class="fc" id="L77">            myStatusLabel.setText(&quot;Me: READY&quot;);</span>
+<span class="fc" id="L78">            NetworkManager.getInstance().send(&quot;READY&quot;);</span>
+        } else {
+<span class="fc" id="L80">            myStatusLabel.setText(&quot;Me: Not Ready&quot;);</span>
+<span class="fc" id="L81">            NetworkManager.getInstance().send(&quot;UNREADY&quot;);</span>
+        }
+
+<span class="fc" id="L84">        updateStartButtonState();</span>
+<span class="fc" id="L85">    }</span>
+
+    private void updateStartButtonState() {
+<span class="pc bpc" id="L88" title="1 of 2 branches missed.">        if (isHost) {</span>
+<span class="fc bfc" id="L89" title="All 4 branches covered.">            startButton.setEnabled(myReady &amp;&amp; enemyReady);</span>
+        }
+<span class="fc" id="L91">    }</span>
+
+    private void initNetworkListener() {
+
+<span class="fc" id="L95">        NetworkManager.getInstance().setMessageListener(msg -&gt; {</span>
+
+<span class="nc bnc" id="L97" title="All 2 branches missed.">            if (msg.equals(&quot;READY&quot;)) {</span>
+<span class="nc" id="L98">                enemyReady = true;</span>
+<span class="nc" id="L99">                enemyStatusLabel.setText(&quot;Enemy: READY&quot;);</span>
+<span class="nc" id="L100">                updateStartButtonState();</span>
+            }
+<span class="nc bnc" id="L102" title="All 2 branches missed.">            else if (msg.equals(&quot;UNREADY&quot;)) {</span>
+<span class="nc" id="L103">                enemyReady = false;</span>
+<span class="nc" id="L104">                enemyStatusLabel.setText(&quot;Enemy: Not Ready&quot;);</span>
+<span class="nc" id="L105">                updateStartButtonState();</span>
+            }
+<span class="nc bnc" id="L107" title="All 2 branches missed.">            else if (msg.startsWith(&quot;MODE:&quot;)) {</span>
+
+<span class="nc" id="L109">                String mode = msg.substring(5);</span>
+
+<span class="nc" id="L111">                SwingUtilities.invokeLater(() -&gt; {</span>
+<span class="nc" id="L112">                    dispose();</span>
+<span class="nc" id="L113">                    launchBattle(mode);</span>
+<span class="nc" id="L114">                });</span>
+            }
+<span class="nc" id="L116">        });</span>
+<span class="fc" id="L117">    }</span>
+
+    private void startGameAsHost() {
+<span class="fc bfc" id="L120" title="All 2 branches covered.">        if (!isHost) return;</span>
+<span class="pc bpc" id="L121" title="1 of 4 branches missed.">        if (!myReady || !enemyReady) return;</span>
+
+<span class="nc" id="L123">        dispose();</span>
+<span class="nc" id="L124">        new NetworkModeSelectionScreen(true).setVisible(true);</span>
+<span class="nc" id="L125">    }</span>
+
+    private void launchBattle(String mode) {
+
+<span class="nc" id="L129">        JFrame frame = new JFrame(&quot;P2P Battle&quot;);</span>
+<span class="nc" id="L130">        frame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);</span>
+
+<span class="nc" id="L132">        boolean isItem = mode.equals(&quot;ITEM&quot;);</span>
+<span class="nc" id="L133">        boolean isTime = mode.equals(&quot;TIME&quot;);</span>
+
+        // 🔥🔥🔥 수정된 부분: isHost 추가
+<span class="nc" id="L136">        P2PBattlePanel panel =</span>
+            new P2PBattlePanel(Difficulty.NORMAL, isItem, isTime, isHost);
+
+<span class="nc" id="L139">        frame.setContentPane(panel);</span>
+
+<span class="nc" id="L141">        frame.setSize(</span>
+<span class="nc" id="L142">            panel.getPreferredSize().width + 20,</span>
+<span class="nc" id="L143">            panel.getPreferredSize().height + 180</span>
+        );
+
+<span class="nc" id="L146">        frame.setLocationRelativeTo(null);</span>
+<span class="nc" id="L147">        frame.setVisible(true);</span>
+
+<span class="nc" id="L149">        panel.requestFocusInWindow();</span>
+<span class="nc" id="L150">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.11.202310140853</span></div></body></html>

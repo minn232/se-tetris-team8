@@ -1,0 +1,128 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="ko"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ScreenNavigator.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">se-tetris-team8</a> &gt; <a href="index.source.html" class="el_package">screens</a> &gt; <span class="el_source">ScreenNavigator.java</span></div><h1>ScreenNavigator.java</h1><pre class="source lang-java linenums">package screens;
+
+import java.util.Stack;
+
+import javax.swing.JFrame;
+
+/**
+ * 화면 네비게이션 히스토리를 관리하는 싱글톤 클래스
+ * 뒤로가기 기능을 위해 이전 화면들을 스택으로 관리
+ */
+public class ScreenNavigator {
+    
+    private static ScreenNavigator instance;
+    private final Stack&lt;ScreenInfo&gt; history;
+    
+<span class="fc" id="L16">    private ScreenNavigator() {</span>
+<span class="fc" id="L17">        history = new Stack&lt;&gt;();</span>
+<span class="fc" id="L18">    }</span>
+    
+    public static ScreenNavigator getInstance() {
+<span class="fc bfc" id="L21" title="All 2 branches covered.">        if (instance == null) {</span>
+<span class="fc" id="L22">            instance = new ScreenNavigator();</span>
+        }
+<span class="fc" id="L24">        return instance;</span>
+    }
+    
+    /**
+     * 현재 화면을 히스토리에 추가
+     * Mainmenu인 경우 히스토리를 초기화하고 추가
+     */
+    public void push(String screenName, Object... params) {
+        // Mainmenu로 가는 경우 히스토리 초기화
+<span class="pc bpc" id="L33" title="1 of 2 branches missed.">        if (&quot;Mainmenu&quot;.equals(screenName)) {</span>
+<span class="nc" id="L34">            history.clear();</span>
+        }
+<span class="fc" id="L36">        history.push(new ScreenInfo(screenName, params));</span>
+<span class="fc" id="L37">    }</span>
+    
+    /**
+     * 이전 화면으로 돌아가기
+     */
+    public void goBack(JFrame currentScreen) {
+<span class="pc bpc" id="L43" title="1 of 2 branches missed.">        if (currentScreen != null) {</span>
+<span class="fc" id="L44">            currentScreen.dispose();</span>
+        }
+        
+<span class="pc bpc" id="L47" title="1 of 2 branches missed.">        if (!history.isEmpty()) {</span>
+<span class="fc" id="L48">            history.pop(); // 현재 화면 제거</span>
+            
+<span class="pc bpc" id="L50" title="1 of 2 branches missed.">            if (!history.isEmpty()) {</span>
+<span class="fc" id="L51">                ScreenInfo previous = history.pop(); // 이전 화면도 스택에서 제거 (openScreen에서 다시 push됨)</span>
+<span class="fc" id="L52">                openScreen(previous);</span>
+<span class="fc" id="L53">            } else {</span>
+                // 히스토리가 비어있으면 메인 메뉴로
+<span class="nc" id="L55">                new Mainmenu().setVisible(true);</span>
+            }
+        } else {
+            // 히스토리가 없으면 메인 메뉴로
+<span class="nc" id="L59">            new Mainmenu().setVisible(true);</span>
+        }
+<span class="fc" id="L61">    }</span>
+    
+    /**
+     * 히스토리 초기화 (메인 메뉴로 돌아갈 때)
+     */
+    public void clear() {
+<span class="fc" id="L67">        history.clear();</span>
+<span class="fc" id="L68">    }</span>
+    
+    /**
+     * 새로운 플로우 시작 (이전 히스토리 무시)
+     */
+    public void startNewFlow(String screenName, Object... params) {
+<span class="nc" id="L74">        history.clear();</span>
+<span class="nc" id="L75">        push(screenName, params);</span>
+<span class="nc" id="L76">    }</span>
+    
+    /**
+     * ScreenInfo를 기반으로 화면 열기
+     */
+    private void openScreen(ScreenInfo info) {
+<span class="pc bpc" id="L82" title="6 of 8 branches missed.">        switch (info.screenName) {</span>
+<span class="nc" id="L83">            case &quot;Mainmenu&quot; -&gt; new Mainmenu().setVisible(true);</span>
+            
+            case &quot;ModeSelection&quot; -&gt; {
+<span class="nc bnc" id="L86" title="All 4 branches missed.">                boolean isBattle = info.params.length &gt; 0 &amp;&amp; (boolean) info.params[0];</span>
+<span class="nc" id="L87">                new ModeSelectionScreen(isBattle).setVisible(true);</span>
+<span class="nc" id="L88">            }</span>
+            
+            case &quot;DifficultySelection&quot; -&gt; {
+<span class="pc bpc" id="L91" title="2 of 4 branches missed.">                boolean isItemMode = info.params.length &gt; 0 &amp;&amp; (boolean) info.params[0];</span>
+<span class="pc bpc" id="L92" title="2 of 4 branches missed.">                boolean isBattleMode = info.params.length &gt; 1 &amp;&amp; (boolean) info.params[1];</span>
+<span class="pc bpc" id="L93" title="2 of 4 branches missed.">                boolean isTimeAttack = info.params.length &gt; 2 &amp;&amp; (boolean) info.params[2];</span>
+<span class="fc" id="L94">                new DifficultySelectionScreen(isItemMode, isBattleMode, isTimeAttack).setVisible(true);</span>
+<span class="fc" id="L95">            }</span>
+            
+<span class="nc" id="L97">            case &quot;MultiplaySelection&quot; -&gt; new MultiplaySelectionScreen().setVisible(true);</span>
+            
+<span class="fc" id="L99">            case &quot;HostJoin&quot; -&gt; new HostJoinScreen().setVisible(true);</span>
+            
+            case &quot;NetworkModeSelection&quot; -&gt; {
+<span class="nc bnc" id="L102" title="All 4 branches missed.">                boolean isHost = info.params.length &gt; 0 &amp;&amp; (boolean) info.params[0];</span>
+<span class="nc" id="L103">                new NetworkModeSelectionScreen(isHost).setVisible(true);</span>
+<span class="nc" id="L104">            }</span>
+            
+<span class="nc" id="L106">            case &quot;Settings&quot; -&gt; new SettingsScreen().setVisible(true);</span>
+            
+            default -&gt; {
+<span class="nc" id="L109">                System.err.println(&quot;Unknown screen: &quot; + info.screenName);</span>
+<span class="nc" id="L110">                new Mainmenu().setVisible(true);</span>
+            }
+        }
+<span class="fc" id="L113">    }</span>
+    
+    /**
+     * 화면 정보를 저장하는 내부 클래스
+     */
+    private static class ScreenInfo {
+        final String screenName;
+        final Object[] params;
+        
+<span class="fc" id="L122">        ScreenInfo(String screenName, Object... params) {</span>
+<span class="fc" id="L123">            this.screenName = screenName;</span>
+<span class="fc" id="L124">            this.params = params;</span>
+<span class="fc" id="L125">        }</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.11.202310140853</span></div></body></html>

@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="ko"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Server.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">se-tetris-team8</a> &gt; <a href="index.source.html" class="el_package">network</a> &gt; <span class="el_source">Server.java</span></div><h1>Server.java</h1><pre class="source lang-java linenums">package network;
+
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+import java.net.ServerSocket;
+import java.net.Socket;
+
+<span class="fc" id="L9">public class Server {</span>
+
+    private ServerSocket serverSocket;
+    private Socket clientSocket;
+    private ObjectInputStream in;
+    private ObjectOutputStream out;
+
+<span class="fc" id="L16">    private boolean connected = false;</span>
+
+    public boolean isConnected() {
+<span class="fc" id="L19">        return connected;</span>
+    }
+
+    public void start(int port) {
+<span class="fc" id="L23">        new Thread(() -&gt; {</span>
+            try {
+<span class="fc" id="L25">                System.out.println(&quot;[SERVER] 대기중... 포트: &quot; + port);</span>
+<span class="fc" id="L26">                serverSocket = new ServerSocket(port);</span>
+
+<span class="fc" id="L28">                clientSocket = serverSocket.accept();</span>
+<span class="fc" id="L29">                System.out.println(&quot;[SERVER] 클라이언트 연결됨!&quot;);</span>
+
+<span class="fc" id="L31">                out = new ObjectOutputStream(clientSocket.getOutputStream());</span>
+<span class="fc" id="L32">                in = new ObjectInputStream(clientSocket.getInputStream());</span>
+
+<span class="fc" id="L34">                connected = true;</span>
+
+<span class="fc" id="L36">                send(&quot;SERVER_CONNECTED&quot;);</span>
+
+                while (true) {
+<span class="nc" id="L39">                    Object msg = in.readObject();</span>
+<span class="nc" id="L40">                    System.out.println(&quot;[SERVER RECEIVED] &quot; + msg);</span>
+<span class="nc" id="L41">                }</span>
+
+<span class="fc" id="L43">            } catch (IOException | ClassNotFoundException e) {</span>
+<span class="fc" id="L44">                System.out.println(&quot;[SERVER] ERROR&quot;);</span>
+<span class="fc" id="L45">                e.printStackTrace();</span>
+<span class="fc" id="L46">                connected = false;</span>
+<span class="fc" id="L47">                close();</span>
+            }
+<span class="fc" id="L49">        }).start();</span>
+<span class="fc" id="L50">    }</span>
+
+    public void send(String msg) {
+<span class="pc bpc" id="L53" title="1 of 4 branches missed.">        if (!connected || out == null) return;</span>
+        try {
+<span class="fc" id="L55">            out.writeObject(msg);</span>
+<span class="fc" id="L56">            out.flush();</span>
+<span class="nc" id="L57">        } catch (IOException e) {</span>
+<span class="nc" id="L58">            System.out.println(&quot;[SERVER] 메시지 전송 실패&quot;);</span>
+<span class="fc" id="L59">        }</span>
+<span class="fc" id="L60">    }</span>
+
+    public void close() {
+        try {
+<span class="fc bfc" id="L64" title="All 2 branches covered.">            if (in != null) in.close();</span>
+<span class="fc bfc" id="L65" title="All 2 branches covered.">            if (out != null) out.close();</span>
+<span class="fc bfc" id="L66" title="All 2 branches covered.">            if (clientSocket != null) clientSocket.close();</span>
+<span class="fc bfc" id="L67" title="All 2 branches covered.">            if (serverSocket != null) serverSocket.close();</span>
+<span class="pc" id="L68">        } catch (IOException ignored) {}</span>
+<span class="fc" id="L69">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.11.202310140853</span></div></body></html>

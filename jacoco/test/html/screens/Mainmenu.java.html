@@ -1,0 +1,218 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="ko"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Mainmenu.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">se-tetris-team8</a> &gt; <a href="index.source.html" class="el_package">screens</a> &gt; <span class="el_source">Mainmenu.java</span></div><h1>Mainmenu.java</h1><pre class="source lang-java linenums">package screens;
+
+import java.awt.BorderLayout;
+import java.awt.Font;
+
+import javax.swing.JButton;
+import javax.swing.JFrame;
+import javax.swing.JPanel;
+import javax.swing.SwingUtilities;
+
+import core.Settings;
+import ranking.RankingBoard;
+
+public class Mainmenu extends JFrame {
+    
+    private final JButton[] buttons;
+<span class="fc" id="L17">    private int selectedIndex = 0;</span>
+
+<span class="fc" id="L19">    public Mainmenu() {</span>
+<span class="fc" id="L20">        int width = Settings.getWindowWidth();</span>
+<span class="fc" id="L21">        int height = Settings.getWindowHeight();</span>
+<span class="fc" id="L22">        int baseFontSize = Settings.getBaseFontSize();</span>
+<span class="fc" id="L23">        double scale = Settings.getScaleFactor();</span>
+        
+<span class="fc" id="L25">        javax.swing.UIManager.put(&quot;OptionPane.messageFont&quot;, new Font(&quot;Arial&quot;, Font.PLAIN, baseFontSize));</span>
+<span class="fc" id="L26">        javax.swing.UIManager.put(&quot;OptionPane.buttonFont&quot;, new Font(&quot;Arial&quot;, Font.PLAIN, (int)(baseFontSize * 0.89)));</span>
+        
+<span class="fc" id="L28">        setTitle(&quot;Tetris&quot;);</span>
+<span class="fc" id="L29">        setSize(width, height);</span>
+<span class="fc" id="L30">        setResizable(false);</span>
+<span class="fc" id="L31">        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);</span>
+<span class="fc" id="L32">        setLocationRelativeTo(null);</span>
+<span class="fc" id="L33">        setFocusable(true);</span>
+        
+        // 배경음악 재생 시작 (설정된 볼륨으로)
+<span class="fc" id="L36">        BackgroundMusicPlayer.getInstance().play(&quot;/music/MainBGM.wav&quot;, Settings.getMainMusicVolume());</span>
+        
+<span class="fc" id="L38">        JPanel mainPanel = new JPanel();</span>
+<span class="fc" id="L39">        mainPanel.setOpaque(false);</span>
+<span class="fc" id="L40">        mainPanel.setLayout(null);</span>
+        
+<span class="fc" id="L42">        int btnSingleW = (int)(70 * scale);</span>
+<span class="fc" id="L43">        int btnSingleH = (int)(75 * scale);</span>
+<span class="fc" id="L44">        int btnMultiW = (int)(80 * scale);</span>
+<span class="fc" id="L45">        int btnMultiH = (int)(80 * scale);</span>
+<span class="fc" id="L46">        int btnRankingW = (int)(70 * scale);</span>
+<span class="fc" id="L47">        int btnRankingH = (int)(75 * scale);</span>
+<span class="fc" id="L48">        int btnHowtoW = (int)(80 * scale);</span>
+<span class="fc" id="L49">        int btnHowtoH = (int)(60 * scale);</span>
+<span class="fc" id="L50">        int btnSettingsW = (int)(70 * scale);</span>
+<span class="fc" id="L51">        int btnSettingsH = (int)(70 * scale);</span>
+<span class="fc" id="L52">        int btnExitW = (int)(65 * scale);</span>
+<span class="fc" id="L53">        int btnExitH = (int)(60 * scale);</span>
+        
+<span class="fc" id="L55">        JButton singleplayButton = addButton(mainPanel, &quot;/images/SinglePlayButton.png&quot;, </span>
+            btnSingleW, btnSingleH, 
+            (int)(width / 2.0 + 10), (int)(height / 2.0 - 35 * scale));
+<span class="fc" id="L58">        singleplayButton.addActionListener(e -&gt; {</span>
+<span class="nc" id="L59">            dispose(); // 메인메뉴 닫기</span>
+<span class="nc" id="L60">            new ModeSelectionScreen().setVisible(true);</span>
+<span class="nc" id="L61">        });</span>
+        
+<span class="fc" id="L63">        JButton multiplayButton = addButton(mainPanel, &quot;/images/MultiPlayButton.png&quot;, </span>
+            btnMultiW, btnMultiH, 
+            (int)(width / 2.0 + 100 * scale), (int)(height / 2.0 - 40 * scale));
+<span class="fc" id="L66">        multiplayButton.addActionListener(e -&gt; {</span>
+<span class="nc" id="L67">            dispose(); // 메인메뉴 닫기</span>
+<span class="nc" id="L68">            new MultiplaySelectionScreen().setVisible(true);</span>
+<span class="nc" id="L69">        });</span>
+            
+<span class="fc" id="L71">        JButton rankingBoardButton = addButton(mainPanel, &quot;/images/RankingboardButton.png&quot;, </span>
+            btnRankingW, btnRankingH, 
+            (int)(width / 2.0 + 200 * scale), (int)(height / 2.0 - 32 * scale));
+<span class="fc" id="L74">        rankingBoardButton.addActionListener(e -&gt; {</span>
+<span class="nc" id="L75">            RankingBoard rankingBoard = new RankingBoard();</span>
+<span class="nc" id="L76">            rankingBoard.setVisible(true); // 모달이므로 이 줄이 끝나기 전까지 다른 창 클릭 불가</span>
+<span class="nc" id="L77">        });</span>
+            
+<span class="fc" id="L79">        JButton howtoplayButton = addButton(mainPanel, &quot;/images/HowtoplayButton.png&quot;, </span>
+            btnHowtoW, btnHowtoH, 
+            (int)(width / 2.0 + 5 * scale), (int)(height / 2.0 + 65 * scale));
+<span class="fc" id="L82">        howtoplayButton.addActionListener(e -&gt; {</span>
+<span class="nc" id="L83">            HowToPlayScreen howToPlayScreen = new HowToPlayScreen();</span>
+<span class="nc" id="L84">            howToPlayScreen.setVisible(true); // 모달이므로 창이 닫힐 때까지 메인메뉴 클릭 불가</span>
+<span class="nc" id="L85">        });</span>
+            
+<span class="fc" id="L87">        JButton settingsButton = addButton(mainPanel, &quot;/images/SettingButton.png&quot;, </span>
+            btnSettingsW, btnSettingsH, 
+            (int)(width / 2.0 + 105 * scale), (int)(height / 2.0 + 60 * scale));
+<span class="pc" id="L90">        settingsButton.addActionListener(e -&gt; openSettings());</span>
+        
+<span class="fc" id="L92">        JButton exitButton = addButton(mainPanel, &quot;/images/ExitButton.png&quot;, </span>
+            btnExitW, btnExitH, 
+            (int)(width / 2.0 + 204 * scale), (int)(height / 2.0 + 63 * scale));
+<span class="fc" id="L95">        exitButton.addActionListener(e -&gt; {</span>
+<span class="nc" id="L96">            BackgroundMusicPlayer.getInstance().stop(); // 음악 정지</span>
+<span class="nc" id="L97">            System.exit(0); // 프로그램 종료</span>
+<span class="nc" id="L98">        });</span>
+        
+<span class="fc" id="L100">        BackgroundPanel bg = new BackgroundPanel(&quot;images/MainScreen.png&quot;);</span>
+<span class="fc" id="L101">        bg.setLayout(new BorderLayout());</span>
+<span class="fc" id="L102">        bg.add(mainPanel, BorderLayout.CENTER);</span>
+<span class="fc" id="L103">        setContentPane(bg);</span>
+        
+        // 버튼 배열 초기화 (키보드 네비게이션용)
+<span class="fc" id="L106">        buttons = new JButton[]{singleplayButton, multiplayButton, rankingBoardButton, </span>
+                                 howtoplayButton, settingsButton, exitButton};
+        
+        // 모든 버튼의 포커스 비활성화 (프레임만 키 이벤트를 받도록)
+<span class="fc bfc" id="L110" title="All 2 branches covered.">        for (JButton btn : buttons) {</span>
+<span class="fc" id="L111">            btn.setFocusable(false);</span>
+        }
+        
+        // 초기 포커스 설정
+<span class="fc" id="L115">        updateButtonFocus();</span>
+        
+        // 키보드 리스너 추가
+<span class="fc" id="L118">        addKeyListener(new java.awt.event.KeyAdapter() {</span>
+            @Override
+            public void keyPressed(java.awt.event.KeyEvent e) {
+<span class="nc" id="L121">                handleKeyPress(e.getKeyCode());</span>
+<span class="nc" id="L122">            }</span>
+        });
+        
+<span class="fc" id="L125">        setFocusable(true);</span>
+<span class="fc" id="L126">        requestFocusInWindow();</span>
+<span class="fc" id="L127">    }</span>
+    
+    private void handleKeyPress(int keyCode) {
+<span class="pc bpc" id="L130" title="2 of 6 branches missed.">        switch (keyCode) {</span>
+            case java.awt.event.KeyEvent.VK_LEFT -&gt; {
+                // 왼쪽으로 이동
+<span class="fc bfc" id="L133" title="All 2 branches covered.">                if (selectedIndex == 1) selectedIndex = 0; // multi -&gt; single</span>
+<span class="fc bfc" id="L134" title="All 2 branches covered.">                else if (selectedIndex == 2) selectedIndex = 1; // ranking -&gt; multi</span>
+<span class="fc bfc" id="L135" title="All 2 branches covered.">                else if (selectedIndex == 4) selectedIndex = 3; // settings -&gt; howto</span>
+<span class="fc bfc" id="L136" title="All 2 branches covered.">                else if (selectedIndex == 5) selectedIndex = 4; // exit -&gt; settings</span>
+<span class="fc" id="L137">                updateButtonFocus();</span>
+<span class="fc" id="L138">            }</span>
+                
+            case java.awt.event.KeyEvent.VK_RIGHT -&gt; {
+                // 오른쪽으로 이동
+<span class="fc bfc" id="L142" title="All 2 branches covered.">                if (selectedIndex == 0) selectedIndex = 1; // single -&gt; multi</span>
+<span class="fc bfc" id="L143" title="All 2 branches covered.">                else if (selectedIndex == 1) selectedIndex = 2; // multi -&gt; ranking</span>
+<span class="fc bfc" id="L144" title="All 2 branches covered.">                else if (selectedIndex == 3) selectedIndex = 4; // howto -&gt; settings</span>
+<span class="fc bfc" id="L145" title="All 2 branches covered.">                else if (selectedIndex == 4) selectedIndex = 5; // settings -&gt; exit</span>
+<span class="fc" id="L146">                updateButtonFocus();</span>
+<span class="fc" id="L147">            }</span>
+                
+            case java.awt.event.KeyEvent.VK_UP -&gt; {
+                // 위로 이동
+<span class="fc bfc" id="L151" title="All 2 branches covered.">                if (selectedIndex == 3) selectedIndex = 0; // howto -&gt; single</span>
+<span class="fc bfc" id="L152" title="All 2 branches covered.">                else if (selectedIndex == 4) selectedIndex = 1; // settings -&gt; multi</span>
+<span class="fc bfc" id="L153" title="All 2 branches covered.">                else if (selectedIndex == 5) selectedIndex = 2; // exit -&gt; ranking</span>
+<span class="fc" id="L154">                updateButtonFocus();</span>
+<span class="fc" id="L155">            }</span>
+                
+            case java.awt.event.KeyEvent.VK_DOWN -&gt; {
+                // 아래로 이동
+<span class="fc bfc" id="L159" title="All 2 branches covered.">                if (selectedIndex == 0) selectedIndex = 3; // single -&gt; howto</span>
+<span class="fc bfc" id="L160" title="All 2 branches covered.">                else if (selectedIndex == 1) selectedIndex = 4; // multi -&gt; settings</span>
+<span class="fc bfc" id="L161" title="All 2 branches covered.">                else if (selectedIndex == 2) selectedIndex = 5; // ranking -&gt; exit</span>
+<span class="fc" id="L162">                updateButtonFocus();</span>
+<span class="fc" id="L163">            }</span>
+                
+            case java.awt.event.KeyEvent.VK_SPACE, java.awt.event.KeyEvent.VK_ENTER -&gt; // 선택된 버튼 클릭
+<span class="nc" id="L166">                buttons[selectedIndex].doClick();</span>
+        }
+<span class="fc" id="L168">    }</span>
+    
+    private void updateButtonFocus() {
+<span class="fc bfc" id="L171" title="All 2 branches covered.">        for (int i = 0; i &lt; buttons.length; i++) {</span>
+<span class="fc bfc" id="L172" title="All 2 branches covered.">            if (i == selectedIndex) {</span>
+                // 선택된 버튼: 75% 불투명도
+<span class="pc bpc" id="L174" title="1 of 2 branches missed.">                if (buttons[i] instanceof javax.swing.JComponent) {</span>
+<span class="fc" id="L175">                    ((javax.swing.JComponent) buttons[i]).putClientProperty(&quot;opacity&quot;, 0.75f);</span>
+<span class="fc" id="L176">                    buttons[i].repaint();</span>
+                }
+            } else {
+                // 선택되지 않은 버튼: 100% 불투명도
+<span class="pc bpc" id="L180" title="1 of 2 branches missed.">                if (buttons[i] instanceof javax.swing.JComponent) {</span>
+<span class="fc" id="L181">                    ((javax.swing.JComponent) buttons[i]).putClientProperty(&quot;opacity&quot;, 1.0f);</span>
+<span class="fc" id="L182">                    buttons[i].repaint();</span>
+                }
+            }
+        }
+<span class="fc" id="L186">    }</span>
+
+    private JButton addButton(JPanel panel, String imagePath, int buttonWidth, int buttonHeight, int x, int y) {
+<span class="fc" id="L189">        JButton btn = ImageButtonUtils.createImageButton(imagePath, buttonWidth, buttonHeight);</span>
+<span class="fc" id="L190">        btn.setBounds(x, y, buttonWidth, buttonHeight);</span>
+<span class="fc" id="L191">        panel.add(btn);</span>
+<span class="fc" id="L192">        return btn;</span>
+    }
+
+    private void openSettings() {
+<span class="fc" id="L196">        int currentWidth = Settings.getWindowWidth();</span>
+<span class="fc" id="L197">        int currentHeight = Settings.getWindowHeight();</span>
+        
+<span class="fc" id="L199">        SettingsScreen settingsScreen = new SettingsScreen();</span>
+<span class="fc" id="L200">        settingsScreen.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);</span>
+<span class="fc" id="L201">        settingsScreen.setVisible(true);</span>
+        
+<span class="fc" id="L203">        settingsScreen.addWindowListener(new java.awt.event.WindowAdapter() {</span>
+            @Override
+            public void windowClosed(java.awt.event.WindowEvent e) {
+<span class="pc bpc" id="L206" title="1 of 2 branches missed.">                if (!Settings.getResolution().equals(currentWidth + &quot;x&quot; + currentHeight)) {</span>
+<span class="nc" id="L207">                    dispose();</span>
+<span class="nc" id="L208">                    SwingUtilities.invokeLater(() -&gt; new Mainmenu().setVisible(true));</span>
+                }
+<span class="fc" id="L210">            }</span>
+        });
+<span class="fc" id="L212">    }</span>
+    
+    public static void main(String[] args) {
+<span class="nc" id="L215">        SwingUtilities.invokeLater(() -&gt; new Mainmenu().setVisible(true));</span>
+<span class="nc" id="L216">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.11.202310140853</span></div></body></html>

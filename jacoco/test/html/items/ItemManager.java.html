@@ -1,0 +1,167 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="ko"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ItemManager.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">se-tetris-team8</a> &gt; <a href="index.source.html" class="el_package">items</a> &gt; <span class="el_source">ItemManager.java</span></div><h1>ItemManager.java</h1><pre class="source lang-java linenums">package items;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Random;
+
+/**
+ * 아이템 블록들을 관리하는 매니저 클래스
+ */
+public class ItemManager {
+    private static final int LINES_FOR_ITEM = 10; // DEBUG: 아이템 생성에 필요한 줄 수
+    
+    private final List&lt;ItemBlock&gt; availableItems;
+    private final Random random;
+    private int totalLinesCleared;
+    private final boolean itemMode;
+    
+<span class="fc" id="L18">    public ItemManager(boolean itemMode) {</span>
+<span class="fc" id="L19">        this.itemMode = itemMode;</span>
+<span class="fc" id="L20">        this.availableItems = new ArrayList&lt;&gt;();</span>
+<span class="fc" id="L21">        this.random = new Random();</span>
+<span class="fc" id="L22">        this.totalLinesCleared = 0;</span>
+        
+<span class="fc bfc" id="L24" title="All 2 branches covered.">        if (itemMode) {</span>
+<span class="fc" id="L25">            initializeItems();</span>
+        }
+<span class="fc" id="L27">    }</span>
+    
+    /**
+     * 사용 가능한 아이템 블록들을 초기화
+     * 
+     * 현재 사용 가능한 아이템들:
+     * - LineBlock: 한 줄을 자동으로 완성해주는 아이템
+     * - SlowBlock: 게임 속도를 느리게 만드는 아이템
+     * - TransformBlock: 다음 블록을 I 블록으로 변환하는 아이템
+     * - WeightBlock: 아래의 블록들을 지우며 낙하하는 무게추 아이템
+     * - BombBlock: 주변 블록을 폭파하는 아이템
+     */
+    private void initializeItems() {
+<span class="fc" id="L40">        availableItems.add(new LineBlock());</span>
+<span class="fc" id="L41">        availableItems.add(new SlowBlock());</span>
+<span class="fc" id="L42">        availableItems.add(new TransformBlock());</span>
+<span class="fc" id="L43">        availableItems.add(new WeightBlock());</span>
+<span class="fc" id="L44">        availableItems.add(new BombBlock());</span>
+<span class="fc" id="L45">    }</span>
+    
+    /**
+     * 줄이 삭제될 때 호출되어 아이템 생성 여부를 결정
+     * @param linesCleared 이번에 삭제된 줄 수
+     * @return 아이템 블록 (생성되지 않으면 null)
+     */
+    public void onLinesCleared(int linesCleared) {
+<span class="pc bpc" id="L53" title="1 of 4 branches missed.">        if (!itemMode || availableItems.isEmpty()) {</span>
+<span class="fc" id="L54">            return;</span>
+        }
+        
+<span class="fc" id="L57">        totalLinesCleared += linesCleared;</span>
+<span class="fc" id="L58">    }</span>
+    
+    public boolean shouldCreateItem() {
+<span class="fc bfc" id="L61" title="All 2 branches covered.">        return totalLinesCleared &gt;= LINES_FOR_ITEM;</span>
+    }
+    
+    public ItemBlock generateItem() {
+<span class="fc bfc" id="L65" title="All 2 branches covered.">        if (shouldCreateItem()) {</span>
+<span class="fc" id="L66">            totalLinesCleared = totalLinesCleared % LINES_FOR_ITEM;</span>
+<span class="fc" id="L67">            return getRandomItem();</span>
+        }
+<span class="fc" id="L69">        return null;</span>
+    }
+    
+    /**
+     * 랜덤한 아이템 블록을 반환 (매번 새로운 인스턴스 생성)
+     * @return 랜덤 아이템 블록 (사용 가능한 아이템이 없으면 null)
+     */
+    public ItemBlock getRandomItem() {
+<span class="fc bfc" id="L77" title="All 2 branches covered.">        if (availableItems.isEmpty()) {</span>
+<span class="fc" id="L78">            return null;</span>
+        }
+        
+        // 랜덤으로 아이템 타입 선택 후 새 인스턴스 생성
+<span class="fc" id="L82">        ItemBlock template = availableItems.get(random.nextInt(availableItems.size()));</span>
+        
+        // 타입별로 새 인스턴스 생성하여 반환 (상태 초기화)
+<span class="fc bfc" id="L85" title="All 2 branches covered.">        if (template instanceof LineBlock) {</span>
+<span class="fc" id="L86">            return new LineBlock();</span>
+<span class="fc bfc" id="L87" title="All 2 branches covered.">        } else if (template instanceof SlowBlock) {</span>
+<span class="fc" id="L88">            return new SlowBlock();</span>
+<span class="pc bpc" id="L89" title="1 of 2 branches missed.">        } else if (template instanceof TransformBlock) {</span>
+<span class="nc" id="L90">            return new TransformBlock();</span>
+<span class="fc bfc" id="L91" title="All 2 branches covered.">        } else if (template instanceof WeightBlock) {</span>
+<span class="fc" id="L92">            return new WeightBlock();</span>
+<span class="pc bpc" id="L93" title="1 of 2 branches missed.">        } else if (template instanceof BombBlock) {</span>
+<span class="fc" id="L94">            return new BombBlock();</span>
+        }
+        
+<span class="nc" id="L97">        return null;</span>
+    }
+    
+    /**
+     * 특정 아이템 블록을 이름으로 검색
+     * @param name 아이템 이름
+     * @return 아이템 블록 (없으면 null)
+     */
+    public ItemBlock getItemByName(String name) {
+<span class="fc" id="L106">        return availableItems.stream()</span>
+<span class="fc" id="L107">                .filter(item -&gt; item.getName().equals(name))</span>
+<span class="fc" id="L108">                .findFirst()</span>
+<span class="fc" id="L109">                .orElse(null);</span>
+    }
+    
+    /**
+     * 사용 가능한 모든 아이템 블록 목록을 반환
+     * @return 아이템 블록 리스트
+     */
+    public List&lt;ItemBlock&gt; getAvailableItems() {
+<span class="fc" id="L117">        return new ArrayList&lt;&gt;(availableItems);</span>
+    }
+    
+    /**
+     * 아이템 모드 여부를 반환
+     * @return 아이템 모드 활성화 여부
+     */
+    public boolean isItemMode() {
+<span class="fc" id="L125">        return itemMode;</span>
+    }
+    
+    /**
+     * 현재까지 삭제된 총 줄 수를 반환
+     * @return 총 삭제 줄 수
+     */
+    public int getTotalLinesCleared() {
+<span class="fc" id="L133">        return totalLinesCleared;</span>
+    }
+    
+    /**
+     * 아이템 매니저 상태를 초기화 (게임 재시작용)
+     */
+    public void reset() {
+<span class="fc" id="L140">        totalLinesCleared = 0;</span>
+<span class="fc" id="L141">    }</span>
+    
+    /**
+     * 다음 아이템 생성까지 필요한 줄 수를 반환
+     * @return 다음 아이템까지 남은 줄 수
+     */
+    public int getLinesUntilNextItem() {
+<span class="fc bfc" id="L148" title="All 2 branches covered.">        if (!itemMode) {</span>
+<span class="fc" id="L149">            return -1; // 아이템 모드가 아닌 경우</span>
+        }
+        
+<span class="fc" id="L152">        return LINES_FOR_ITEM - (totalLinesCleared % LINES_FOR_ITEM);</span>
+    }
+    
+    /**
+     * 현재 아이템 매니저의 상태 정보를 문자열로 반환 (디버깅용)
+     * @return 상태 정보 문자열
+     */
+    public String getStatusInfo() {
+<span class="fc" id="L160">        return String.format(&quot;ItemManager[mode=%s, totalLines=%d, availableItems=%d, nextItem=%d]&quot;,</span>
+<span class="pc bpc" id="L161" title="1 of 2 branches missed.">                itemMode ? &quot;ON&quot; : &quot;OFF&quot;,</span>
+<span class="fc" id="L162">                totalLinesCleared,</span>
+<span class="fc" id="L163">                availableItems.size(),</span>
+<span class="fc" id="L164">                getLinesUntilNextItem());</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.11.202310140853</span></div></body></html>

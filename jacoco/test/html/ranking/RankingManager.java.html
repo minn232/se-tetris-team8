@@ -1,0 +1,128 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="ko"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>RankingManager.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">se-tetris-team8</a> &gt; <a href="index.source.html" class="el_package">ranking</a> &gt; <span class="el_source">RankingManager.java</span></div><h1>RankingManager.java</h1><pre class="source lang-java linenums">package ranking;
+
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+
+import javax.swing.JOptionPane;
+
+/**
+ * 랭킹 데이터 관리 클래스
+ * - 일반 모드와 아이템 모드의 랭킹을 분리하여 관리
+ * - 최대 10개의 랭킹 데이터를 파일에 저장/로드
+ */
+public class RankingManager {
+    private static final int MAX_RANKINGS = 10;
+    private static final String DATA_DIR = &quot;src/main/data/&quot;;
+    private static final String NORMAL_RANKING_FILE = &quot;normal_rankings.dat&quot;;
+    private static final String TIMEATTACK_RANKING_FILE = &quot;timeattack_rankings.dat&quot;;
+    private static final String ITEM_RANKING_FILE = &quot;item_rankings.dat&quot;;
+    
+    private static RankingManager normalInstance;
+    private static RankingManager timeAttackInstance;
+    private static RankingManager itemInstance;
+    
+    private ArrayList&lt;RankingEntry&gt; rankings;
+    private final String saveFilePath;
+
+<span class="fc" id="L35">    private RankingManager(String fileName) {</span>
+<span class="fc" id="L36">        ensureDataDirectoryExists();</span>
+<span class="fc" id="L37">        this.saveFilePath = DATA_DIR + fileName;</span>
+<span class="fc" id="L38">        this.rankings = loadRankings();</span>
+<span class="fc" id="L39">    }</span>
+
+    public static RankingManager getInstance(String fileName) {
+<span class="fc bfc" id="L42" title="All 2 branches covered.">        if (ITEM_RANKING_FILE.equals(fileName)) {</span>
+<span class="fc bfc" id="L43" title="All 2 branches covered.">            if (itemInstance == null) {</span>
+<span class="fc" id="L44">                itemInstance = new RankingManager(fileName);</span>
+            }
+<span class="fc" id="L46">            return itemInstance;</span>
+        }
+        
+<span class="fc bfc" id="L49" title="All 2 branches covered.">        if (TIMEATTACK_RANKING_FILE.equals(fileName)) {</span>
+<span class="fc bfc" id="L50" title="All 2 branches covered.">            if (timeAttackInstance == null) {</span>
+<span class="fc" id="L51">                timeAttackInstance = new RankingManager(fileName);</span>
+            }
+<span class="fc" id="L53">            return timeAttackInstance;</span>
+        }
+        
+<span class="fc bfc" id="L56" title="All 2 branches covered.">        if (normalInstance == null) {</span>
+<span class="fc" id="L57">            normalInstance = new RankingManager(NORMAL_RANKING_FILE);</span>
+        }
+<span class="fc" id="L59">        return normalInstance;</span>
+    }
+
+    public static RankingManager getInstance() {
+<span class="fc" id="L63">        return getInstance(NORMAL_RANKING_FILE);</span>
+    }
+    
+    private void ensureDataDirectoryExists() {
+<span class="fc" id="L67">        File dataDir = new File(DATA_DIR);</span>
+<span class="pc bpc" id="L68" title="1 of 2 branches missed.">        if (!dataDir.exists()) {</span>
+<span class="nc" id="L69">            dataDir.mkdirs();</span>
+        }
+<span class="fc" id="L71">    }</span>
+
+    @SuppressWarnings(&quot;unchecked&quot;)
+    private ArrayList&lt;RankingEntry&gt; loadRankings() {
+<span class="fc" id="L75">        try (ObjectInputStream ois = new ObjectInputStream(new FileInputStream(saveFilePath))) {</span>
+<span class="fc" id="L76">            return (ArrayList&lt;RankingEntry&gt;) ois.readObject();</span>
+<span class="fc" id="L77">        } catch (FileNotFoundException e) {</span>
+<span class="fc" id="L78">            return new ArrayList&lt;&gt;();</span>
+<span class="nc" id="L79">        } catch (IOException | ClassNotFoundException e) {</span>
+<span class="nc" id="L80">            JOptionPane.showMessageDialog(</span>
+                null,
+<span class="nc" id="L82">                &quot;An error occurred while loading ranking data: &quot; + e.getMessage(),</span>
+                &quot;Error&quot;,
+                JOptionPane.ERROR_MESSAGE
+            );
+<span class="nc" id="L86">            return new ArrayList&lt;&gt;();</span>
+        }
+    }
+
+    private void saveRankings() {
+<span class="fc" id="L91">        try (ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream(saveFilePath))) {</span>
+<span class="fc" id="L92">            oos.writeObject(new ArrayList&lt;&gt;(rankings));</span>
+<span class="nc" id="L93">        } catch (IOException e) {</span>
+<span class="nc" id="L94">            JOptionPane.showMessageDialog(</span>
+                null,
+<span class="nc" id="L96">                &quot;An error occurred while saving ranking data: &quot; + e.getMessage(),</span>
+                &quot;Error&quot;,
+                JOptionPane.ERROR_MESSAGE
+            );
+<span class="fc" id="L100">        }</span>
+<span class="fc" id="L101">    }</span>
+
+    public void addEntry(RankingEntry entry) {
+<span class="fc" id="L104">        rankings.add(entry);</span>
+<span class="fc" id="L105">        Collections.sort(rankings);</span>
+<span class="fc bfc" id="L106" title="All 2 branches covered.">        if (rankings.size() &gt; MAX_RANKINGS) {</span>
+<span class="fc" id="L107">            rankings.subList(MAX_RANKINGS, rankings.size()).clear();</span>
+        }
+<span class="fc" id="L109">        saveRankings();</span>
+<span class="fc" id="L110">    }</span>
+
+    public boolean shouldInputName(int score) {
+<span class="fc bfc" id="L113" title="All 2 branches covered.">        if (rankings.size() &lt; MAX_RANKINGS) {</span>
+<span class="fc" id="L114">            return true;</span>
+        }
+<span class="pc bpc" id="L116" title="1 of 2 branches missed.">        return score &gt; rankings.get(MAX_RANKINGS - 1).getScore();</span>
+    }
+
+    public List&lt;RankingEntry&gt; getRankings() {
+<span class="fc" id="L120">        return new ArrayList&lt;&gt;(rankings);</span>
+    }
+
+    public void clearRankings() {
+<span class="fc" id="L124">        rankings.clear();</span>
+<span class="fc" id="L125">        saveRankings();</span>
+<span class="fc" id="L126">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.11.202310140853</span></div></body></html>

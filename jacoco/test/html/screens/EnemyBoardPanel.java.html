@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="ko"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>EnemyBoardPanel.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">se-tetris-team8</a> &gt; <a href="index.source.html" class="el_package">screens</a> &gt; <span class="el_source">EnemyBoardPanel.java</span></div><h1>EnemyBoardPanel.java</h1><pre class="source lang-java linenums">package screens;
+
+import java.awt.Color;
+import java.awt.Dimension;
+import java.awt.Graphics;
+
+import javax.swing.JPanel;
+
+import core.Position;
+import core.ShapeType;
+import core.Tetromino;
+
+public class EnemyBoardPanel extends JPanel {
+
+<span class="fc" id="L15">    private ShapeType[][] boardData = new ShapeType[20][10]; // 고정된 상대 보드 데이터</span>
+<span class="fc" id="L16">    private Tetromino enemyCurrent = null; // 상대 현재 블록</span>
+
+<span class="fc" id="L18">    private final int CELL = 30;</span>
+
+<span class="fc" id="L20">    public EnemyBoardPanel() {</span>
+<span class="fc" id="L21">        setPreferredSize(new Dimension(10 * CELL, 20 * CELL));</span>
+<span class="fc" id="L22">        setBackground(Color.BLACK);</span>
+<span class="fc" id="L23">    }</span>
+
+    /**
+     * 상대방 grid + 현재블록을 한 번에 업데이트
+     */
+    public void updateBoard(ShapeType[][] grid, Tetromino cur) {
+<span class="fc" id="L29">        this.boardData = grid;</span>
+<span class="fc" id="L30">        this.enemyCurrent = cur;</span>
+<span class="fc" id="L31">        repaint();</span>
+<span class="fc" id="L32">    }</span>
+
+    @Override
+    protected void paintComponent(Graphics g) {
+<span class="fc" id="L36">        super.paintComponent(g);</span>
+
+        // ---------------------------
+        // 1) 고정 블록(Grid) 렌더링
+        // ---------------------------
+<span class="fc bfc" id="L41" title="All 2 branches covered.">        for (int y = 0; y &lt; boardData.length; y++) {</span>
+<span class="fc bfc" id="L42" title="All 2 branches covered.">            for (int x = 0; x &lt; boardData[y].length; x++) {</span>
+<span class="fc" id="L43">                ShapeType s = boardData[y][x];</span>
+
+<span class="fc bfc" id="L45" title="All 2 branches covered.">                if (s != null) {</span>
+<span class="fc" id="L46">                    g.setColor(s.getColor());</span>
+<span class="fc" id="L47">                    g.fillRect(x * CELL, y * CELL, CELL, CELL);</span>
+                }
+
+                // Grid 라인
+<span class="fc" id="L51">                g.setColor(Color.DARK_GRAY);</span>
+<span class="fc" id="L52">                g.drawRect(x * CELL, y * CELL, CELL, CELL);</span>
+            }
+        }
+
+        // ---------------------------
+        // 2) 현재 Tetromino 렌더링
+        // ---------------------------
+<span class="fc bfc" id="L59" title="All 2 branches covered.">        if (enemyCurrent != null) {</span>
+<span class="fc" id="L60">            g.setColor(enemyCurrent.getShape().getColor());</span>
+
+<span class="fc bfc" id="L62" title="All 2 branches covered.">            for (Position p : enemyCurrent.getBlocks()) {</span>
+<span class="fc" id="L63">                int px = enemyCurrent.getX() + p.x;</span>
+<span class="fc" id="L64">                int py = enemyCurrent.getY() + p.y;</span>
+
+<span class="pc bpc" id="L66" title="2 of 8 branches missed.">                if (px &gt;= 0 &amp;&amp; px &lt; 10 &amp;&amp; py &gt;= 0 &amp;&amp; py &lt; 20) {</span>
+<span class="fc" id="L67">                    g.fillRect(px * CELL, py * CELL, CELL, CELL);</span>
+
+<span class="fc" id="L69">                    g.setColor(g.getColor().darker());</span>
+<span class="fc" id="L70">                    g.drawRect(px * CELL, py * CELL, CELL, CELL);</span>
+
+<span class="fc" id="L72">                    g.setColor(enemyCurrent.getShape().getColor());</span>
+                }
+            }
+        }
+<span class="fc" id="L76">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.11.202310140853</span></div></body></html>

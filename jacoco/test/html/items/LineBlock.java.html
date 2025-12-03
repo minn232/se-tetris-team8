@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="ko"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>LineBlock.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">se-tetris-team8</a> &gt; <a href="index.source.html" class="el_package">items</a> &gt; <span class="el_source">LineBlock.java</span></div><h1>LineBlock.java</h1><pre class="source lang-java linenums">package items;
+
+import java.awt.Color;
+import java.util.Random;
+
+import core.Board;
+import core.ShapeType;
+
+/**
+ * 라인 아이템 블록 - 'L' 문자가 있는 블록이 배치된 줄의 모든 블록을 제거
+ * 랜덤한 테트로미노 형태를 가지며, 회전에 따라 'L' 위치가 변경됨
+ */
+public class LineBlock implements ItemBlock {
+    
+<span class="fc" id="L15">    private static final Random random = new Random();</span>
+    // GRAY를 제외한 실제 스폰 가능한 블록들
+<span class="fc" id="L17">    private static final ShapeType[] SPAWNABLE_SHAPES = {ShapeType.I, ShapeType.O, ShapeType.T, ShapeType.S, ShapeType.Z, ShapeType.J, ShapeType.L};</span>
+    private final ShapeType baseShape;
+    private final int lineBlockIndexInRotation0;
+    private int rotation;
+    
+<span class="fc" id="L22">    public LineBlock() {</span>
+<span class="fc" id="L23">        this.baseShape = SPAWNABLE_SHAPES[random.nextInt(SPAWNABLE_SHAPES.length)];</span>
+<span class="fc" id="L24">        this.rotation = 0;</span>
+        
+<span class="fc" id="L26">        int blockCount = baseShape.getOffsets(0).length;</span>
+<span class="fc" id="L27">        this.lineBlockIndexInRotation0 = random.nextInt(blockCount);</span>
+<span class="fc" id="L28">    }</span>
+    
+    @Override
+    public String getName() {
+<span class="fc" id="L32">        return &quot;Line&quot;;</span>
+    }
+    
+    @Override
+    public Color getColor() {
+<span class="fc" id="L37">        return new Color(100, 255, 100);</span>
+    }
+    
+    @Override
+    public ShapeType getBaseShape() {
+<span class="fc" id="L42">        return baseShape;</span>
+    }
+    
+    @Override
+    public void activateEffect(Object boardObj, int x, int y) {
+        // Board에서 특별한 처리 필요
+<span class="fc" id="L48">    }</span>
+    
+    public void activateEffectAtPosition(Object boardObj, int x, int y, int blockIndex) {
+<span class="fc bfc" id="L51" title="All 2 branches covered.">        if (!(boardObj instanceof Board)) return;</span>
+        
+<span class="fc bfc" id="L53" title="All 2 branches covered.">        if (blockIndex == getLineBlockIndex()) {</span>
+<span class="fc" id="L54">            Board board = (Board) boardObj;</span>
+<span class="fc" id="L55">            board.clearLine(y);</span>
+        }
+<span class="fc" id="L57">    }</span>
+    
+    @Override
+    public String getDescription() {
+<span class="fc" id="L61">        return &quot;전체 가로줄을 제거합니다&quot;;</span>
+    }
+    
+    @Override
+    public char getSymbol() {
+<span class="fc" id="L66">        return 'L';</span>
+    }
+    
+    public char getBlockSymbol(int blockIndexInCurrentRotation) {
+        // 현재 rotation에서의 인덱스가 라인 블록 인덱스와 일치하는지 확인
+<span class="fc bfc" id="L71" title="All 2 branches covered.">        return (blockIndexInCurrentRotation == getLineBlockIndex()) ? 'L' : ' ';</span>
+    }
+    
+    public int getLineBlockIndex() {
+<span class="fc" id="L75">        return baseShape.getMappedIndex(rotation, lineBlockIndexInRotation0);</span>
+    }
+    
+    public void setRotation(int rotation) {
+<span class="fc" id="L79">        this.rotation = rotation;</span>
+<span class="fc" id="L80">    }</span>
+    
+    public int getRotation() {
+<span class="fc" id="L83">        return rotation;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.11.202310140853</span></div></body></html>

@@ -230,6 +230,7 @@ public class P2PBattlePanelTest {
         if (GraphicsEnvironment.isHeadless()) return;
         
         Method m = P2PBattlePanel.class.getDeclaredMethod("checkBlockPlacement");
+        m.setAccessible(true);
         assertDoesNotThrow(() -> m.invoke(panel));
     }
     
@@ -250,6 +251,7 @@ public class P2PBattlePanelTest {
         Board b = (Board) boardField.get(panel);
         
         Method m = P2PBattlePanel.class.getDeclaredMethod("checkFlashing", Board.class, boolean.class);
+        m.setAccessible(true);
         assertDoesNotThrow(() -> m.invoke(panel, b, true));
     }
     
@@ -266,6 +268,7 @@ public class P2PBattlePanelTest {
         if (GraphicsEnvironment.isHeadless()) return;
         
         Method m = P2PBattlePanel.class.getDeclaredMethod("sendBoardState");
+        m.setAccessible(true);
         assertDoesNotThrow(() -> m.invoke(panel));
     }
     
@@ -277,6 +280,7 @@ public class P2PBattlePanelTest {
         pattern.add(new ShapeType[]{ShapeType.I, null, ShapeType.O, null, null, null, null, null, null, null});
         
         Method m = P2PBattlePanel.class.getDeclaredMethod("sendAttackPattern", List.class);
+        m.setAccessible(true);
         assertDoesNotThrow(() -> m.invoke(panel, pattern));
     }
     
@@ -312,6 +316,7 @@ public class P2PBattlePanelTest {
         String json = "{\"grid\":[[\"0\",\"0\",\"0\",\"0\",\"0\",\"0\",\"0\",\"0\",\"0\",\"0\"]],\"cur\":null,\"score\":100}";
         
         Method m = P2PBattlePanel.class.getDeclaredMethod("updateEnemyBoard", String.class);
+        m.setAccessible(true);
         assertDoesNotThrow(() -> m.invoke(panel, json));
     }
     
@@ -326,6 +331,7 @@ public class P2PBattlePanelTest {
         chatInput.setText("");
         
         Method m = P2PBattlePanel.class.getDeclaredMethod("sendChat");
+        m.setAccessible(true);
         assertDoesNotThrow(() -> m.invoke(panel));
         assertEquals("", chatInput.getText());
     }
@@ -344,6 +350,7 @@ public class P2PBattlePanelTest {
         javax.swing.JTextArea chatArea = (javax.swing.JTextArea) chatAreaField.get(panel);
         
         Method m = P2PBattlePanel.class.getDeclaredMethod("sendChat");
+        m.setAccessible(true);
         m.invoke(panel);
         
         assertTrue(chatArea.getText().contains("ME: Test message"));
@@ -357,6 +364,7 @@ public class P2PBattlePanelTest {
         String json = "{\"rows\":[[\"I\",\"0\",\"O\",\"0\",\"0\",\"0\",\"0\",\"0\",\"0\",\"0\"]]}";
         
         Method m = P2PBattlePanel.class.getDeclaredMethod("parseAttackPattern", String.class);
+        m.setAccessible(true);
         
         @SuppressWarnings("unchecked")
         List<ShapeType[]> result = (List<ShapeType[]>) m.invoke(panel, json);
@@ -384,6 +392,7 @@ public class P2PBattlePanelTest {
         
         Method m = P2PBattlePanel.class.getDeclaredMethod("fillCell",
                 java.awt.Graphics2D.class, int.class, int.class, Color.class);
+        m.setAccessible(true);
 
         assertDoesNotThrow(() -> m.invoke(panel, g2, 0, 0, Color.RED));
         g2.dispose();
@@ -402,6 +411,7 @@ public class P2PBattlePanelTest {
         
         Method m = P2PBattlePanel.class.getDeclaredMethod("drawBoard",
                 java.awt.Graphics2D.class, Board.class, int[].class);
+        m.setAccessible(true);
 
         assertDoesNotThrow(() -> m.invoke(panel, g2, b, null));
         g2.dispose();
@@ -420,6 +430,7 @@ public class P2PBattlePanelTest {
         
         Method m = P2PBattlePanel.class.getDeclaredMethod("drawCurrent",
                 java.awt.Graphics2D.class, Board.class);
+        m.setAccessible(true);
 
         assertDoesNotThrow(() -> m.invoke(panel, g2, b));
         g2.dispose();
@@ -434,6 +445,7 @@ public class P2PBattlePanelTest {
         
         Method m = P2PBattlePanel.class.getDeclaredMethod("drawGrid",
                 java.awt.Graphics2D.class);
+        m.setAccessible(true);
 
         assertDoesNotThrow(() -> m.invoke(panel, g2));
         g2.dispose();
@@ -452,6 +464,7 @@ public class P2PBattlePanelTest {
         
         Method m = P2PBattlePanel.class.getDeclaredMethod("drawSidebar",
                 java.awt.Graphics2D.class, Board.class, int.class, String.class);
+        m.setAccessible(true);
 
         assertDoesNotThrow(() -> m.invoke(panel, g2, b, 0, "YOU"));
         g2.dispose();
@@ -470,6 +483,7 @@ public class P2PBattlePanelTest {
         
         Method m = P2PBattlePanel.class.getDeclaredMethod("drawNextPreview",
                 java.awt.Graphics2D.class, int.class, int.class, Board.class);
+        m.setAccessible(true);
 
         assertDoesNotThrow(() -> m.invoke(panel, g2, 100, 100, b));
         g2.dispose();
@@ -484,6 +498,7 @@ public class P2PBattlePanelTest {
         
         Method m = P2PBattlePanel.class.getDeclaredMethod("drawPaused",
                 java.awt.Graphics2D.class);
+        m.setAccessible(true);
 
         assertDoesNotThrow(() -> m.invoke(panel, g2));
         g2.dispose();
@@ -502,6 +517,7 @@ public class P2PBattlePanelTest {
         
         Method m = P2PBattlePanel.class.getDeclaredMethod("drawWinner",
                 java.awt.Graphics2D.class);
+        m.setAccessible(true);
 
         assertDoesNotThrow(() -> m.invoke(panel, g2));
         g2.dispose();
